@@ -11,10 +11,7 @@ import org.json.JSONObject
 import java.util.concurrent.TimeUnit
 
 class TimetableService(
-  private val client: OkHttpClient = OkHttpClient.Builder()
-    .connectTimeout(15, TimeUnit.SECONDS)
-    .readTimeout(15, TimeUnit.SECONDS)
-    .build()
+  private val client: OkHttpClient = OfflineCache.getClient()
 ) {
 
   private val jsonMediaType = "application/json; charset=utf-8".toMediaType()

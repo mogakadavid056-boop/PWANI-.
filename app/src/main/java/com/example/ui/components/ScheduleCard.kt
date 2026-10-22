@@ -33,6 +33,8 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.platform.LocalContext
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
@@ -91,16 +93,24 @@ fun ScheduleCard(
               onDismissRequest = { showMenu = false },
               modifier = Modifier.background(DarkSurface).border(1.dp, DarkBorder, RoundedCornerShape(8.dp))
             ) {
+              val isOnline by com.example.data.NetworkMonitor.isOnline.collectAsStateWithLifecycle()
+              val context = LocalContext.current
               DropdownMenuItem(
                 text = { Text("Edit Class", color = TextPrimary, fontSize = 13.sp) },
                 leadingIcon = { Icon(Icons.Default.Edit, contentDescription = null, tint = GoldPrimary, modifier = Modifier.size(16.dp)) },
-                onClick = { showMenu = false; onEdit() },
+                onClick = {
+                  showMenu = false
+                  if (!isOnline) OfflineToastHelper.show(context) else onEdit()
+                },
                 modifier = Modifier.testTag("edit_schedule_btn_${schedule.id}")
               )
               DropdownMenuItem(
                 text = { Text("Delete Class", color = ErrorRed, fontSize = 13.sp) },
                 leadingIcon = { Icon(Icons.Default.Delete, contentDescription = null, tint = ErrorRed, modifier = Modifier.size(16.dp)) },
-                onClick = { showMenu = false; onDelete() },
+                onClick = {
+                  showMenu = false
+                  if (!isOnline) OfflineToastHelper.show(context) else onDelete()
+                },
                 modifier = Modifier.testTag("delete_schedule_btn_${schedule.id}")
               )
             }

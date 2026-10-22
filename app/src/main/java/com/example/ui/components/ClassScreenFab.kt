@@ -11,9 +11,12 @@ import androidx.compose.material.icons.filled.PostAdd
 import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.Icon
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.platform.testTag
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.compose.ui.unit.dp
 import com.example.ui.screens.MoreSubView
 import com.example.ui.theme.DarkBackground
@@ -40,15 +43,22 @@ fun BoxScope.ClassScreenFab(
     ClassTab.More -> (moreSubView == MoreSubView.Materials || moreSubView == MoreSubView.Polls) && isStaff
   }
 
+  val isOnline by com.example.data.NetworkMonitor.isOnline.collectAsStateWithLifecycle()
+  val context = androidx.compose.ui.platform.LocalContext.current
+
   if (showFab) {
     FloatingActionButton(
       onClick = {
-        when (selectedTab) {
-          ClassTab.Notices -> onNavigateToPostNotice()
-          ClassTab.Attendance -> onStartAttendanceClick()
-          ClassTab.Timetable -> onAddScheduleClick()
-          ClassTab.Groups -> onCreateGroupClick()
-          ClassTab.More -> if (moreSubView == MoreSubView.Materials) onAddMaterialClick() else if (moreSubView == MoreSubView.Polls) onCreatePollClick()
+        if (!isOnline) {
+          OfflineToastHelper.show(context)
+        } else {
+          when (selectedTab) {
+            ClassTab.Notices -> onNavigateToPostNotice()
+            ClassTab.Attendance -> onStartAttendanceClick()
+            ClassTab.Timetable -> onAddScheduleClick()
+            ClassTab.Groups -> onCreateGroupClick()
+            ClassTab.More -> if (moreSubView == MoreSubView.Materials) onAddMaterialClick() else if (moreSubView == MoreSubView.Polls) onCreatePollClick()
+          }
         }
       },
       containerColor = GoldPrimary,
@@ -57,6 +67,7 @@ fun BoxScope.ClassScreenFab(
       modifier = Modifier
         .align(Alignment.BottomEnd)
         .padding(end = 20.dp, bottom = 80.dp)
+        .then(if (!isOnline) Modifier.alpha(0.5f) else Modifier)
         .testTag("class_screen_fab")
     ) {
       val fabIcon = when (selectedTab) {

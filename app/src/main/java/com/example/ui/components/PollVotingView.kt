@@ -23,10 +23,14 @@ import androidx.compose.material3.RadioButton
 import androidx.compose.material3.RadioButtonDefaults
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -103,12 +107,22 @@ fun PollVotingView(
 
     Spacer(modifier = Modifier.height(14.dp))
 
+    val isOnline by com.example.data.NetworkMonitor.isOnline.collectAsStateWithLifecycle()
+    val context = LocalContext.current
     Button(
-      onClick = onCastVote,
-      enabled = !selectedOptionId.isNullOrBlank() && !isActionLoading,
+      onClick = {
+        if (!isOnline) {
+          OfflineToastHelper.show(context)
+        } else {
+          onCastVote()
+        }
+      },
+      enabled = if (!isOnline) true else (!selectedOptionId.isNullOrBlank() && !isActionLoading),
       shape = RoundedCornerShape(10.dp),
       colors = ButtonDefaults.buttonColors(containerColor = GoldPrimary, contentColor = DarkTextOnGold),
-      modifier = Modifier.fillMaxWidth().height(48.dp).testTag("cast_vote_button")
+      modifier = Modifier.fillMaxWidth().height(48.dp)
+        .then(if (!isOnline) Modifier.alpha(0.5f) else Modifier)
+        .testTag("cast_vote_button")
     ) {
       if (isActionLoading) {
         CircularProgressIndicator(color = DarkTextOnGold, modifier = Modifier.size(20.dp), strokeWidth = 2.dp)

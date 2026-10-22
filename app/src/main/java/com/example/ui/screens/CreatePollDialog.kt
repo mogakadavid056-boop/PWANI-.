@@ -39,8 +39,10 @@ import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.testTag
@@ -231,8 +233,14 @@ fun CreatePollDialog(
             Text("Cancel", color = com.example.ui.theme.TextPrimary, fontSize = 16.sp, fontWeight = FontWeight.SemiBold)
           }
           Spacer(modifier = Modifier.width(10.dp))
+          val isOnline by com.example.data.NetworkMonitor.isOnline.collectAsStateWithLifecycle()
+          val context = androidx.compose.ui.platform.LocalContext.current
           Button(
             onClick = {
+              if (!isOnline) {
+                com.example.ui.components.OfflineToastHelper.show(context)
+                return@Button
+              }
               if (question.isBlank()) {
                 localError = "Please enter a question"
                 return@Button
@@ -247,7 +255,7 @@ fun CreatePollDialog(
             enabled = !isLoading,
             shape = RoundedCornerShape(10.dp),
             colors = ButtonDefaults.buttonColors(containerColor = GoldPrimary, contentColor = com.example.ui.theme.DarkTextOnGold),
-            modifier = Modifier.defaultMinSize(minHeight = 48.dp).testTag("create_poll_submit_btn")
+            modifier = Modifier.defaultMinSize(minHeight = 48.dp).alpha(if (!isOnline) 0.5f else 1f).testTag("create_poll_submit_btn")
           ) {
             if (isLoading) {
               CircularProgressIndicator(color = com.example.ui.theme.DarkTextOnGold, modifier = Modifier.size(20.dp), strokeWidth = 2.dp)

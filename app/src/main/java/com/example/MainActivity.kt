@@ -38,6 +38,8 @@ class MainActivity : ComponentActivity() {
   override fun onCreate(savedInstanceState: Bundle?) {
     super.onCreate(savedInstanceState)
     enableEdgeToEdge()
+    com.example.data.OfflineCache.appContext = applicationContext
+    com.example.data.NetworkMonitor.initialize(applicationContext)
     setContent {
       ClassRepTheme {
         val authUiState by authViewModel.uiState.collectAsStateWithLifecycle()
@@ -85,7 +87,50 @@ fun ClassRepApp(
   val universityUiState by universityViewModel.uiState.collectAsStateWithLifecycle()
   val pollsUiState by pollsViewModel.uiState.collectAsStateWithLifecycle()
   val adminUiState by adminViewModel.uiState.collectAsStateWithLifecycle()
+  val isOnline by com.example.data.NetworkMonitor.isOnline.collectAsStateWithLifecycle()
+  val lastUpdatedText by com.example.data.OfflineCache.lastUpdatedFlow.collectAsStateWithLifecycle()
   val coroutineScope = rememberCoroutineScope()
+
+  LaunchedEffect(isOnline) {
+    if (isOnline) {
+      com.example.data.OfflineCache.clearLastUpdated()
+      val session = uiState.session
+      if (session != null) {
+        when (uiState.currentScreen) {
+          Screen.Home -> {
+            classesViewModel.loadClasses(session)
+            noticesViewModel.loadLatestAnnouncements(session)
+          }
+          Screen.ClassDetail -> {
+            val sel = noticesUiState.selectedClass
+            if (sel != null) {
+              val isStaff = session.role.equals("Lecturer", ignoreCase = true) || session.role.equals("Class Representative", ignoreCase = true)
+              noticesViewModel.selectClassAndLoad(sel, session)
+              attendanceViewModel.loadSessions(sel.id, isStaff, session)
+              timetableViewModel.loadSchedules(sel.id, session)
+              materialsViewModel.loadMaterials(sel.id, session)
+              pollsViewModel.loadPolls(sel.id, session)
+              groupsViewModel.loadGroups(sel.id, session)
+            }
+          }
+          Screen.Profile -> {
+            universityViewModel.loadProfile(session)
+            universityViewModel.loadSchools(session.accessToken)
+          }
+          Screen.ManageMembers -> {
+            val sel = noticesUiState.selectedClass
+            if (sel != null) {
+              membersViewModel.loadMembers(sel.id, session)
+            }
+          }
+          Screen.Waiting -> {
+            classesViewModel.loadClasses(session)
+          }
+          else -> {}
+        }
+      }
+    }
+  }
 
   val openClassDirectly: (ClassItem) -> Unit = { classItem ->
     onSaveLastClass(classItem.id)
@@ -184,6 +229,10 @@ fun ClassRepApp(
   }
 
   androidx.compose.foundation.layout.Column(modifier = Modifier.fillMaxSize()) {
+    com.example.ui.components.OfflineBanner(
+      isOffline = !isOnline,
+      lastUpdatedText = lastUpdatedText
+    )
     androidx.compose.foundation.layout.Box(modifier = Modifier.weight(1f)) {
       ClassRepNavHost(
         currentScreen = uiState.currentScreen,

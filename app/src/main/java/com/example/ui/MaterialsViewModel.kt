@@ -2,6 +2,7 @@ package com.example.ui
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.example.data.MaterialFileValidator
 import com.example.data.MaterialItem
 import com.example.data.MaterialsService
 import com.example.data.UserSession
@@ -10,35 +11,13 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import java.io.File
+import java.io.InputStream
+import java.util.UUID
 
-data class MaterialsUiState(
-  val classId: String = "",
-  val materials: List<MaterialItem> = emptyList(),
-  val searchQuery: String = "",
-  val selectedTypeFilter: String = "All",
-  val isLoading: Boolean = false,
-  val isActionLoading: Boolean = false,
-  val errorMessage: String? = null,
-  val successMessage: String? = null,
-  val materialPendingDelete: MaterialItem? = null,
-  val materialPendingEdit: MaterialItem? = null,
-  val showAddDialog: Boolean = false
-) {
-  val filteredMaterials: List<MaterialItem>
-    get() = materials.filter { item ->
-      val matchesSearch = searchQuery.isBlank() || item.title.contains(searchQuery.trim(), ignoreCase = true)
-      val matchesType = when (selectedTypeFilter) {
-        "All" -> true
-        "Notes" -> item.materialType.equals("notes", ignoreCase = true)
-        "Slides" -> item.materialType.equals("slides", ignoreCase = true)
-        "Past Paper" -> item.materialType.equals("past_paper", ignoreCase = true)
-        "Video" -> item.materialType.equals("video", ignoreCase = true)
-        "Link" -> item.materialType.equals("link", ignoreCase = true)
-        else -> true
-      }
-      matchesSearch && matchesType
-    }
-}
+import android.content.Context
+import com.example.data.NetworkMonitor
+import com.example.data.OfflineMaterialsManager
 
 class MaterialsViewModel : ViewModel() {
   private val materialsService = MaterialsService()
@@ -66,27 +45,13 @@ class MaterialsViewModel : ViewModel() {
     if (cid.isNotBlank()) loadMaterials(cid, session)
   }
 
-  fun setSearchQuery(query: String) {
-    _uiState.update { it.copy(searchQuery = query) }
-  }
+  fun setSearchQuery(query: String) = _uiState.update { it.copy(searchQuery = query) }
+  fun setSelectedTypeFilter(filter: String) = _uiState.update { it.copy(selectedTypeFilter = filter) }
+  fun setShowAddDialog(show: Boolean) = _uiState.update { it.copy(showAddDialog = show, uploadProgress = null) }
+  fun setMaterialPendingEdit(item: MaterialItem?) = _uiState.update { it.copy(materialPendingEdit = item) }
+  fun setMaterialPendingDelete(item: MaterialItem?) = _uiState.update { it.copy(materialPendingDelete = item) }
 
-  fun setSelectedTypeFilter(filter: String) {
-    _uiState.update { it.copy(selectedTypeFilter = filter) }
-  }
-
-  fun setShowAddDialog(show: Boolean) {
-    _uiState.update { it.copy(showAddDialog = show) }
-  }
-
-  fun setMaterialPendingEdit(item: MaterialItem?) {
-    _uiState.update { it.copy(materialPendingEdit = item) }
-  }
-
-  fun setMaterialPendingDelete(item: MaterialItem?) {
-    _uiState.update { it.copy(materialPendingDelete = item) }
-  }
-
-  fun addMaterial(
+  fun addLinkMaterial(
     title: String,
     description: String,
     materialType: String,
@@ -109,13 +74,13 @@ class MaterialsViewModel : ViewModel() {
 
     viewModelScope.launch {
       _uiState.update { it.copy(isActionLoading = true, errorMessage = null) }
-      val res = materialsService.addMaterial(
+      val res = materialsService.addLinkMaterial(
         classId = cid, title = title, description = description,
         materialType = materialType, externalUrl = cleanUrl, accessToken = session.accessToken
       )
       res.fold(
         onSuccess = {
-          _uiState.update { it.copy(isActionLoading = false, showAddDialog = false, successMessage = "Material added") }
+          _uiState.update { it.copy(isActionLoading = false, showAddDialog = false, successMessage = "Material link added") }
           loadMaterials(cid, session)
           onSuccess()
         },
@@ -124,12 +89,13 @@ class MaterialsViewModel : ViewModel() {
     }
   }
 
-  fun updateMaterial(
-    materialId: String,
+  fun uploadFileMaterial(
     title: String,
     description: String,
-    materialType: String,
-    externalUrl: String,
+    fileName: String,
+    fileSize: Long,
+    mimeType: String,
+    inputStreamProvider: () -> InputStream,
     session: UserSession?,
     onSuccess: () -> Unit
   ) {
@@ -140,17 +106,69 @@ class MaterialsViewModel : ViewModel() {
       _uiState.update { it.copy(errorMessage = "Title cannot be empty") }
       return
     }
-    val cleanUrl = externalUrl.trim()
-    if (!cleanUrl.startsWith("http://", ignoreCase = true) && !cleanUrl.startsWith("https://", ignoreCase = true)) {
-      _uiState.update { it.copy(errorMessage = "URL must start with http:// or https://") }
+
+    val validationError = MaterialFileValidator.validate(fileName, mimeType, fileSize)
+    if (validationError != null) {
+      _uiState.update { it.copy(errorMessage = validationError) }
+      return
+    }
+
+    val safeFileName = MaterialFileValidator.sanitizeFileName(fileName)
+    val storagePath = "$cid/${UUID.randomUUID()}_$safeFileName"
+
+    viewModelScope.launch {
+      _uiState.update { it.copy(isActionLoading = true, uploadProgress = 0f, errorMessage = null) }
+      val res = materialsService.uploadFileAndCreateMaterial(
+        classId = cid,
+        title = title,
+        description = description,
+        storagePath = storagePath,
+        fileName = safeFileName,
+        fileSize = fileSize,
+        mimeType = mimeType,
+        inputStreamProvider = inputStreamProvider,
+        accessToken = session.accessToken,
+        onProgress = { p -> _uiState.update { it.copy(uploadProgress = p) } }
+      )
+      res.fold(
+        onSuccess = {
+          _uiState.update {
+            it.copy(
+              isActionLoading = false,
+              uploadProgress = null,
+              showAddDialog = false,
+              successMessage = "File uploaded successfully"
+            )
+          }
+          loadMaterials(cid, session)
+          onSuccess()
+        },
+        onFailure = { err ->
+          _uiState.update { it.copy(isActionLoading = false, uploadProgress = null, errorMessage = err.message) }
+        }
+      )
+    }
+  }
+
+  fun updateMaterial(
+    materialId: String,
+    title: String,
+    description: String,
+    session: UserSession?,
+    onSuccess: () -> Unit
+  ) {
+    val cid = _uiState.value.classId
+    if (session == null || cid.isBlank()) return
+
+    if (title.isBlank()) {
+      _uiState.update { it.copy(errorMessage = "Title cannot be empty") }
       return
     }
 
     viewModelScope.launch {
       _uiState.update { it.copy(isActionLoading = true, errorMessage = null) }
       val res = materialsService.updateMaterial(
-        materialId = materialId, title = title, description = description,
-        materialType = materialType, externalUrl = cleanUrl, accessToken = session.accessToken
+        materialId = materialId, title = title, description = description, accessToken = session.accessToken
       )
       res.fold(
         onSuccess = {
@@ -170,7 +188,7 @@ class MaterialsViewModel : ViewModel() {
 
     viewModelScope.launch {
       _uiState.update { it.copy(isActionLoading = true, materialPendingDelete = null, errorMessage = null) }
-      val res = materialsService.deleteMaterial(pending.id, session.accessToken)
+      val res = materialsService.deleteMaterial(pending, session.accessToken)
       res.fold(
         onSuccess = {
           _uiState.update { it.copy(isActionLoading = false, successMessage = "Material deleted") }
@@ -179,6 +197,98 @@ class MaterialsViewModel : ViewModel() {
         onFailure = { err -> _uiState.update { it.copy(isActionLoading = false, errorMessage = err.message) } }
       )
     }
+  }
+
+  fun downloadAndOpenFile(
+    material: MaterialItem,
+    context: Context,
+    session: UserSession?,
+    onOpen: (File, String) -> Unit
+  ) {
+    if (session == null || session.accessToken.isBlank()) {
+      _uiState.update { it.copy(errorMessage = "Please sign in to view materials") }
+      return
+    }
+
+    val downloaded = OfflineMaterialsManager.getDownloadedFile(context, session.userId, material)
+    if (downloaded != null) {
+      onOpen(downloaded, material.mimeType)
+      return
+    }
+
+    val materialsDir = File(context.cacheDir, "materials").apply { mkdirs() }
+    val safeName = MaterialFileValidator.sanitizeFileName(material.fileName.ifBlank { "material_${material.id}" })
+    val destinationFile = File(materialsDir, "${material.id}_$safeName")
+    if (destinationFile.exists() && destinationFile.length() > 0) {
+      onOpen(destinationFile, material.mimeType)
+      return
+    }
+
+    if (!NetworkMonitor.isOnline.value) {
+      _uiState.update { it.copy(errorMessage = "You are offline and this file has not been saved yet.") }
+      return
+    }
+
+    viewModelScope.launch {
+      _uiState.update { it.copy(downloadingMaterialId = material.id, downloadProgress = 0f, errorMessage = null) }
+      val res = materialsService.downloadFileMaterial(
+        storagePath = material.storagePath,
+        destinationFile = destinationFile,
+        accessToken = session.accessToken,
+        onProgress = { p -> _uiState.update { it.copy(downloadProgress = p) } }
+      )
+      res.fold(
+        onSuccess = { file ->
+          _uiState.update { it.copy(downloadingMaterialId = null, downloadProgress = null) }
+          onOpen(file, material.mimeType)
+        },
+        onFailure = { err ->
+          _uiState.update { it.copy(downloadingMaterialId = null, downloadProgress = null, errorMessage = err.message) }
+        }
+      )
+    }
+  }
+
+  fun downloadMaterialForOffline(context: Context, material: MaterialItem, session: UserSession?) {
+    if (session == null || session.accessToken.isBlank() || session.userId.isBlank()) {
+      _uiState.update { it.copy(errorMessage = "Please sign in to download materials") }
+      return
+    }
+    if (!material.isFile) return
+    if (!NetworkMonitor.isOnline.value) {
+      _uiState.update { it.copy(errorMessage = "You need internet to do this.") }
+      return
+    }
+    if (!OfflineMaterialsManager.canDownload(context, session.userId, material.fileSize)) {
+      _uiState.update { it.copy(errorMessage = "Storage limit reached (300 MB). Please remove some downloads.") }
+      return
+    }
+
+    val destinationFile = OfflineMaterialsManager.getFileForMaterial(context, session.userId, material)
+    viewModelScope.launch {
+      _uiState.update { it.copy(downloadingMaterialId = material.id, downloadProgress = 0f, errorMessage = null) }
+      val res = materialsService.downloadFileMaterial(
+        storagePath = material.storagePath,
+        destinationFile = destinationFile,
+        accessToken = session.accessToken,
+        onProgress = { p -> _uiState.update { it.copy(downloadProgress = p) } }
+      )
+      res.fold(
+        onSuccess = {
+          _uiState.update {
+            it.copy(downloadingMaterialId = null, downloadProgress = null, downloadedRevision = it.downloadedRevision + 1, successMessage = "Saved on phone")
+          }
+        },
+        onFailure = { err ->
+          _uiState.update { it.copy(downloadingMaterialId = null, downloadProgress = null, errorMessage = err.message) }
+        }
+      )
+    }
+  }
+
+  fun removeDownloadedMaterial(context: Context, material: MaterialItem, session: UserSession?) {
+    OfflineMaterialsManager.removeDownload(context, session?.userId.orEmpty(), material)
+    _uiState.update { it.copy(downloadedRevision = it.downloadedRevision + 1, successMessage = "Download removed") }
   }
 
   fun clearError() { _uiState.update { it.copy(errorMessage = null) } }

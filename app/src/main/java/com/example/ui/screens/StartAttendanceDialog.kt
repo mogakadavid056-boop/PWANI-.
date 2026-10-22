@@ -30,8 +30,11 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -157,10 +160,20 @@ fun StartAttendanceDialog(
             Text("Cancel", fontSize = 16.sp, fontWeight = FontWeight.SemiBold, color = TextPrimary)
           }
 
+          val isOnline by com.example.data.NetworkMonitor.isOnline.collectAsStateWithLifecycle()
+          val context = LocalContext.current
           Button(
-            onClick = { onStart(selectedDuration) },
-            enabled = !isLoading,
-            modifier = Modifier.weight(1.3f).height(48.dp).testTag("confirm_start_attendance_btn"),
+            onClick = {
+              if (!isOnline) {
+                com.example.ui.components.OfflineToastHelper.show(context)
+              } else {
+                onStart(selectedDuration)
+              }
+            },
+            enabled = if (!isOnline) true else !isLoading,
+            modifier = Modifier.weight(1.3f).height(48.dp)
+              .then(if (!isOnline) Modifier.alpha(0.5f) else Modifier)
+              .testTag("confirm_start_attendance_btn"),
             shape = RoundedCornerShape(10.dp),
             colors = ButtonDefaults.buttonColors(containerColor = GoldPrimary, contentColor = com.example.ui.theme.DarkTextOnGold)
           ) {

@@ -29,12 +29,14 @@ import androidx.compose.material3.Switch
 import androidx.compose.material3.SwitchDefaults
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.testTag
@@ -190,10 +192,18 @@ fun EditNoticeDialog(
           Text("Cancel", color = TextPrimary, fontSize = 16.sp, fontWeight = FontWeight.SemiBold)
         }
 
+        val isOnline by com.example.data.NetworkMonitor.isOnline.collectAsState()
+        val context = androidx.compose.ui.platform.LocalContext.current
         Button(
-          onClick = { onSave(title.trim(), content.trim(), category, urgent, pinned) },
-          enabled = !isLoading && canSave,
-          modifier = Modifier.weight(1f).height(48.dp).testTag("edit_notice_save_button"),
+          onClick = {
+            if (!isOnline) {
+              com.example.ui.components.OfflineToastHelper.show(context)
+            } else {
+              onSave(title.trim(), content.trim(), category, urgent, pinned)
+            }
+          },
+          enabled = !isLoading && (canSave || !isOnline),
+          modifier = Modifier.weight(1f).height(48.dp).alpha(if (!isOnline) 0.5f else 1f).testTag("edit_notice_save_button"),
           shape = RoundedCornerShape(12.dp),
           colors = ButtonDefaults.buttonColors(containerColor = GoldPrimary, contentColor = com.example.ui.theme.DarkTextOnGold)
         ) {

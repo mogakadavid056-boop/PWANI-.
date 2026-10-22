@@ -27,8 +27,11 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.alpha
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontFamily
@@ -174,11 +177,22 @@ fun StaffSessionCard(
 
 @Composable
 fun StudentOpenSessionCard(session: AttendanceSessionItem, onSign: () -> Unit) {
+  val isOnline by com.example.data.NetworkMonitor.isOnline.collectAsStateWithLifecycle()
+  val context = androidx.compose.ui.platform.LocalContext.current
+  val handleSign = {
+    if (!isOnline) {
+      OfflineToastHelper.show(context)
+    } else {
+      onSign()
+    }
+  }
+
   ClassRepCard(
     modifier = Modifier
       .border(1.dp, GoldPrimary.copy(alpha = 0.6f), RoundedCornerShape(CardRadius))
+      .then(if (!isOnline) Modifier.alpha(0.6f) else Modifier)
       .testTag("student_open_session_item"),
-    onClick = onSign
+    onClick = handleSign
   ) {
     Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
       Box(
@@ -194,7 +208,7 @@ fun StudentOpenSessionCard(session: AttendanceSessionItem, onSign: () -> Unit) {
       }
       PrimaryButton(
         text = "Sign",
-        onClick = onSign,
+        onClick = handleSign,
         modifier = Modifier.height(36.dp).testTag("sign_open_session_btn")
       )
     }

@@ -25,11 +25,15 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
 import androidx.compose.ui.draw.clip
 import com.example.ui.theme.DarkSurfaceVariant
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.alpha
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -101,9 +105,19 @@ fun AttendanceSection(
           }
 
           Spacer(modifier = Modifier.width(6.dp))
+          val isOnline by com.example.data.NetworkMonitor.isOnline.collectAsStateWithLifecycle()
+          val context = LocalContext.current
           Button(
-            onClick = onStartAttendanceClick,
-            modifier = Modifier.height(36.dp).testTag("start_attendance_btn"),
+            onClick = {
+              if (!isOnline) {
+                OfflineToastHelper.show(context)
+              } else {
+                onStartAttendanceClick()
+              }
+            },
+            modifier = Modifier.height(36.dp)
+              .then(if (!isOnline) Modifier.alpha(0.5f) else Modifier)
+              .testTag("start_attendance_btn"),
             shape = RoundedCornerShape(10.dp),
             colors = ButtonDefaults.buttonColors(containerColor = GoldPrimary, contentColor = DarkTextOnGold)
           ) {

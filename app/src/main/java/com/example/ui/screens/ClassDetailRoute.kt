@@ -51,6 +51,7 @@ fun ClassDetailRoute(
     LaunchedEffect(Unit) { onBackToHome() }
     return
   }
+  val context = androidx.compose.ui.platform.LocalContext.current
 
   ClassScreen(
     classItem = selectedClass,
@@ -116,8 +117,22 @@ fun ClassDetailRoute(
     onEditMaterialClick = { m -> materialsViewModel.setMaterialPendingEdit(m) },
     onDeleteMaterialClick = { m -> materialsViewModel.setMaterialPendingDelete(m) },
     onDismissAddEditMaterial = { materialsViewModel.setShowAddDialog(false); materialsViewModel.setMaterialPendingEdit(null) },
-    onSaveAddMaterial = { t, d, type, u -> materialsViewModel.addMaterial(t, d, type, u, session) {} },
-    onSaveEditMaterial = { id, t, d, type, u -> materialsViewModel.updateMaterial(id, t, d, type, u, session) {} },
+    onSaveAddMaterial = { t, d, type, u -> materialsViewModel.addLinkMaterial(t, d, type, u, session) {} },
+    onSaveUploadMaterial = { t, d, fn, fs, m, streamProvider ->
+      materialsViewModel.uploadFileMaterial(t, d, fn, fs, m, streamProvider, session) {}
+    },
+    onSaveEditMaterial = { id, t, d -> materialsViewModel.updateMaterial(id, t, d, session) {} },
+    onOpenFileMaterial = { material ->
+      materialsViewModel.downloadAndOpenFile(material, context, session) { file, mime ->
+        com.example.ui.components.MaterialFileOpener.openOrShareFile(context, file, mime)
+      }
+    },
+    onDownloadMaterial = { material ->
+      materialsViewModel.downloadMaterialForOffline(context, material, session)
+    },
+    onRemoveDownloadMaterial = { material ->
+      materialsViewModel.removeDownloadedMaterial(context, material, session)
+    },
     onDismissPromptDeleteMaterial = { materialsViewModel.setMaterialPendingDelete(null) },
     onConfirmDeleteMaterial = { materialsViewModel.confirmDeleteMaterial(session) },
     onDismissMaterialsError = { materialsViewModel.clearError() },

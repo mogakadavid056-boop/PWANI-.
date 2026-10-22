@@ -34,6 +34,8 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.testTag
@@ -226,11 +228,16 @@ fun NoticeCard(
                   onDismissRequest = { showMenu = false },
                   modifier = Modifier.background(DarkSurface).border(1.dp, DarkBorder, RoundedCornerShape(8.dp))
                 ) {
+                  val isOnline by com.example.data.NetworkMonitor.isOnline.collectAsStateWithLifecycle()
+                  val context = LocalContext.current
                   if (onEdit != null) {
                     DropdownMenuItem(
                       text = { Text("Edit Notice", color = TextPrimary, fontSize = 14.sp) },
                       leadingIcon = { Icon(Icons.Default.Edit, contentDescription = null, tint = GoldPrimary, modifier = Modifier.size(16.dp)) },
-                      onClick = { showMenu = false; onEdit() },
+                      onClick = {
+                        showMenu = false
+                        if (!isOnline) OfflineToastHelper.show(context) else onEdit()
+                      },
                       modifier = Modifier.testTag("notice_edit_menu_item_${notice.id}")
                     )
                   }
@@ -238,7 +245,10 @@ fun NoticeCard(
                     DropdownMenuItem(
                       text = { Text("Delete Notice", color = ErrorRed, fontSize = 14.sp) },
                       leadingIcon = { Icon(Icons.Default.Delete, contentDescription = null, tint = ErrorRed, modifier = Modifier.size(16.dp)) },
-                      onClick = { showMenu = false; onDelete() },
+                      onClick = {
+                        showMenu = false
+                        if (!isOnline) OfflineToastHelper.show(context) else onDelete()
+                      },
                       modifier = Modifier.testTag("notice_delete_menu_item_${notice.id}")
                     )
                   }

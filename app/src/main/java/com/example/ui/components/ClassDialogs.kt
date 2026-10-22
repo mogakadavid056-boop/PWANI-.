@@ -46,8 +46,9 @@ fun ClassDialogs(
   onConfirmDeleteSchedule: () -> Unit,
   materialsUiState: MaterialsUiState,
   onDismissAddEditMaterial: () -> Unit,
-  onSaveAddMaterial: (String, String, String, String) -> Unit,
-  onSaveEditMaterial: (String, String, String, String, String) -> Unit,
+  onSaveAddLinkMaterial: (String, String, String, String) -> Unit,
+  onSaveUploadMaterial: (title: String, description: String, fileName: String, fileSize: Long, mimeType: String, inputStreamProvider: () -> java.io.InputStream) -> Unit = { _, _, _, _, _, _ -> },
+  onSaveEditMaterial: (materialId: String, title: String, description: String) -> Unit,
   onDismissPromptDeleteMaterial: () -> Unit,
   onConfirmDeleteMaterial: () -> Unit,
   showCreatePollDialog: Boolean = false,
@@ -160,10 +161,11 @@ fun ClassDialogs(
     AddEditMaterialDialog(
       initialMaterial = null,
       isLoading = materialsUiState.isActionLoading,
+      uploadProgress = materialsUiState.uploadProgress,
       onDismiss = onDismissAddEditMaterial,
-      onSave = { title, desc, type, url ->
-        onSaveAddMaterial(title, desc, type, url)
-      }
+      onSaveLink = onSaveAddLinkMaterial,
+      onSaveUpload = onSaveUploadMaterial,
+      onSaveEdit = { _, _, _ -> }
     )
   }
 
@@ -172,9 +174,9 @@ fun ClassDialogs(
       initialMaterial = material,
       isLoading = materialsUiState.isActionLoading,
       onDismiss = onDismissAddEditMaterial,
-      onSave = { title, desc, type, url ->
-        onSaveEditMaterial(material.id, title, desc, type, url)
-      }
+      onSaveLink = { _, _, _, _ -> },
+      onSaveUpload = { _, _, _, _, _, _ -> },
+      onSaveEdit = onSaveEditMaterial
     )
   }
 

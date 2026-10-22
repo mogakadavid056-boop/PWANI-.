@@ -31,6 +31,8 @@ import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.ui.draw.alpha
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -196,19 +198,26 @@ fun GroupChatScreen(
 
         Spacer(modifier = Modifier.width(8.dp))
 
+        val isOnline by com.example.data.NetworkMonitor.isOnline.collectAsStateWithLifecycle()
+        val context = androidx.compose.ui.platform.LocalContext.current
         IconButton(
           onClick = {
+            if (!isOnline) {
+              com.example.ui.components.OfflineToastHelper.show(context)
+              return@IconButton
+            }
             val textToSend = inputText.trim()
             if (textToSend.isNotBlank()) {
               inputText = ""
               onSendMessage(textToSend)
             }
           },
-          enabled = inputText.trim().isNotBlank() && !uiState.isSendingMessage,
+          enabled = if (!isOnline) true else (inputText.trim().isNotBlank() && !uiState.isSendingMessage),
           modifier = Modifier
             .size(44.dp)
             .clip(CircleShape)
-            .background(if (inputText.trim().isNotBlank()) GoldPrimary else DarkSurfaceVariant)
+            .background(if (inputText.trim().isNotBlank() && isOnline) GoldPrimary else DarkSurfaceVariant)
+            .then(if (!isOnline) Modifier.alpha(0.5f) else Modifier)
             .testTag("chat_send_button")
         ) {
           if (uiState.isSendingMessage) {

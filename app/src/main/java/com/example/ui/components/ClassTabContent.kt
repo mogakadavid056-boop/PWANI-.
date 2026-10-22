@@ -61,6 +61,9 @@ fun ClassTabContent(
   onMaterialsSearchChange: (String) -> Unit,
   onMaterialsSelectTypeFilter: (String) -> Unit,
   onAddMaterialClick: () -> Unit,
+  onOpenFileMaterial: (MaterialItem) -> Unit = {},
+  onDownloadMaterial: (MaterialItem) -> Unit = {},
+  onRemoveDownloadMaterial: (MaterialItem) -> Unit = {},
   onEditMaterialClick: (MaterialItem) -> Unit,
   onDeleteMaterialClick: (MaterialItem) -> Unit,
   onRefreshPolls: () -> Unit,
@@ -107,8 +110,15 @@ fun ClassTabContent(
         }
         MaterialsSection(
           materials = materialsUiState.filteredMaterials, searchQuery = materialsUiState.searchQuery, selectedTypeFilter = materialsUiState.selectedTypeFilter,
-          isStaff = isStaff, isLoading = materialsUiState.isLoading, onSearchChange = onMaterialsSearchChange, onSelectTypeFilter = onMaterialsSelectTypeFilter,
-          onRefresh = onRefreshMaterials, onAddMaterialClick = onAddMaterialClick, onEditMaterial = onEditMaterialClick, onDeleteMaterial = onDeleteMaterialClick
+          isStaff = isStaff, isLoading = materialsUiState.isLoading,
+          downloadingMaterialId = materialsUiState.downloadingMaterialId,
+          downloadProgress = materialsUiState.downloadProgress,
+          onSearchChange = onMaterialsSearchChange, onSelectTypeFilter = onMaterialsSelectTypeFilter,
+          onRefresh = onRefreshMaterials, onAddMaterialClick = onAddMaterialClick,
+          onOpenFileMaterial = onOpenFileMaterial,
+          onDownloadMaterial = onDownloadMaterial,
+          onRemoveDownloadMaterial = onRemoveDownloadMaterial,
+          onEditMaterial = onEditMaterialClick, onDeleteMaterial = onDeleteMaterialClick
         )
       }
       MoreSubView.Polls -> {

@@ -21,11 +21,15 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -97,10 +101,20 @@ fun ConfirmActionDialog(
           Text("Cancel", color = TextPrimary, fontSize = 16.sp, fontWeight = FontWeight.SemiBold)
         }
 
+        val isOnline by com.example.data.NetworkMonitor.isOnline.collectAsStateWithLifecycle()
+        val context = LocalContext.current
         Button(
-          onClick = onConfirm,
-          enabled = !isLoading,
-          modifier = Modifier.weight(1f).height(48.dp).testTag("confirm_dialog_action_button"),
+          onClick = {
+            if (!isOnline) {
+              OfflineToastHelper.show(context)
+            } else {
+              onConfirm()
+            }
+          },
+          enabled = if (!isOnline) true else !isLoading,
+          modifier = Modifier.weight(1f).height(48.dp)
+            .then(if (!isOnline) Modifier.alpha(0.5f) else Modifier)
+            .testTag("confirm_dialog_action_button"),
           shape = RoundedCornerShape(12.dp),
           colors = ButtonDefaults.buttonColors(
             containerColor = confirmButtonColor,

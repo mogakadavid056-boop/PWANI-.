@@ -28,8 +28,10 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
@@ -138,10 +140,18 @@ fun CreateGroupDialog(
           Text("Cancel", color = com.example.ui.theme.TextPrimary, fontSize = 16.sp, fontWeight = FontWeight.SemiBold)
         }
 
+        val isOnline by com.example.data.NetworkMonitor.isOnline.collectAsStateWithLifecycle()
+        val context = androidx.compose.ui.platform.LocalContext.current
         Button(
-          onClick = { onCreate(name.trim(), description.trim(), maxSizeInt) },
-          enabled = !isLoading && isValid,
-          modifier = Modifier.weight(1f).height(48.dp).testTag("create_group_submit_button"),
+          onClick = {
+            if (!isOnline) {
+              com.example.ui.components.OfflineToastHelper.show(context)
+            } else {
+              onCreate(name.trim(), description.trim(), maxSizeInt)
+            }
+          },
+          enabled = !isLoading && (isValid || !isOnline),
+          modifier = Modifier.weight(1f).height(48.dp).alpha(if (!isOnline) 0.5f else 1f).testTag("create_group_submit_button"),
           shape = RoundedCornerShape(12.dp),
           colors = ButtonDefaults.buttonColors(containerColor = GoldPrimary, contentColor = com.example.ui.theme.DarkTextOnGold)
         ) {

@@ -24,12 +24,14 @@ import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
@@ -140,10 +142,18 @@ fun EditGroupDialog(
           Text("Cancel", color = com.example.ui.theme.TextPrimary, fontSize = 16.sp, fontWeight = FontWeight.SemiBold)
         }
 
+        val isOnline by com.example.data.NetworkMonitor.isOnline.collectAsState()
+        val context = androidx.compose.ui.platform.LocalContext.current
         Button(
-          onClick = { onSave(name.trim(), description.trim(), maxSizeInt) },
-          enabled = !isLoading && isValid,
-          modifier = Modifier.weight(1f).height(48.dp).testTag("edit_group_save_button"),
+          onClick = {
+            if (!isOnline) {
+              com.example.ui.components.OfflineToastHelper.show(context)
+            } else {
+              onSave(name.trim(), description.trim(), maxSizeInt)
+            }
+          },
+          enabled = !isLoading && (isValid || !isOnline),
+          modifier = Modifier.weight(1f).height(48.dp).alpha(if (!isOnline) 0.5f else 1f).testTag("edit_group_save_button"),
           shape = RoundedCornerShape(12.dp),
           colors = ButtonDefaults.buttonColors(containerColor = GoldPrimary, contentColor = com.example.ui.theme.DarkTextOnGold)
         ) {

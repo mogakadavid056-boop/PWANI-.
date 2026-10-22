@@ -24,16 +24,19 @@ import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
-import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -41,9 +44,7 @@ import androidx.compose.ui.unit.sp
 import com.example.data.MaterialItem
 import com.example.ui.theme.DarkBorder
 import com.example.ui.theme.DarkSurface
-import com.example.ui.theme.DarkSurfaceVariant
 import com.example.ui.theme.DarkTextOnGold
-import com.example.ui.theme.GoldDark
 import com.example.ui.theme.GoldLight
 import com.example.ui.theme.GoldPrimary
 import com.example.ui.theme.TextPrimary
@@ -56,14 +57,22 @@ fun MaterialsSection(
   selectedTypeFilter: String,
   isStaff: Boolean,
   isLoading: Boolean,
+  downloadingMaterialId: String? = null,
+  downloadProgress: Float? = null,
   onSearchChange: (String) -> Unit,
   onSelectTypeFilter: (String) -> Unit,
   onRefresh: () -> Unit,
   onAddMaterialClick: () -> Unit,
+  onOpenFileMaterial: (MaterialItem) -> Unit = {},
+  onDownloadMaterial: (MaterialItem) -> Unit = {},
+  onRemoveDownloadMaterial: (MaterialItem) -> Unit = {},
   onEditMaterial: (MaterialItem) -> Unit,
   onDeleteMaterial: (MaterialItem) -> Unit
 ) {
-  val filterTypes = listOf("All", "Notes", "Slides", "Past Paper", "Video", "Link")
+  val context = androidx.compose.ui.platform.LocalContext.current
+  val userId = com.example.data.OfflineCache.currentUserId
+  val isOnline by com.example.data.NetworkMonitor.isOnline.collectAsStateWithLifecycle()
+  val filterTypes = listOf("All", "Files", "Notes", "Slides", "Past Paper", "Video", "Link")
 
   Column(modifier = Modifier.fillMaxWidth()) {
     // Header Row
@@ -95,8 +104,15 @@ fun MaterialsSection(
         if (isStaff) {
           Spacer(modifier = Modifier.width(6.dp))
           Button(
-            onClick = onAddMaterialClick,
-            modifier = Modifier.height(36.dp).testTag("add_material_btn"),
+            onClick = {
+              if (!isOnline) {
+                com.example.ui.components.OfflineToastHelper.show(context)
+              } else {
+                onAddMaterialClick()
+              }
+            },
+            modifier = Modifier.height(36.dp).testTag("add_material_btn")
+              .then(if (!isOnline) Modifier.alpha(0.5f) else Modifier),
             shape = RoundedCornerShape(10.dp),
             colors = ButtonDefaults.buttonColors(containerColor = GoldPrimary, contentColor = DarkTextOnGold)
           ) {
@@ -115,7 +131,7 @@ fun MaterialsSection(
       value = searchQuery,
       onValueChange = onSearchChange,
       modifier = Modifier.fillMaxWidth().testTag("materials_search_input"),
-      placeholder = { Text("Search materials by title...", color = TextSecondary, fontSize = 13.sp) },
+      placeholder = { Text("Search materials by title or file name...", color = TextSecondary, fontSize = 13.sp) },
       leadingIcon = {
         Icon(Icons.Default.Search, contentDescription = null, tint = TextSecondary, modifier = Modifier.size(18.dp))
       },
@@ -176,7 +192,7 @@ fun MaterialsSection(
         icon = Icons.Default.FolderOpen,
         title = "No Materials Found",
         message = if (searchQuery.isNotBlank() || selectedTypeFilter != "All") "No materials match your current filters."
-        else if (isStaff) "Tap Add Material above to share notes, slides, or links."
+        else if (isStaff) "Tap Add Material above to share notes, slides, files, or links."
         else "Nothing here yet. Waiting for your class prefect to update this.",
         actionLabel = if (isStaff && searchQuery.isBlank() && selectedTypeFilter == "All") "Add Material" else null,
         onActionClick = if (isStaff && searchQuery.isBlank() && selectedTypeFilter == "All") onAddMaterialClick else null,
@@ -185,9 +201,18 @@ fun MaterialsSection(
     } else {
       Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
         materials.forEach { item ->
+          val isDownloaded = remember(item.id, userId, downloadingMaterialId) {
+            com.example.data.OfflineMaterialsManager.isDownloaded(context, userId, item)
+          }
           MaterialCard(
             material = item,
             isStaff = isStaff,
+            isDownloaded = isDownloaded,
+            isDownloading = item.id == downloadingMaterialId,
+            downloadProgress = if (item.id == downloadingMaterialId) downloadProgress else null,
+            onOpenFile = { onOpenFileMaterial(item) },
+            onDownload = { onDownloadMaterial(item) },
+            onRemoveDownload = { onRemoveDownloadMaterial(item) },
             onEdit = { onEditMaterial(item) },
             onDelete = { onDeleteMaterial(item) }
           )

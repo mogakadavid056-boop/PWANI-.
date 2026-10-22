@@ -33,6 +33,7 @@ import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
@@ -40,6 +41,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
@@ -195,8 +197,13 @@ fun AddEditScheduleDialog(
         ) {
           Text("Cancel", color = TextPrimary, fontSize = 16.sp, fontWeight = FontWeight.SemiBold)
         }
+        val isOnline by com.example.data.NetworkMonitor.isOnline.collectAsState()
         Button(
           onClick = {
+            if (!isOnline) {
+              com.example.ui.components.OfflineToastHelper.show(context)
+              return@Button
+            }
             val cleanTitle = title.trim(); val cleanStart = startTime.trim(); val cleanEnd = endTime.trim()
             if (cleanTitle.isBlank()) { validationError = "Please enter a class title."; return@Button }
             if (cleanEnd <= cleanStart) { validationError = "End time must be after start time."; return@Button }
@@ -204,7 +211,7 @@ fun AddEditScheduleDialog(
             val fEnd = if (cleanEnd.length == 5) "$cleanEnd:00" else cleanEnd
             onSave(cleanTitle, dayOfWeek, fStart, fEnd, room.trim(), lecturerName.trim())
           },
-          enabled = !isLoading, modifier = Modifier.weight(1f).height(48.dp).testTag("schedule_submit_button"),
+          enabled = !isLoading, modifier = Modifier.weight(1f).height(48.dp).alpha(if (!isOnline) 0.5f else 1f).testTag("schedule_submit_button"),
           shape = RoundedCornerShape(12.dp), colors = ButtonDefaults.buttonColors(containerColor = GoldPrimary, contentColor = com.example.ui.theme.DarkTextOnGold)
         ) {
           if (isLoading) CircularProgressIndicator(modifier = Modifier.size(20.dp), color = com.example.ui.theme.DarkTextOnGold, strokeWidth = 2.dp)

@@ -28,6 +28,9 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.alpha
+import androidx.compose.ui.platform.LocalContext
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
@@ -124,10 +127,19 @@ fun JoinClassScreen(
 
       Spacer(modifier = Modifier.height(28.dp))
 
+      val isOnline by com.example.data.NetworkMonitor.isOnline.collectAsStateWithLifecycle()
+      val context = LocalContext.current
       GoldButton(
         text = "Join Class",
-        onClick = { onJoinSubmit(joinCode) },
+        onClick = {
+          if (!isOnline) {
+            com.example.ui.components.OfflineToastHelper.show(context)
+          } else {
+            onJoinSubmit(joinCode)
+          }
+        },
         isLoading = isLoading,
+        modifier = Modifier.then(if (!isOnline) Modifier.alpha(0.5f) else Modifier),
         testTag = "join_class_submit_button"
       )
     }

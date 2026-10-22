@@ -56,6 +56,7 @@ class RegistrationHandler(
           admissionNumber = cleanAdm, role = role, accessToken = auth.accessToken, refreshToken = auth.refreshToken
         )
         sessionManager.saveSession(session)
+        com.example.data.OfflineCache.currentUserId = session.userId
         updateState { it.copy(session = session, isLoading = false) }
 
         val joinResult = classesService.joinMyClass(auth.accessToken)
@@ -108,6 +109,7 @@ class RegistrationHandler(
           admissionNumber = cleanAdm, role = role, accessToken = auth.accessToken, refreshToken = auth.refreshToken
         )
         sessionManager.saveSession(session)
+        com.example.data.OfflineCache.currentUserId = session.userId
         updateState { it.copy(session = session, isLoading = false) }
 
         val joinResult = classesService.joinClass(cleanCode, auth.accessToken)
@@ -169,6 +171,7 @@ class RegistrationHandler(
               admissionNumber = cleanStaff, role = "Lecturer", accessToken = auth.accessToken, refreshToken = auth.refreshToken
             )
             sessionManager.saveSession(session)
+            com.example.data.OfflineCache.currentUserId = session.userId
             updateState { it.copy(session = session, isLoading = false, errorMessage = null, currentScreen = Screen.Home) }
             onSuccessLecturer(session)
           }
@@ -178,6 +181,7 @@ class RegistrationHandler(
               admissionNumber = cleanStaff, role = "Student", accessToken = auth.accessToken, refreshToken = auth.refreshToken
             )
             sessionManager.saveSession(session)
+            com.example.data.OfflineCache.currentUserId = session.userId
             val infoMsg = "Wrong passcode. Your account was created as a student. You can try again from your Profile."
             updateState {
               it.copy(

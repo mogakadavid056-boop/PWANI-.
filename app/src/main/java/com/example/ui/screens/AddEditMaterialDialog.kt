@@ -1,84 +1,97 @@
 package com.example.ui.screens
 
+import android.net.Uri
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
-import androidx.compose.foundation.clickable
-import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.ArrowDropDown
 import androidx.compose.material.icons.filled.Description
-import androidx.compose.material3.Button
-import androidx.compose.material3.ButtonDefaults
-import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.DropdownMenu
-import androidx.compose.material3.DropdownMenuItem
-import androidx.compose.material3.Icon
-import androidx.compose.material3.OutlinedButton
-import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.OutlinedTextFieldDefaults
-import androidx.compose.material3.Text
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
+import androidx.compose.material3.*
+import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
+import com.example.data.MaterialFileValidator
 import com.example.data.MaterialItem
-import com.example.ui.theme.DarkBackground
-import com.example.ui.theme.DarkBorder
-import com.example.ui.theme.DarkSurface
-import com.example.ui.theme.DarkSurfaceVariant
-import com.example.ui.theme.ErrorRed
-import com.example.ui.theme.GoldLight
-import com.example.ui.theme.GoldPrimary
-import com.example.ui.theme.TextPrimary
-import com.example.ui.theme.TextSecondary
+import com.example.ui.components.MaterialFilePickerBox
+import com.example.ui.components.MaterialModeSelector
+import com.example.ui.components.queryFileInfo
+import com.example.ui.theme.*
+import java.io.InputStream
 
 @Composable
 fun AddEditMaterialDialog(
   initialMaterial: MaterialItem? = null,
   isLoading: Boolean = false,
+  uploadProgress: Float? = null,
   onDismiss: () -> Unit,
-  onSave: (title: String, description: String, materialType: String, externalUrl: String) -> Unit
+  onSaveLink: (title: String, description: String, materialType: String, externalUrl: String) -> Unit,
+  onSaveUpload: (title: String, description: String, fileName: String, fileSize: Long, mimeType: String, inputStreamProvider: () -> InputStream) -> Unit,
+  onSaveEdit: (materialId: String, title: String, description: String) -> Unit
 ) {
+  val context = LocalContext.current
   val isEditing = initialMaterial != null
 
+  var isFileUploadMode by remember { mutableStateOf(false) }
   var title by remember { mutableStateOf(initialMaterial?.title.orEmpty()) }
   var description by remember { mutableStateOf(initialMaterial?.description.orEmpty()) }
-  var materialType by remember {
-    mutableStateOf(initialMaterial?.materialType?.lowercase() ?: "notes")
-  }
+  var materialType by remember { mutableStateOf(initialMaterial?.materialType?.lowercase() ?: "notes") }
   var externalUrl by remember { mutableStateOf(initialMaterial?.externalUrl.orEmpty()) }
-  var validationError by remember { mutableStateOf<String?>(null) }
-  var typeDropdownExpanded by remember { mutableStateOf(false) }
 
-  val typeOptions = listOf(
-    "notes" to "Notes",
-    "slides" to "Slides",
-    "past_paper" to "Past Paper",
-    "video" to "Video",
-    "link" to "Link"
-  )
-  val selectedTypeLabel = typeOptions.firstOrNull { it.first == materialType }?.second ?: "Notes"
+  var selectedUri by remember { mutableStateOf<Uri?>(null) }
+  var selectedFileName by remember { mutableStateOf("") }
+  var selectedFileSize by remember { mutableLongStateOf(0L) }
+  var selectedMimeType by remember { mutableStateOf("") }
+  var validationError by remember { mutableStateOf<String?>(null) }
+
+  val allowedMimes = remember {
+    arrayOf(
+      "application/pdf",
+      "application/msword",
+      "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+      "application/vnd.ms-powerpoint",
+      "application/vnd.openxmlformats-officedocument.presentationml.presentation",
+      "application/vnd.ms-excel",
+      "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+      "text/plain",
+      "image/jpeg",
+      "image/png",
+      "image/webp"
+    )
+  }
+
+  val filePickerLauncher = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
+    if (uri != null) {
+      val (name, size) = queryFileInfo(context, uri)
+      val mime = context.contentResolver.getType(uri) ?: "application/octet-stream"
+      val err = MaterialFileValidator.validate(name, mime, size)
+      if (err != null) {
+        validationError = err
+        selectedUri = null
+      } else {
+        selectedUri = uri
+        selectedFileName = name
+        selectedFileSize = size
+        selectedMimeType = mime
+        validationError = null
+        if (title.isBlank()) {
+          title = name.substringBeforeLast('.')
+        }
+      }
+    }
+  }
 
   val fieldColors = OutlinedTextFieldDefaults.colors(
     focusedBorderColor = GoldPrimary, unfocusedBorderColor = DarkBorder,
@@ -102,7 +115,7 @@ fun AddEditMaterialDialog(
         Icon(Icons.Default.Description, contentDescription = null, tint = GoldPrimary, modifier = Modifier.size(22.dp))
         Spacer(modifier = Modifier.width(8.dp))
         Text(
-          text = if (isEditing) "Edit Material" else "Add Learning Material",
+          text = if (isEditing) "Edit Material" else "Add Material",
           fontSize = 18.sp,
           fontWeight = FontWeight.Bold,
           color = TextPrimary
@@ -111,129 +124,110 @@ fun AddEditMaterialDialog(
 
       Spacer(modifier = Modifier.height(14.dp))
 
-      OutlinedTextField(
-        value = title,
-        onValueChange = { title = it; validationError = null },
-        label = { Text("Title") },
-        singleLine = true,
-        modifier = Modifier.fillMaxWidth().testTag("material_title_input"),
-        colors = fieldColors
-      )
-
-      Spacer(modifier = Modifier.height(12.dp))
-
-      Text("Material Type", fontSize = 12.sp, color = TextSecondary)
-      Spacer(modifier = Modifier.height(4.dp))
-      Box(modifier = Modifier.fillMaxWidth()) {
-        Box(
-          modifier = Modifier
-            .fillMaxWidth()
-            .clip(RoundedCornerShape(8.dp))
-            .background(DarkSurfaceVariant)
-            .border(1.dp, DarkBorder, RoundedCornerShape(8.dp))
-            .clickable { typeDropdownExpanded = true }
-            .padding(horizontal = 14.dp, vertical = 12.dp)
-            .testTag("material_type_dropdown"),
-          contentAlignment = Alignment.CenterStart
-        ) {
-          Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically
-          ) {
-            Text(selectedTypeLabel, color = TextPrimary, fontSize = 14.sp, fontWeight = FontWeight.Medium)
-            Icon(Icons.Default.ArrowDropDown, contentDescription = "Select Type", tint = GoldLight)
-          }
-        }
-
-        DropdownMenu(
-          expanded = typeDropdownExpanded,
-          onDismissRequest = { typeDropdownExpanded = false },
-          modifier = Modifier.background(DarkSurface).border(1.dp, DarkBorder)
-        ) {
-          typeOptions.forEach { (value, label) ->
-            DropdownMenuItem(
-              text = {
-                Text(
-                  label,
-                  color = if (value == materialType) GoldPrimary else TextPrimary,
-                  fontWeight = if (value == materialType) FontWeight.Bold else FontWeight.Normal
-                )
-              },
-              onClick = {
-                materialType = value
-                typeDropdownExpanded = false
-              },
-              modifier = Modifier.testTag("type_option_$value")
-            )
-          }
-        }
+      if (!isEditing) {
+        MaterialModeSelector(
+          isFileUploadMode = isFileUploadMode,
+          onSelectLink = { isFileUploadMode = false; validationError = null },
+          onSelectUpload = { isFileUploadMode = true; validationError = null }
+        )
+        Spacer(modifier = Modifier.height(14.dp))
       }
 
+      OutlinedTextField(
+        value = title, onValueChange = { title = it; validationError = null },
+        label = { Text("Title *") }, singleLine = true,
+        modifier = Modifier.fillMaxWidth().testTag("material_title_input"), colors = fieldColors
+      )
       Spacer(modifier = Modifier.height(12.dp))
 
       OutlinedTextField(
-        value = externalUrl,
-        onValueChange = { externalUrl = it; validationError = null },
-        label = { Text("Resource URL (starts with http:// or https://)") },
-        singleLine = true,
-        modifier = Modifier.fillMaxWidth().testTag("material_url_input"),
-        colors = fieldColors
+        value = description, onValueChange = { description = it },
+        label = { Text("Description (Optional)") }, minLines = 2, maxLines = 4,
+        modifier = Modifier.fillMaxWidth().testTag("material_desc_input"), colors = fieldColors
       )
-
       Spacer(modifier = Modifier.height(12.dp))
 
-      OutlinedTextField(
-        value = description,
-        onValueChange = { description = it },
-        label = { Text("Description (optional)") },
-        maxLines = 4,
-        modifier = Modifier.fillMaxWidth().testTag("material_desc_input"),
-        colors = fieldColors
-      )
+      if (!isEditing && !isFileUploadMode) {
+        OutlinedTextField(
+          value = externalUrl, onValueChange = { externalUrl = it; validationError = null },
+          label = { Text("External URL * (e.g. https://...)") }, singleLine = true,
+          modifier = Modifier.fillMaxWidth().testTag("material_url_input"), colors = fieldColors
+        )
+      } else if (!isEditing && isFileUploadMode) {
+        MaterialFilePickerBox(
+          selectedUri = selectedUri,
+          fileName = selectedFileName,
+          fileSize = selectedFileSize,
+          onClick = { filePickerLauncher.launch(allowedMimes) }
+        )
+      }
 
-      if (validationError != null) {
-        Spacer(modifier = Modifier.height(8.dp))
-        Text(validationError!!, color = ErrorRed, fontSize = 12.sp)
+      if (uploadProgress != null) {
+        Spacer(modifier = Modifier.height(12.dp))
+        Text("Uploading: ${(uploadProgress * 100).toInt()}%", fontSize = 12.sp, color = GoldLight, fontWeight = FontWeight.SemiBold)
+        Spacer(modifier = Modifier.height(4.dp))
+        LinearProgressIndicator(
+          progress = { uploadProgress },
+          modifier = Modifier.fillMaxWidth().height(6.dp).clip(RoundedCornerShape(3.dp)),
+          color = GoldPrimary,
+          trackColor = DarkSurfaceVariant
+        )
+      }
+
+      if (!validationError.isNullOrBlank()) {
+        Spacer(modifier = Modifier.height(10.dp))
+        Text(validationError!!, color = ErrorRed, fontSize = 12.sp, modifier = Modifier.testTag("material_validation_error"))
       }
 
       Spacer(modifier = Modifier.height(18.dp))
 
-      Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+      Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
         OutlinedButton(
-          onClick = onDismiss,
-          enabled = !isLoading,
-          modifier = Modifier.weight(1f).height(48.dp).testTag("material_cancel_button"),
-          shape = RoundedCornerShape(12.dp),
-          border = androidx.compose.foundation.BorderStroke(1.5.dp, DarkBorder),
-          colors = ButtonDefaults.outlinedButtonColors(containerColor = DarkSurface, contentColor = TextPrimary)
+          onClick = onDismiss, enabled = !isLoading,
+          shape = RoundedCornerShape(10.dp), modifier = Modifier.testTag("cancel_material_btn")
         ) {
-          Text("Cancel", color = TextPrimary, fontSize = 16.sp, fontWeight = FontWeight.SemiBold)
+          Text("Cancel", color = TextSecondary)
         }
-
+        Spacer(modifier = Modifier.width(10.dp))
+        val isOnline by com.example.data.NetworkMonitor.isOnline.collectAsState()
         Button(
           onClick = {
-            val cleanTitle = title.trim()
-            val cleanUrl = externalUrl.trim()
-            if (cleanTitle.isBlank()) {
-              validationError = "Please enter a material title."
+            if (!isOnline) {
+              com.example.ui.components.OfflineToastHelper.show(context)
               return@Button
             }
-            if (!cleanUrl.startsWith("http://", ignoreCase = true) && !cleanUrl.startsWith("https://", ignoreCase = true)) {
-              validationError = "URL must start with http:// or https://"
+            if (title.isBlank()) {
+              validationError = "Please enter a title"
               return@Button
             }
-            onSave(cleanTitle, description.trim(), materialType, cleanUrl)
+            if (isEditing) {
+              onSaveEdit(initialMaterial.id, title, description)
+            } else if (isFileUploadMode) {
+              val uri = selectedUri
+              if (uri == null) {
+                validationError = "Please choose a file to upload"
+                return@Button
+              }
+              onSaveUpload(title, description, selectedFileName, selectedFileSize, selectedMimeType) {
+                context.contentResolver.openInputStream(uri)!!
+              }
+            } else {
+              if (externalUrl.isBlank()) {
+                validationError = "Please enter an external URL"
+                return@Button
+              }
+              onSaveLink(title, description, materialType, externalUrl)
+            }
           },
           enabled = !isLoading,
-          modifier = Modifier.weight(1f).height(48.dp).testTag("material_submit_button"),
-          shape = RoundedCornerShape(12.dp),
-          colors = ButtonDefaults.buttonColors(containerColor = GoldPrimary, contentColor = com.example.ui.theme.DarkTextOnGold)
+          colors = ButtonDefaults.buttonColors(containerColor = GoldPrimary, contentColor = DarkTextOnGold),
+          shape = RoundedCornerShape(10.dp),
+          modifier = Modifier.alpha(if (!isOnline) 0.5f else 1f).testTag("submit_material_btn")
         ) {
           if (isLoading) {
-            CircularProgressIndicator(modifier = Modifier.size(20.dp), color = com.example.ui.theme.DarkTextOnGold, strokeWidth = 2.dp)
+            CircularProgressIndicator(color = DarkTextOnGold, modifier = Modifier.size(16.dp), strokeWidth = 2.dp)
           } else {
-            Text(if (isEditing) "Save" else "Add", fontWeight = FontWeight.Bold, fontSize = 16.sp, color = com.example.ui.theme.DarkTextOnGold)
+            Text(if (isEditing) "Save" else "Upload", fontWeight = FontWeight.Bold)
           }
         }
       }

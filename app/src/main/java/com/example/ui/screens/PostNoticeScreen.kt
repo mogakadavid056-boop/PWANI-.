@@ -33,6 +33,8 @@ import androidx.compose.material3.Switch
 import androidx.compose.material3.SwitchDefaults
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.ui.draw.alpha
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -202,10 +204,20 @@ fun PostNoticeScreen(
       Spacer(modifier = Modifier.height(24.dp))
 
       // Submit Button
+      val isOnline by com.example.data.NetworkMonitor.isOnline.collectAsStateWithLifecycle()
+      val context = androidx.compose.ui.platform.LocalContext.current
       Button(
-        onClick = { onSubmit(title, content, selectedCategory, isUrgent, isPinned) },
-        enabled = !isLoading && title.isNotBlank() && content.isNotBlank(),
-        modifier = Modifier.fillMaxWidth().height(48.dp).testTag("post_notice_submit_button"),
+        onClick = {
+          if (!isOnline) {
+            com.example.ui.components.OfflineToastHelper.show(context)
+          } else {
+            onSubmit(title, content, selectedCategory, isUrgent, isPinned)
+          }
+        },
+        enabled = if (!isOnline) true else (!isLoading && title.isNotBlank() && content.isNotBlank()),
+        modifier = Modifier.fillMaxWidth().height(48.dp)
+          .then(if (!isOnline) Modifier.alpha(0.5f) else Modifier)
+          .testTag("post_notice_submit_button"),
         shape = RoundedCornerShape(12.dp),
         colors = ButtonDefaults.buttonColors(
           containerColor = GoldPrimary,

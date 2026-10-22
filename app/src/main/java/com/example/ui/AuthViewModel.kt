@@ -28,6 +28,8 @@ class AuthViewModel(
   val uiState: StateFlow<AuthUiState> = _uiState.asStateFlow()
 
   init {
+    com.example.data.OfflineCache.appContext = application.applicationContext
+    com.example.data.NetworkMonitor.initialize(application.applicationContext)
     checkInitialSession()
   }
 
@@ -36,6 +38,7 @@ class AuthViewModel(
       try {
         val savedSession = sessionManager.getSession()
         if (savedSession != null && savedSession.userId.isNotBlank()) {
+          com.example.data.OfflineCache.currentUserId = savedSession.userId
           _uiState.update {
             it.copy(session = savedSession, currentScreen = Screen.Home, isLoading = false)
           }
@@ -113,6 +116,7 @@ class AuthViewModel(
             admissionNumber = adm, role = role, accessToken = auth.accessToken, refreshToken = auth.refreshToken
           )
           sessionManager.saveSession(session)
+          com.example.data.OfflineCache.currentUserId = session.userId
           _uiState.update { it.copy(session = session, isLoading = false, errorMessage = null) }
           onLoginSuccess(session)
         },
@@ -136,7 +140,14 @@ class AuthViewModel(
   }
 
   fun logout() {
+    val uid = _uiState.value.session?.userId.orEmpty()
     viewModelScope.launch {
+      if (uid.isNotBlank()) {
+        com.example.data.OfflineCache.clearUserCache(getApplication(), uid)
+        com.example.data.OfflineMaterialsManager.clearAllUserDownloads(getApplication(), uid)
+      }
+      com.example.data.OfflineCache.currentUserId = ""
+      com.example.data.OfflineCache.clearLastUpdated()
       sessionManager.clearSession()
       _uiState.update {
         it.copy(session = null, currentScreen = Screen.Welcome, errorMessage = null, infoMessage = null)

@@ -31,6 +31,8 @@ import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.ui.draw.alpha
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -152,15 +154,23 @@ fun SignAttendanceScreen(
 
       // Submit Button
       val canSubmit = code.length == 6 && hasSignature && !isLoading
+      val isOnline by com.example.data.NetworkMonitor.isOnline.collectAsStateWithLifecycle()
+      val context = androidx.compose.ui.platform.LocalContext.current
       Button(
         onClick = {
-          val signatureBase64 = base64Generator?.invoke().orEmpty()
-          if (code.length == 6 && signatureBase64.isNotBlank()) {
-            onSubmit(code, signatureBase64)
+          if (!isOnline) {
+            com.example.ui.components.OfflineToastHelper.show(context)
+          } else {
+            val signatureBase64 = base64Generator?.invoke().orEmpty()
+            if (code.length == 6 && signatureBase64.isNotBlank()) {
+              onSubmit(code, signatureBase64)
+            }
           }
         },
-        enabled = canSubmit,
-        modifier = Modifier.fillMaxWidth().height(48.dp).testTag("submit_sign_attendance_btn"),
+        enabled = if (!isOnline) true else canSubmit,
+        modifier = Modifier.fillMaxWidth().height(48.dp)
+          .then(if (!isOnline) Modifier.alpha(0.5f) else Modifier)
+          .testTag("submit_sign_attendance_btn"),
         shape = RoundedCornerShape(12.dp),
         colors = ButtonDefaults.buttonColors(
           containerColor = GoldPrimary,

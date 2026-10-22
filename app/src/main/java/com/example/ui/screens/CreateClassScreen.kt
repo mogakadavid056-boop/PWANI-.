@@ -15,9 +15,11 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.platform.LocalClipboardManager
 import androidx.compose.ui.platform.LocalContext
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.font.FontFamily
@@ -145,15 +147,22 @@ fun CreateClassScreen(
 
       Spacer(modifier = Modifier.height(20.dp))
 
+      val isOnline by com.example.data.NetworkMonitor.isOnline.collectAsStateWithLifecycle()
+      val context = LocalContext.current
       GoldButton(
         text = "Create Class",
         onClick = {
-          onCreateSubmit(
-            className, classCode, selectedSchool?.universityId, selectedSchool?.id,
-            selectedProgramme?.id, selectedAcademicYear?.id, selectedYearOfStudy
-          )
+          if (!isOnline) {
+            com.example.ui.components.OfflineToastHelper.show(context)
+          } else {
+            onCreateSubmit(
+              className, classCode, selectedSchool?.universityId, selectedSchool?.id,
+              selectedProgramme?.id, selectedAcademicYear?.id, selectedYearOfStudy
+            )
+          }
         },
         isLoading = isLoading,
+        modifier = Modifier.then(if (!isOnline) Modifier.alpha(0.5f) else Modifier),
         testTag = "create_class_submit_button"
       )
     }
