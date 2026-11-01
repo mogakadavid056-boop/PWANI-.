@@ -108,9 +108,12 @@ fun ClassScreen(
   onDismissPollsError: () -> Unit, onClosePollDetail: () -> Unit, onDismissCreatePoll: () -> Unit,
   onCreatePollSubmit: (String, List<String>, String) -> Unit,
   allClasses: List<ClassItem> = emptyList(),
+  isAdmin: Boolean = false,
+  isLecturer: Boolean = false,
   onSwitchClass: (ClassItem) -> Unit = {},
   onJoinWithCode: () -> Unit = {},
   onNavigateToCreateClass: () -> Unit = {},
+  onFindMoreClasses: () -> Unit = {},
   onNavigateToProfile: () -> Unit = {},
   onBack: () -> Unit
 ) {
@@ -279,9 +282,12 @@ fun ClassScreen(
       ClassSwitcherBottomSheet(
         classes = allClasses,
         currentClassId = classItem.id,
+        isAdmin = isAdmin,
+        isLecturer = isLecturer,
         onSelectClass = onSwitchClass,
         onJoinWithCode = onJoinWithCode,
         onCreateClass = onNavigateToCreateClass,
+        onFindMoreClasses = onFindMoreClasses,
         onDismiss = { showClassSwitcherSheet = false }
       )
     }

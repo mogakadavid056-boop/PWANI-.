@@ -69,13 +69,15 @@ class AdminService(
         val email = obj.optString("email")
         val admissionNumber = obj.optString("admission_number")
         val role = obj.optString("role").ifBlank { "student" }
+        val verified = obj.optBoolean("verified", false)
         list.add(
           AdminUserItem(
             id = id,
             fullName = fullName,
             email = email,
             admissionNumber = admissionNumber,
-            role = role
+            role = role,
+            isVerified = verified
           )
         )
       }
@@ -93,6 +95,19 @@ class AdminService(
       put("new_role", newRole)
     }
     val result = postRpc("admin_assign_role", payload, accessToken)
+    return result.map { }
+  }
+
+  suspend fun setLecturerVerified(
+    targetUserId: String,
+    isVerified: Boolean,
+    accessToken: String
+  ): Result<Unit> {
+    val payload = JSONObject().apply {
+      put("target_user_id", targetUserId)
+      put("is_verified", isVerified)
+    }
+    val result = postRpc("admin_set_lecturer_verified", payload, accessToken)
     return result.map { }
   }
 }

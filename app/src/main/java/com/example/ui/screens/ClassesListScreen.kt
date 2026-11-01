@@ -48,13 +48,17 @@ import com.example.ui.theme.TitleStyle
 fun ClassesListScreen(
   classes: List<ClassItem>,
   isStaff: Boolean,
+  isAdmin: Boolean = false,
+  isLecturer: Boolean = false,
+  isVerifiedLecturer: Boolean = false,
   isLoading: Boolean,
   errorMessage: String?,
   onDismissError: () -> Unit,
   onRefresh: () -> Unit,
   onSelectClass: (ClassItem) -> Unit,
   onNavigateToJoinClass: () -> Unit,
-  onNavigateToCreateClass: () -> Unit
+  onNavigateToCreateClass: () -> Unit,
+  onNavigateToFindClasses: () -> Unit = {}
 ) {
   Box(
     modifier = Modifier
@@ -108,12 +112,27 @@ fun ClassesListScreen(
         LoadingSkeleton(height = 90)
         LoadingSkeleton(height = 90)
       } else if (classes.isEmpty()) {
+        val emptyMessage = when {
+          isAdmin -> "You haven't created any classes yet. Tap the button below to add your first class."
+          isLecturer -> "You haven't added any classes yet. Use 'Find my classes' to search and claim your classes."
+          else -> "You haven't joined any classes yet. Use a join code from your class prefect."
+        }
+        val emptyActionLabel = when {
+          isAdmin -> "Create Class"
+          isLecturer -> "Find my classes"
+          else -> "Join Class"
+        }
+        val emptyAction = when {
+          isAdmin -> onNavigateToCreateClass
+          isLecturer -> onNavigateToFindClasses
+          else -> onNavigateToJoinClass
+        }
         EmptyState(
           icon = Icons.Default.Class,
           title = "No Classes Yet",
-          message = if (isStaff) "You haven't created or joined any classes yet. Tap the button below to add your first class." else "You haven't joined any classes yet. Use a join code from your class prefect.",
-          actionLabel = if (isStaff) "Create Class" else "Join Class",
-          onActionClick = if (isStaff) onNavigateToCreateClass else onNavigateToJoinClass
+          message = emptyMessage,
+          actionLabel = emptyActionLabel,
+          onActionClick = emptyAction
         )
       } else {
         classes.forEach { item ->
@@ -128,7 +147,8 @@ fun ClassesListScreen(
     }
   }
 
-    if (isStaff) {
+    // Only admin sees Create Class button
+    if (isAdmin) {
       FloatingActionButton(
         onClick = onNavigateToCreateClass,
         containerColor = GoldPrimary,

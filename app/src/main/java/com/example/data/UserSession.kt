@@ -7,5 +7,6 @@ data class UserSession(
   val admissionNumber: String,
   val role: String,
   val accessToken: String,
-  val refreshToken: String? = null
+  val refreshToken: String? = null,
+  val isVerified: Boolean = false
 )

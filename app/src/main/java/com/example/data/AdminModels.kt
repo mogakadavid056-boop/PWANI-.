@@ -5,7 +5,8 @@ data class AdminUserItem(
   val fullName: String,
   val email: String,
   val admissionNumber: String,
-  val role: String
+  val role: String,
+  val isVerified: Boolean = false
 ) {
   val displayRole: String
     get() = formatRoleDisplayName(role)

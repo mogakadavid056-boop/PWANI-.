@@ -205,7 +205,7 @@ fun ClassRepApp(
       else viewModel.navigateTo(Screen.Home)
     }
     Screen.ManageUsers -> BackHandler { viewModel.navigateTo(Screen.Home) }
-    Screen.JoinClass, Screen.CreateClass -> BackHandler { classesViewModel.clearError(); viewModel.navigateTo(Screen.Home) }
+    Screen.JoinClass, Screen.CreateClass, Screen.FindClasses -> BackHandler { classesViewModel.clearError(); viewModel.navigateTo(Screen.Home) }
     Screen.ClassDetail -> BackHandler {
       if (pollsUiState.selectedPoll != null) pollsViewModel.closePollDetail()
       else if (attendanceUiState.currentSubScreen != AttendanceSubScreen.None) attendanceViewModel.closeSubScreen()

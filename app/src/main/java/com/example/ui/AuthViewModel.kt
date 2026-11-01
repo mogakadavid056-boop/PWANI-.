@@ -109,11 +109,13 @@ class AuthViewModel(
       loginResult.fold(
         onSuccess = { auth ->
           val adm = authService.fetchAdmissionNumber(auth.userId, auth.accessToken).getOrDefault("")
-          val role = authService.fetchUserRole(auth.userId, auth.accessToken).getOrDefault("Student")
+          val status = authService.fetchUserRoleAndStatus(auth.userId, auth.accessToken)
+            .getOrDefault(com.example.data.UserRoleStatus("Student", false))
           val session = UserSession(
             userId = auth.userId, email = auth.email,
             fullName = auth.fullName.ifBlank { auth.email.substringBefore('@') },
-            admissionNumber = adm, role = role, accessToken = auth.accessToken, refreshToken = auth.refreshToken
+            admissionNumber = adm, role = status.role, accessToken = auth.accessToken,
+            refreshToken = auth.refreshToken, isVerified = status.verified
           )
           sessionManager.saveSession(session)
           com.example.data.OfflineCache.currentUserId = session.userId
@@ -129,12 +131,12 @@ class AuthViewModel(
 
   private fun refreshRoleAndProfile(session: UserSession) {
     viewModelScope.launch {
-      val roleResult = authService.fetchUserRole(session.userId, session.accessToken)
-      val updatedRole = roleResult.getOrNull()
-      if (!updatedRole.isNullOrBlank() && updatedRole != session.role) {
-        val updated = session.copy(role = updatedRole)
-        sessionManager.updateRole(updatedRole)
-        _uiState.update { it.copy(session = updated) }
+      val statusRes = authService.fetchUserRoleAndStatus(session.userId, session.accessToken)
+      val updated = statusRes.getOrNull()
+      if (updated != null && (updated.role != session.role || updated.verified != session.isVerified)) {
+        val updatedSession = session.copy(role = updated.role, isVerified = updated.verified)
+        sessionManager.updateRoleAndVerification(updated.role, updated.verified)
+        _uiState.update { it.copy(session = updatedSession) }
       }
     }
   }

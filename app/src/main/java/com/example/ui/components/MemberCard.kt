@@ -33,15 +33,9 @@ import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.unit.sp
 import com.example.data.ClassMemberItem
-import com.example.ui.theme.DarkBorder
-import com.example.ui.theme.DarkSurface
-import com.example.ui.theme.DarkSurfaceVariant
-import com.example.ui.theme.DarkTextOnGold
-import com.example.ui.theme.ErrorRed
-import com.example.ui.theme.GoldPrimary
-import com.example.ui.theme.TextPrimary
-import com.example.ui.theme.TextSecondary
+import com.example.ui.theme.*
 
 @Composable
 fun MemberCard(
@@ -49,12 +43,37 @@ fun MemberCard(
   canManageReps: Boolean,
   onAppointRep: () -> Unit,
   onRemoveRep: () -> Unit,
-  onRemoveFromClass: () -> Unit
+  onRemoveFromClass: () -> Unit,
+  modifier: Modifier = Modifier
 ) {
+  val isLecturer = member.memberRole.equals("lecturer", ignoreCase = true)
+  val isPrefect = member.isRep || member.memberRole.equals("prefect", ignoreCase = true) || member.memberRole.equals("rep", ignoreCase = true)
+  val badgeLabel = when {
+    isLecturer -> "Lecturer"
+    isPrefect -> "Prefect"
+    else -> "Student"
+  }
+  val badgeBg = when {
+    isLecturer -> GoldLight.copy(alpha = 0.2f)
+    isPrefect -> GoldPrimary
+    else -> DarkSurfaceVariant
+  }
+  val badgeBorder = when {
+    isLecturer -> GoldLight
+    isPrefect -> GoldPrimary
+    else -> DarkBorder
+  }
+  val badgeTextColor = when {
+    isLecturer -> GoldLight
+    isPrefect -> DarkTextOnGold
+    else -> TextSecondary
+  }
+
   ClassRepCard(
-    modifier = Modifier
-      .then(if (member.isRep) Modifier.border(1.dp, GoldPrimary.copy(alpha = 0.5f), RoundedCornerShape(16.dp)) else Modifier)
-      .testTag("member_card_${member.userId}")
+    modifier = modifier
+      .then(if (isPrefect) Modifier.border(1.dp, GoldPrimary.copy(alpha = 0.5f), RoundedCornerShape(16.dp)) else Modifier)
+      .testTag("member_card_${member.userId}"),
+    onClick = {}
   ) {
     Column {
       Row(
@@ -66,13 +85,13 @@ fun MemberCard(
             .size(40.dp)
             .clip(CircleShape)
             .background(DarkSurfaceVariant)
-            .border(1.dp, if (member.isRep) GoldPrimary else DarkBorder, CircleShape),
+            .border(1.dp, if (isPrefect) GoldPrimary else DarkBorder, CircleShape),
           contentAlignment = Alignment.Center
         ) {
           Icon(
-            if (member.isRep) Icons.Default.Star else Icons.Default.Person,
+            if (isPrefect) Icons.Default.Star else Icons.Default.Person,
             contentDescription = null,
-            tint = if (member.isRep) GoldPrimary else TextSecondary,
+            tint = if (isPrefect) GoldPrimary else TextSecondary,
             modifier = Modifier.size(20.dp)
           )
         }
@@ -82,22 +101,21 @@ fun MemberCard(
         Column(modifier = Modifier.weight(1f)) {
           Row(verticalAlignment = Alignment.CenterVertically) {
             Text(
-              text = member.fullName.ifBlank { "Student" },
+              text = member.fullName.ifBlank { "Member" },
               fontSize = 15.sp,
               fontWeight = FontWeight.Bold,
               color = TextPrimary
             )
-            if (member.isRep) {
-              Spacer(modifier = Modifier.width(6.dp))
-              Box(
-                modifier = Modifier
-                  .clip(RoundedCornerShape(6.dp))
-                  .background(GoldPrimary)
-                  .padding(horizontal = 6.dp, vertical = 2.dp)
-                  .testTag("prefect_badge_${member.userId}")
-              ) {
-                Text("Prefect", fontSize = 10.sp, fontWeight = FontWeight.ExtraBold, color = DarkTextOnGold)
-              }
+            Spacer(modifier = Modifier.width(6.dp))
+            Box(
+              modifier = Modifier
+                .clip(RoundedCornerShape(6.dp))
+                .background(badgeBg)
+                .border(1.dp, badgeBorder, RoundedCornerShape(6.dp))
+                .padding(horizontal = 6.dp, vertical = 2.dp)
+                .testTag("member_role_badge_${member.userId}")
+            ) {
+              Text(badgeLabel, fontSize = 10.sp, fontWeight = FontWeight.ExtraBold, color = badgeTextColor)
             }
           }
           if (member.admissionNumber.isNotBlank()) {
@@ -117,8 +135,8 @@ fun MemberCard(
         horizontalArrangement = Arrangement.End,
         verticalAlignment = Alignment.CenterVertically
       ) {
-        if (canManageReps) {
-          if (member.isRep) {
+        if (canManageReps && !isLecturer) {
+          if (isPrefect) {
             OutlinedButton(
               onClick = onRemoveRep,
               modifier = Modifier.height(34.dp).testTag("remove_rep_btn_${member.userId}"),

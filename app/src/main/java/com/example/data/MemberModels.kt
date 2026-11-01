@@ -5,5 +5,6 @@ data class ClassMemberItem(
   val fullName: String,
   val admissionNumber: String,
   val isRep: Boolean = false,
-  val role: String? = null
+  val role: String? = null,
+  val memberRole: String = "student"
 )

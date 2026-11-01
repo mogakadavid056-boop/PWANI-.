@@ -28,6 +28,7 @@ class SessionManager(private val context: Context) {
     private val KEY_ACCESS_TOKEN = stringPreferencesKey("access_token")
     private val KEY_REFRESH_TOKEN = stringPreferencesKey("refresh_token")
     private val KEY_LAST_CLASS_ID = stringPreferencesKey("last_class_id")
+    private val KEY_IS_VERIFIED = androidx.datastore.preferences.core.booleanPreferencesKey("is_verified")
   }
 
   val sessionFlow: Flow<UserSession?> = context.dataStore.data
@@ -45,7 +46,8 @@ class SessionManager(private val context: Context) {
           admissionNumber = prefs[KEY_ADMISSION_NUMBER].orEmpty(),
           role = prefs[KEY_ROLE].orEmpty().ifBlank { "Student" },
           accessToken = accessToken,
-          refreshToken = prefs[KEY_REFRESH_TOKEN]
+          refreshToken = prefs[KEY_REFRESH_TOKEN],
+          isVerified = prefs[KEY_IS_VERIFIED] ?: false
         )
       } else {
         null
@@ -71,6 +73,7 @@ class SessionManager(private val context: Context) {
         prefs[KEY_ADMISSION_NUMBER] = session.admissionNumber
         prefs[KEY_ROLE] = session.role
         prefs[KEY_ACCESS_TOKEN] = session.accessToken
+        prefs[KEY_IS_VERIFIED] = session.isVerified
         if (!session.refreshToken.isNullOrBlank()) {
           prefs[KEY_REFRESH_TOKEN] = session.refreshToken
         }
@@ -82,6 +85,15 @@ class SessionManager(private val context: Context) {
     try {
       context.dataStore.edit { prefs ->
         prefs[KEY_ROLE] = newRole
+      }
+    } catch (_: Throwable) {}
+  }
+
+  suspend fun updateRoleAndVerification(newRole: String, isVerified: Boolean) = withContext(Dispatchers.IO) {
+    try {
+      context.dataStore.edit { prefs ->
+        prefs[KEY_ROLE] = newRole
+        prefs[KEY_IS_VERIFIED] = isVerified
       }
     } catch (_: Throwable) {}
   }

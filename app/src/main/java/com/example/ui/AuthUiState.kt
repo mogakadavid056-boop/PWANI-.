@@ -18,6 +18,7 @@ sealed interface Screen {
   data object Profile : Screen
   data object ManageUsers : Screen
   data object Waiting : Screen
+  data object FindClasses : Screen
 }
 
 data class AuthUiState(

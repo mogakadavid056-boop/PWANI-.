@@ -60,9 +60,11 @@ class MembersService(
           val admNo = obj.optString("admission_number").ifBlank {
             obj.optString("admission_no", obj.optString("reg_no", "N/A"))
           }
-          val isRep = obj.optBoolean("is_rep", obj.optBoolean("is_representative", obj.optBoolean("rep", false))) ||
-            obj.optString("role").equals("rep", ignoreCase = true) ||
-            obj.optString("role").equals("representative", ignoreCase = true)
+          val rawIsRep = obj.optBoolean("is_rep", obj.optBoolean("is_representative", obj.optBoolean("rep", false)))
+          val memberRole = obj.optString("member_role").ifBlank {
+            obj.optString("role", if (rawIsRep) "prefect" else "student")
+          }
+          val isRep = rawIsRep || memberRole.equals("prefect", ignoreCase = true) || memberRole.equals("rep", ignoreCase = true)
 
           list.add(
             ClassMemberItem(
@@ -70,7 +72,8 @@ class MembersService(
               fullName = fullName,
               admissionNumber = admNo,
               isRep = isRep,
-              role = if (obj.has("role")) obj.optString("role") else null
+              role = if (obj.has("role")) obj.optString("role") else null,
+              memberRole = memberRole
             )
           )
         }

@@ -46,6 +46,7 @@ fun MainContainerRoute(
   adminViewModel: AdminViewModel,
   onNavigateToJoinClass: () -> Unit,
   onNavigateToCreateClass: () -> Unit,
+  onNavigateToFindClasses: () -> Unit = {},
   onSelectClass: (ClassItem) -> Unit,
   onOpenManageMembersForClass: (String, String) -> Unit = { _, _ -> },
   onBecomeLecturer: ((String) -> Unit)? = null,
@@ -106,6 +107,8 @@ fun MainContainerRoute(
               },
               onNavigateToJoinClass = onNavigateToJoinClass,
               onNavigateToCreateClass = onNavigateToCreateClass,
+              onNavigateToFindClasses = onNavigateToFindClasses,
+              onNavigateToMyClasses = { selectedTab = MainTab.Classes },
               onNavigateToManageUsers = {
                 adminViewModel.setSession(session)
                 selectedTab = MainTab.Admin
@@ -119,17 +122,32 @@ fun MainContainerRoute(
               onLogout = onLogout
             )
 
-            MainTab.Classes -> ClassesListScreen(
-              classes = classesUiState.classes,
-              isStaff = isStaff,
-              isLoading = classesUiState.isLoading,
-              errorMessage = classesUiState.errorMessage,
-              onDismissError = { classesViewModel.clearError() },
-              onRefresh = { classesViewModel.loadClasses(session) },
-              onSelectClass = onSelectClass,
-              onNavigateToJoinClass = onNavigateToJoinClass,
-              onNavigateToCreateClass = onNavigateToCreateClass
-            )
+            MainTab.Classes -> {
+              if (isAdmin) {
+                FindClassesScreen(
+                  session = session,
+                  isAdmin = true,
+                  onBack = null,
+                  onOpenClass = onSelectClass
+                )
+              } else {
+                ClassesListScreen(
+                  classes = classesUiState.classes,
+                  isStaff = isStaff,
+                  isAdmin = isAdmin,
+                  isLecturer = session?.role?.equals("lecturer", ignoreCase = true) == true,
+                  isVerifiedLecturer = session?.isVerified == true,
+                  isLoading = classesUiState.isLoading,
+                  errorMessage = classesUiState.errorMessage,
+                  onDismissError = { classesViewModel.clearError() },
+                  onRefresh = { classesViewModel.loadClasses(session) },
+                  onSelectClass = onSelectClass,
+                  onNavigateToJoinClass = onNavigateToJoinClass,
+                  onNavigateToCreateClass = onNavigateToCreateClass,
+                  onNavigateToFindClasses = onNavigateToFindClasses
+                )
+              }
+            }
 
             MainTab.Profile -> ProfileScreen(
               profile = universityUiState.profile,
@@ -166,6 +184,9 @@ fun MainContainerRoute(
                   selectedUser = adminUiState.selectedUser,
                   selectedRoleChoice = adminUiState.selectedRoleChoice,
                   showConfirmDialog = adminUiState.showConfirmDialog,
+                  verificationPendingUser = adminUiState.verificationPendingUser,
+                  verificationTargetStatus = adminUiState.verificationTargetStatus,
+                  showVerificationConfirmDialog = adminUiState.showVerificationConfirmDialog,
                   onSearchQueryChanged = { q -> adminViewModel.onSearchQueryChanged(q) },
                   onRefresh = { adminViewModel.refreshUsers() },
                   onUserClick = { u -> adminViewModel.selectUserForRoleChange(u) },
@@ -174,6 +195,9 @@ fun MainContainerRoute(
                   onDismissConfirmRole = { adminViewModel.dismissConfirmDialog() },
                   onConfirmSaveRole = { adminViewModel.confirmAssignRole() },
                   onDismissRoleDialog = { adminViewModel.dismissRoleDialog() },
+                  onToggleVerification = { u -> adminViewModel.promptToggleLecturerVerification(u) },
+                  onDismissVerificationDialog = { adminViewModel.dismissVerificationDialog() },
+                  onConfirmToggleVerification = { adminViewModel.confirmToggleLecturerVerification() },
                   onDismissError = { adminViewModel.clearError() },
                   onDismissSuccess = { adminViewModel.clearSuccess() },
                   onBack = {

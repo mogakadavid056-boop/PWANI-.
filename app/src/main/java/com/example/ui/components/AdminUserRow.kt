@@ -45,6 +45,7 @@ import com.example.ui.theme.TextSecondary
 fun AdminUserRow(
   user: AdminUserItem,
   onClick: () -> Unit,
+  onToggleVerification: () -> Unit = {},
   modifier: Modifier = Modifier
 ) {
   val isSuperAdmin = user.role.equals("admin", ignoreCase = true)
@@ -111,31 +112,56 @@ fun AdminUserRow(
 
           Spacer(modifier = Modifier.width(8.dp))
 
-          // Role badge
-          Box(
-            modifier = Modifier
-              .clip(RoundedCornerShape(12.dp))
-              .background(badgeBg)
-              .border(1.dp, if (isSuperAdmin) GoldPrimary else DarkBorder, RoundedCornerShape(12.dp))
-              .padding(horizontal = 8.dp, vertical = 3.dp)
-              .testTag("admin_user_role_badge_${user.id}")
-          ) {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-              if (isSuperAdmin) {
-                Icon(
-                  imageVector = Icons.Default.Stars,
-                  contentDescription = null,
-                  tint = badgeColor,
-                  modifier = Modifier.size(13.dp)
+          Row(verticalAlignment = Alignment.CenterVertically) {
+            // Role badge
+            Box(
+              modifier = Modifier
+                .clip(RoundedCornerShape(12.dp))
+                .background(badgeBg)
+                .border(1.dp, if (isSuperAdmin) GoldPrimary else DarkBorder, RoundedCornerShape(12.dp))
+                .padding(horizontal = 8.dp, vertical = 3.dp)
+                .testTag("admin_user_role_badge_${user.id}")
+            ) {
+              Row(verticalAlignment = Alignment.CenterVertically) {
+                if (isSuperAdmin) {
+                  Icon(
+                    imageVector = Icons.Default.Stars,
+                    contentDescription = null,
+                    tint = badgeColor,
+                    modifier = Modifier.size(13.dp)
+                  )
+                  Spacer(modifier = Modifier.width(3.dp))
+                }
+                Text(
+                  text = user.displayRole,
+                  fontSize = 13.sp,
+                  fontWeight = FontWeight.Bold,
+                  color = badgeColor
                 )
-                Spacer(modifier = Modifier.width(3.dp))
               }
-              Text(
-                text = user.displayRole,
-                fontSize = 13.sp,
-                fontWeight = FontWeight.Bold,
-                color = badgeColor
-              )
+            }
+
+            if (isLecturer) {
+              val verifiedBg = if (user.isVerified) androidx.compose.ui.graphics.Color(0x224CAF50) else androidx.compose.ui.graphics.Color(0x22FF9800)
+              val verifiedBorder = if (user.isVerified) androidx.compose.ui.graphics.Color(0xFF4CAF50) else androidx.compose.ui.graphics.Color(0xFFFF9800)
+              val verifiedTextColor = if (user.isVerified) androidx.compose.ui.graphics.Color(0xFF81C784) else androidx.compose.ui.graphics.Color(0xFFFFB74D)
+
+              Spacer(modifier = Modifier.width(6.dp))
+              Box(
+                modifier = Modifier
+                  .clip(RoundedCornerShape(10.dp))
+                  .background(verifiedBg)
+                  .border(1.dp, verifiedBorder, RoundedCornerShape(10.dp))
+                  .padding(horizontal = 7.dp, vertical = 2.dp)
+                  .testTag("admin_user_verified_badge_${user.id}")
+              ) {
+                Text(
+                  text = if (user.isVerified) "Verified" else "Not verified",
+                  fontSize = 11.sp,
+                  fontWeight = FontWeight.SemiBold,
+                  color = verifiedTextColor
+                )
+              }
             }
           }
         }
@@ -177,6 +203,31 @@ fun AdminUserRow(
               fontSize = 12.sp,
               color = TextSecondary
             )
+          }
+        }
+
+        if (isLecturer) {
+          Spacer(modifier = Modifier.height(8.dp))
+          Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.End
+          ) {
+            androidx.compose.material3.OutlinedButton(
+              onClick = onToggleVerification,
+              modifier = Modifier
+                .height(30.dp)
+                .testTag("admin_verify_lecturer_btn_${user.id}"),
+              shape = RoundedCornerShape(8.dp),
+              contentPadding = androidx.compose.foundation.layout.PaddingValues(horizontal = 10.dp, vertical = 0.dp),
+              border = androidx.compose.foundation.BorderStroke(1.dp, if (user.isVerified) androidx.compose.ui.graphics.Color(0xFFFF9800) else GoldPrimary)
+            ) {
+              Text(
+                text = if (user.isVerified) "Remove verification" else "Verify",
+                fontSize = 12.sp,
+                fontWeight = FontWeight.SemiBold,
+                color = if (user.isVerified) androidx.compose.ui.graphics.Color(0xFFFFB74D) else GoldLight
+              )
+            }
           }
         }
       }

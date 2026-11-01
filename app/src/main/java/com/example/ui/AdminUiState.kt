@@ -11,5 +11,8 @@ data class AdminUiState(
   val successMessage: String? = null,
   val selectedUser: AdminUserItem? = null,
   val selectedRoleChoice: String = "student",
-  val showConfirmDialog: Boolean = false
+  val showConfirmDialog: Boolean = false,
+  val verificationPendingUser: AdminUserItem? = null,
+  val verificationTargetStatus: Boolean = false,
+  val showVerificationConfirmDialog: Boolean = false
 )

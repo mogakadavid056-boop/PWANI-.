@@ -150,6 +150,64 @@ class AdminViewModel(
     }
   }
 
+  fun promptToggleLecturerVerification(user: AdminUserItem) {
+    val targetStatus = !user.isVerified
+    _uiState.update {
+      it.copy(
+        verificationPendingUser = user,
+        verificationTargetStatus = targetStatus,
+        showVerificationConfirmDialog = true,
+        errorMessage = null
+      )
+    }
+  }
+
+  fun dismissVerificationDialog() {
+    _uiState.update {
+      it.copy(
+        verificationPendingUser = null,
+        showVerificationConfirmDialog = false
+      )
+    }
+  }
+
+  fun confirmToggleLecturerVerification() {
+    val user = _uiState.value.verificationPendingUser ?: return
+    val targetStatus = _uiState.value.verificationTargetStatus
+    val session = activeSession ?: return
+
+    _uiState.update { it.copy(isActionLoading = true, errorMessage = null) }
+    viewModelScope.launch {
+      val result = adminService.setLecturerVerified(
+        targetUserId = user.id,
+        isVerified = targetStatus,
+        accessToken = session.accessToken
+      )
+      result.fold(
+        onSuccess = {
+          _uiState.update {
+            it.copy(
+              isActionLoading = false,
+              verificationPendingUser = null,
+              showVerificationConfirmDialog = false,
+              successMessage = if (targetStatus) "Lecturer verified successfully" else "Lecturer verification removed"
+            )
+          }
+          refreshUsers()
+        },
+        onFailure = { err ->
+          _uiState.update {
+            it.copy(
+              isActionLoading = false,
+              showVerificationConfirmDialog = false,
+              errorMessage = err.message ?: "Failed to update lecturer verification"
+            )
+          }
+        }
+      )
+    }
+  }
+
   fun clearError() {
     _uiState.update { it.copy(errorMessage = null) }
   }

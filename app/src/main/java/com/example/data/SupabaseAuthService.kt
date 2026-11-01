@@ -214,10 +214,17 @@ class SupabaseAuthService(
   suspend fun fetchUserRole(
     userId: String,
     accessToken: String
-  ): Result<String> = withContext(Dispatchers.IO) {
-    if (!SupabaseConfig.isConfigured() || userId.isBlank()) return@withContext Result.success("Student")
+  ): Result<String> = fetchUserRoleAndStatus(userId, accessToken).map { it.role }
 
-    val url = "${SupabaseConfig.url}/rest/v1/user_roles?user_id=eq.$userId&select=*"
+  suspend fun fetchUserRoleAndStatus(
+    userId: String,
+    accessToken: String
+  ): Result<UserRoleStatus> = withContext(Dispatchers.IO) {
+    if (!SupabaseConfig.isConfigured() || userId.isBlank()) {
+      return@withContext Result.success(UserRoleStatus("Student", false))
+    }
+
+    val url = "${SupabaseConfig.url}/rest/v1/user_roles?select=role,verified&user_id=eq.$userId"
     val tokenHeader = if (accessToken.isNotBlank() && accessToken != SupabaseConfig.anonKey) accessToken else SupabaseConfig.anonKey
 
     val request = Request.Builder()
@@ -239,10 +246,12 @@ class SupabaseAuthService(
         val body = response.body?.string().orEmpty()
         val array = JSONArray(body)
         if (array.length() > 0) {
-          val rawRole = array.getJSONObject(0).optString("role", "Student")
-          Result.success(rawRole.ifBlank { "Student" })
+          val first = array.getJSONObject(0)
+          val rawRole = first.optString("role", "Student").ifBlank { "Student" }
+          val isVerified = first.optBoolean("verified", false)
+          Result.success(UserRoleStatus(rawRole, isVerified))
         } else {
-          Result.success("Student")
+          Result.success(UserRoleStatus("Student", false))
         }
       }
     } catch (e: Exception) {
@@ -254,3 +263,8 @@ class SupabaseAuthService(
     return SupabaseConfig.extractErrorMessage(responseBody, statusCode)
   }
 }
+
+data class UserRoleStatus(
+  val role: String,
+  val verified: Boolean
+)

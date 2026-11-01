@@ -63,6 +63,9 @@ fun ManageUsersScreen(
   selectedUser: AdminUserItem?,
   selectedRoleChoice: String,
   showConfirmDialog: Boolean,
+  verificationPendingUser: AdminUserItem? = null,
+  verificationTargetStatus: Boolean = false,
+  showVerificationConfirmDialog: Boolean = false,
   onSearchQueryChanged: (String) -> Unit,
   onRefresh: () -> Unit,
   onUserClick: (AdminUserItem) -> Unit,
@@ -71,6 +74,9 @@ fun ManageUsersScreen(
   onDismissConfirmRole: () -> Unit,
   onConfirmSaveRole: () -> Unit,
   onDismissRoleDialog: () -> Unit,
+  onToggleVerification: (AdminUserItem) -> Unit = {},
+  onDismissVerificationDialog: () -> Unit = {},
+  onConfirmToggleVerification: () -> Unit = {},
   onDismissError: () -> Unit,
   onDismissSuccess: () -> Unit,
   onBack: () -> Unit
@@ -218,7 +224,8 @@ fun ManageUsersScreen(
             items(users, key = { it.id }) { user ->
               AdminUserRow(
                 user = user,
-                onClick = { onUserClick(user) }
+                onClick = { onUserClick(user) },
+                onToggleVerification = { onToggleVerification(user) }
               )
             }
           }
@@ -238,6 +245,47 @@ fun ManageUsersScreen(
         onDismissConfirm = onDismissConfirmRole,
         onConfirmSave = onConfirmSaveRole,
         onDismiss = onDismissRoleDialog
+      )
+    }
+
+    if (showVerificationConfirmDialog && verificationPendingUser != null) {
+      androidx.compose.material3.AlertDialog(
+        onDismissRequest = onDismissVerificationDialog,
+        title = {
+          Text(
+            text = if (verificationTargetStatus) "Verify Lecturer" else "Remove Verification",
+            color = GoldLight,
+            fontWeight = FontWeight.Bold
+          )
+        },
+        text = {
+          Text(
+            text = if (verificationTargetStatus) {
+              "Are you sure you want to verify ${verificationPendingUser.fullName} as an official lecturer?"
+            } else {
+              "Are you sure you want to remove lecturer verification for ${verificationPendingUser.fullName}?"
+            },
+            color = TextSecondary
+          )
+        },
+        confirmButton = {
+          androidx.compose.material3.Button(
+            onClick = onConfirmToggleVerification,
+            colors = androidx.compose.material3.ButtonDefaults.buttonColors(
+              containerColor = if (verificationTargetStatus) GoldPrimary else com.example.ui.theme.ErrorRed,
+              contentColor = com.example.ui.theme.DarkTextOnGold
+            )
+          ) {
+            Text(if (verificationTargetStatus) "Verify" else "Remove")
+          }
+        },
+        dismissButton = {
+          androidx.compose.material3.TextButton(onClick = onDismissVerificationDialog) {
+            Text("Cancel", color = TextSecondary)
+          }
+        },
+        containerColor = DarkCard,
+        shape = RoundedCornerShape(16.dp)
       )
     }
   }

@@ -2,29 +2,19 @@ package com.example.ui.screens
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
-import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.Logout
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.Class
 import androidx.compose.material.icons.filled.GroupAdd
+import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.Person
+import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.SupervisorAccount
-import androidx.compose.material3.Button
-import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.Text
@@ -32,6 +22,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -47,25 +38,7 @@ import com.example.ui.components.ClassesWaitingForPrefectCard
 import com.example.ui.components.FriendlyErrorSnackbar
 import com.example.ui.components.LatestAnnouncementsSection
 import com.example.ui.components.PrimaryButton
-import com.example.ui.theme.ButtonMinHeight
-import com.example.ui.theme.ButtonRadius
-import com.example.ui.theme.CaptionStyle
-import com.example.ui.theme.DarkBackground
-import com.example.ui.theme.DarkBorder
-import com.example.ui.theme.DarkCard
-import com.example.ui.theme.DarkSurfaceVariant
-import com.example.ui.theme.ErrorContainer
-import com.example.ui.theme.ErrorRed
-import com.example.ui.theme.GoldAccent
-import com.example.ui.theme.GoldDark
-import com.example.ui.theme.GoldLight
-import com.example.ui.theme.GoldPrimary
-import com.example.ui.theme.ItemSpacing
-import com.example.ui.theme.ScreenPadding
-import com.example.ui.theme.SectionHeadingStyle
-import com.example.ui.theme.TextPrimary
-import com.example.ui.theme.TextSecondary
-import com.example.ui.theme.TitleStyle
+import com.example.ui.theme.*
 
 @Composable
 fun HomeScreen(
@@ -82,6 +55,8 @@ fun HomeScreen(
   onRefreshClasses: () -> Unit = {},
   onNavigateToJoinClass: () -> Unit = {},
   onNavigateToCreateClass: () -> Unit = {},
+  onNavigateToFindClasses: () -> Unit = {},
+  onNavigateToMyClasses: () -> Unit = {},
   onNavigateToManageUsers: () -> Unit = {},
   onNavigateToProfile: () -> Unit = {},
   onSelectClass: (ClassItem) -> Unit = {},
@@ -90,7 +65,9 @@ fun HomeScreen(
 ) {
   val rawRole = session?.role.orEmpty().ifBlank { "student" }
   val isAdmin = rawRole.equals("admin", ignoreCase = true)
-  val isStaff = isAdmin || rawRole.equals("lecturer", ignoreCase = true)
+  val isLecturer = rawRole.equals("lecturer", ignoreCase = true)
+  val isStaff = isAdmin || isLecturer
+  val isVerified = session?.isVerified == true
   val displayRole = formatRoleDisplayName(rawRole)
 
   val firstName = session?.fullName?.trim()
@@ -171,30 +148,92 @@ fun HomeScreen(
         FriendlyErrorSnackbar(errorMessage = classesError, onDismiss = onDismissClassesError)
       }
 
-      // Quick Action Buttons
-      val studentHasClass = !isStaff && classes.isNotEmpty()
-      if (!studentHasClass) {
+      // Lecturer verification banner if unverified
+      if (isLecturer && !isVerified) {
+        Box(
+          modifier = Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(12.dp))
+            .background(androidx.compose.ui.graphics.Color(0xFF332005))
+            .border(1.dp, androidx.compose.ui.graphics.Color(0xFFFFB300), RoundedCornerShape(12.dp))
+            .padding(14.dp)
+            .testTag("home_lecturer_unverified_banner")
+        ) {
+          Row(verticalAlignment = Alignment.CenterVertically) {
+            Icon(
+              Icons.Default.Info,
+              contentDescription = null,
+              tint = androidx.compose.ui.graphics.Color(0xFFFFB300),
+              modifier = Modifier.size(20.dp)
+            )
+            Spacer(modifier = Modifier.width(10.dp))
+            Text(
+              text = "Your lecturer account is waiting for verification by an administrator.",
+              fontSize = 13.sp,
+              fontWeight = FontWeight.Medium,
+              color = androidx.compose.ui.graphics.Color(0xFFFFE082),
+              lineHeight = 18.sp
+            )
+          }
+        }
+      }
+
+      // Quick Action Buttons depending on user role and verification
+      if (isLecturer) {
+        if (!isVerified) {
+          PrimaryButton(
+            text = "Join with class code",
+            leadingIcon = Icons.Default.GroupAdd,
+            onClick = onNavigateToJoinClass,
+            modifier = Modifier.fillMaxWidth().testTag("home_join_class_button")
+          )
+        } else {
+          Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(10.dp)
+          ) {
+            PrimaryButton(
+              text = "Find my classes",
+              leadingIcon = Icons.Default.Search,
+              onClick = onNavigateToFindClasses,
+              modifier = Modifier.weight(1f).testTag("home_find_my_classes_button")
+            )
+            com.example.ui.components.ClassRepOutlinedButton(
+              text = "My classes",
+              leadingIcon = Icons.Default.Class,
+              onClick = onNavigateToMyClasses,
+              modifier = Modifier.weight(1f).testTag("home_my_classes_button")
+            )
+          }
+        }
+      } else if (isAdmin) {
         Row(
           modifier = Modifier.fillMaxWidth(),
           horizontalArrangement = Arrangement.spacedBy(10.dp)
         ) {
           PrimaryButton(
+            text = "Find classes",
+            leadingIcon = Icons.Default.Search,
+            onClick = onNavigateToFindClasses,
+            modifier = Modifier.weight(1f).testTag("home_admin_find_classes_button")
+          )
+          com.example.ui.components.ClassRepOutlinedButton(
+            text = "Create Class",
+            leadingIcon = Icons.Default.Add,
+            onClick = onNavigateToCreateClass,
+            modifier = Modifier.weight(1f).testTag("home_create_class_button")
+          )
+        }
+      } else {
+        // Student
+        val studentHasClass = classes.isNotEmpty()
+        if (!studentHasClass) {
+          PrimaryButton(
             text = "Join Class",
             leadingIcon = Icons.Default.GroupAdd,
             onClick = onNavigateToJoinClass,
-            modifier = Modifier.weight(1f).testTag("home_join_class_button")
+            modifier = Modifier.fillMaxWidth().testTag("home_join_class_button")
           )
-
-          if (isStaff) {
-            com.example.ui.components.ClassRepOutlinedButton(
-              text = "Create Class",
-              leadingIcon = Icons.Default.Add,
-              onClick = onNavigateToCreateClass,
-              modifier = Modifier
-                .weight(1f)
-                .testTag("home_create_class_button")
-            )
-          }
         }
       }
 

@@ -146,6 +146,7 @@ fun ClassRepNavHost(
           universityViewModel.loadAcademicYears(authUiState.session)
           authViewModel.navigateTo(Screen.CreateClass)
         },
+        onNavigateToFindClasses = { authViewModel.navigateTo(Screen.FindClasses) },
         onSelectClass = openClassDirectly,
         onOpenManageMembersForClass = { classId, className ->
           noticesViewModel.selectClassAndLoad(com.example.data.ClassItem(id = classId, name = className, code = ""), authUiState.session)
@@ -213,9 +214,8 @@ fun ClassRepNavHost(
         onBack = { classesViewModel.clearError(); authViewModel.navigateTo(Screen.Home) }
       )
       Screen.CreateClass -> {
-        val isStaff = authUiState.session?.role?.equals("admin", ignoreCase = true) == true ||
-          authUiState.session?.role?.equals("lecturer", ignoreCase = true) == true
-        if (!isStaff) LaunchedEffect(Unit) { authViewModel.navigateTo(Screen.Home) }
+        val isAdmin = authUiState.session?.role?.equals("admin", ignoreCase = true) == true
+        if (!isAdmin) LaunchedEffect(Unit) { authViewModel.navigateTo(Screen.Home) }
         else CreateClassScreen(
           isLoading = classesUiState.isActionLoading, errorMessage = classesUiState.errorMessage,
           createdJoinCode = classesUiState.createdJoinCode, schools = universityUiState.schools,
@@ -227,6 +227,16 @@ fun ClassRepNavHost(
           onBack = { classesViewModel.clearError(); authViewModel.navigateTo(Screen.Home) }
         )
       }
+      Screen.FindClasses -> FindClassesScreen(
+        session = authUiState.session,
+        isAdmin = authUiState.session?.role?.equals("admin", ignoreCase = true) == true,
+        onBack = { authViewModel.navigateTo(Screen.Home) },
+        onOpenClass = { cls ->
+          classesViewModel.loadClasses(authUiState.session) {
+            openClassDirectly(cls)
+          }
+        }
+      )
       Screen.ClassDetail -> ClassDetailRoute(
         session = authUiState.session, noticesUiState = noticesUiState, attendanceUiState = attendanceUiState,
         groupsUiState = groupsUiState, timetableUiState = timetableUiState, materialsUiState = materialsUiState,
@@ -242,6 +252,7 @@ fun ClassRepNavHost(
           universityViewModel.loadAcademicYears(authUiState.session)
           authViewModel.navigateTo(Screen.CreateClass)
         },
+        onNavigateToFindClasses = { authViewModel.navigateTo(Screen.FindClasses) },
         onNavigateToProfile = navigateToProfileScreen,
         onNavigateToPostNotice = { noticesViewModel.clearError(); authViewModel.navigateTo(Screen.PostNotice) },
         onNavigateToManageMembers = { membersViewModel.loadMembers(noticesUiState.selectedClass?.id.orEmpty(), authUiState.session); authViewModel.navigateTo(Screen.ManageMembers) },
