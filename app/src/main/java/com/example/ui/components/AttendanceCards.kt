@@ -127,6 +127,7 @@ fun ActiveSessionBanner(
 fun StaffSessionCard(
   session: AttendanceSessionItem,
   onViewAttendance: () -> Unit,
+  onShowCode: (() -> Unit)? = null,
   onDeleteSession: (() -> Unit)? = null
 ) {
   ClassRepCard(
@@ -153,6 +154,17 @@ fun StaffSessionCard(
         )
       }
       Row(verticalAlignment = Alignment.CenterVertically) {
+        if (session.active && onShowCode != null) {
+          Button(
+            onClick = onShowCode,
+            modifier = Modifier.height(34.dp).testTag("show_code_btn_${session.id}"),
+            shape = RoundedCornerShape(8.dp),
+            colors = ButtonDefaults.buttonColors(containerColor = GoldPrimary, contentColor = com.example.ui.theme.DarkTextOnGold)
+          ) {
+            Text("Code", fontSize = 11.sp, fontWeight = FontWeight.Bold)
+          }
+          Spacer(modifier = Modifier.width(6.dp))
+        }
         Button(
           onClick = onViewAttendance,
           modifier = Modifier.height(34.dp).testTag("view_session_btn_${session.id}"),

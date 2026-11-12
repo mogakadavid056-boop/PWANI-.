@@ -47,6 +47,7 @@ fun ClassTabContent(
   onOpenSignAttendance: (String) -> Unit,
   onOpenAttendanceSummary: () -> Unit = {},
   onOpenMyAttendance: () -> Unit = {},
+  onShowActiveCode: ((String, String) -> Unit)? = null,
   onDeleteSession: (com.example.data.AttendanceSessionItem) -> Unit,
   onRefreshGroups: () -> Unit,
   onCreateGroupClick: () -> Unit,
@@ -85,7 +86,7 @@ fun ClassTabContent(
       activeSessionCode = attendanceUiState.activeSessionCode, activeSessionId = attendanceUiState.activeSessionId, activeRemainingSeconds = attendanceUiState.activeSessionRemainingSeconds,
       onStartAttendanceClick = onStartAttendanceClick, onRefreshSessions = onRefreshAttendance, onOpenViewAttendance = onOpenViewAttendance,
       onOpenSignAttendance = onOpenSignAttendance, onOpenAttendanceSummary = onOpenAttendanceSummary,
-      onOpenMyAttendance = onOpenMyAttendance, onDeleteSession = onDeleteSession
+      onOpenMyAttendance = onOpenMyAttendance, onShowActiveCode = onShowActiveCode, onDeleteSession = onDeleteSession
     )
     ClassTab.Timetable -> TimetableSection(
       schedules = timetableUiState.schedules, selectedDay = timetableUiState.selectedDay, todayDayOfWeek = timetableUiState.todayDayOfWeek,

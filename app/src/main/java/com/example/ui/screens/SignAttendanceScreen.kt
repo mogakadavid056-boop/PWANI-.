@@ -63,6 +63,8 @@ fun SignAttendanceScreen(
   isLoading: Boolean,
   errorMessage: String?,
   successMessage: String?,
+  isLockedOut: Boolean = false,
+  lockoutRemainingSeconds: Long = 0L,
   onDismissError: () -> Unit,
   onDismissSuccess: () -> Unit,
   onSubmit: (code: String, signatureBase64: String) -> Unit,
@@ -152,12 +154,36 @@ fun SignAttendanceScreen(
 
       Spacer(modifier = Modifier.height(24.dp))
 
+      if (isLockedOut) {
+        val mins = lockoutRemainingSeconds / 60
+        val secs = lockoutRemainingSeconds % 60
+        val timeDisplay = String.format("%02d:%02d", mins, secs)
+        Box(
+          modifier = Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(12.dp))
+            .background(com.example.ui.theme.DarkSurfaceVariant)
+            .border(1.dp, com.example.ui.theme.ErrorRed, RoundedCornerShape(12.dp))
+            .padding(12.dp)
+            .testTag("attendance_lockout_banner")
+        ) {
+          Text(
+            text = "Too many attempts. The Sign button is disabled for $timeDisplay.",
+            fontSize = 13.sp,
+            fontWeight = FontWeight.SemiBold,
+            color = com.example.ui.theme.ErrorRed
+          )
+        }
+        Spacer(modifier = Modifier.height(14.dp))
+      }
+
       // Submit Button
-      val canSubmit = code.length == 6 && hasSignature && !isLoading
+      val canSubmit = code.length == 6 && hasSignature && !isLoading && !isLockedOut
       val isOnline by com.example.data.NetworkMonitor.isOnline.collectAsStateWithLifecycle()
       val context = androidx.compose.ui.platform.LocalContext.current
       Button(
         onClick = {
+          if (isLockedOut) return@Button
           if (!isOnline) {
             com.example.ui.components.OfflineToastHelper.show(context)
           } else {
@@ -167,9 +193,9 @@ fun SignAttendanceScreen(
             }
           }
         },
-        enabled = if (!isOnline) true else canSubmit,
+        enabled = if (!isOnline) !isLockedOut else canSubmit,
         modifier = Modifier.fillMaxWidth().height(48.dp)
-          .then(if (!isOnline) Modifier.alpha(0.5f) else Modifier)
+          .then(if (!isOnline || isLockedOut) Modifier.alpha(0.5f) else Modifier)
           .testTag("submit_sign_attendance_btn"),
         shape = RoundedCornerShape(12.dp),
         colors = ButtonDefaults.buttonColors(
@@ -179,7 +205,11 @@ fun SignAttendanceScreen(
           disabledContentColor = TextSecondary.copy(alpha = 0.4f)
         )
       ) {
-        if (isLoading) {
+        if (isLockedOut) {
+          val mins = lockoutRemainingSeconds / 60
+          val secs = lockoutRemainingSeconds % 60
+          Text("Locked: try in ${mins}m ${secs}s", fontSize = 14.sp, fontWeight = FontWeight.Bold, color = TextSecondary)
+        } else if (isLoading) {
           CircularProgressIndicator(color = com.example.ui.theme.DarkTextOnGold, strokeWidth = 2.5.dp, modifier = Modifier.size(20.dp))
         } else {
           Text("Submit Attendance", fontSize = 16.sp, fontWeight = FontWeight.Bold, color = com.example.ui.theme.DarkTextOnGold)

@@ -14,6 +14,17 @@ data class AttendanceRecordItem(
   val signatureData: String? = null
 )
 
+data class CreateSessionV2Result(
+  val sessionId: String,
+  val sessionCode: String,
+  val expiresAt: String
+)
+
+data class SignAttendanceResult(
+  val ok: Boolean,
+  val message: String
+)
+
 enum class AttendanceSubScreen {
   None,
   ViewAttendance,

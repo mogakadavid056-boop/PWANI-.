@@ -59,6 +59,7 @@ fun AttendanceSection(
   onOpenSignAttendance: (sessionId: String) -> Unit,
   onOpenAttendanceSummary: () -> Unit = {},
   onOpenMyAttendance: () -> Unit = {},
+  onShowActiveCode: ((sessionId: String, expiresAt: String) -> Unit)? = null,
   onDeleteSession: (AttendanceSessionItem) -> Unit = {}
 ) {
   Column(modifier = Modifier.fillMaxWidth()) {
@@ -156,6 +157,7 @@ fun AttendanceSection(
             StaffSessionCard(
               session = session,
               onViewAttendance = { onOpenViewAttendance(session.id) },
+              onShowCode = if (onShowActiveCode != null) { { onShowActiveCode(session.id, session.expiresAt) } } else null,
               onDeleteSession = { onDeleteSession(session) }
             )
           }

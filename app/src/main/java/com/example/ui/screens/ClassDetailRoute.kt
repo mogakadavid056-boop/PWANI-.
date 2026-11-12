@@ -85,6 +85,7 @@ fun ClassDetailRoute(
     onStartAttendance = { d -> attendanceViewModel.startAttendanceSession(d, session) },
     onOpenViewAttendance = { sid -> attendanceViewModel.openViewAttendance(sid, session) },
     onOpenSignAttendance = { sid -> attendanceViewModel.openSignAttendance(sid) },
+    onShowActiveCode = { sid, exp -> attendanceViewModel.fetchActiveSessionCode(sid, exp, session) },
     onCloseAttendanceSubScreen = { attendanceViewModel.closeSubScreen() },
     onSignAttendanceSubmit = { c, s -> attendanceViewModel.signAttendance(c, s, session) {} },
     onPromptDeleteSession = { s -> attendanceViewModel.promptDeleteSession(s) },

@@ -72,6 +72,8 @@ fun HandleClassSubScreenOverlay(
       isLoading = attendanceUiState.isActionLoading,
       errorMessage = attendanceUiState.errorMessage,
       successMessage = attendanceUiState.successMessage,
+      isLockedOut = attendanceUiState.isSignLockedOut,
+      lockoutRemainingSeconds = attendanceUiState.signLockoutRemainingSeconds,
       onDismissError = onDismissAttendanceError,
       onDismissSuccess = {
         onDismissAttendanceSuccess()

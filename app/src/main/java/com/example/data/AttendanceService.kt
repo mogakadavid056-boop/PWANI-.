@@ -9,260 +9,167 @@ import okhttp3.RequestBody.Companion.toRequestBody
 import org.json.JSONArray
 import org.json.JSONObject
 import java.net.URLEncoder
-import java.util.concurrent.TimeUnit
 
 class AttendanceService(
   private val client: OkHttpClient = OfflineCache.getClient()
 ) {
-
   private val jsonMediaType = "application/json; charset=utf-8".toMediaType()
 
-  suspend fun createAttendanceSession(
-    classId: String,
-    sessionCode: String,
-    sessionExpiryIso: String,
-    accessToken: String
-  ): Result<String> = withContext(Dispatchers.IO) {
-    if (!SupabaseConfig.isConfigured()) {
-      return@withContext Result.failure(IllegalStateException(SupabaseConfig.MISSING_CONFIG_ERROR))
-    }
+  private fun postRpc(rpcName: String, body: JSONObject, accessToken: String): Result<String> {
+    val url = "${SupabaseConfig.url}/rest/v1/rpc/$rpcName"
+    val req = Request.Builder().url(url).addHeader("apikey", SupabaseConfig.anonKey)
+      .addHeader("Authorization", "Bearer $accessToken").addHeader("Content-Type", "application/json")
+      .post(body.toString().toRequestBody(jsonMediaType)).build()
+    return try {
+      client.newCall(req).execute().use { res ->
+        val bodyStr = res.body?.string().orEmpty().trim()
+        if (res.isSuccessful) Result.success(bodyStr)
+        else Result.failure(Exception(SupabaseConfig.extractErrorMessage(bodyStr, res.code)))
+      }
+    } catch (e: Exception) { Result.failure(Exception(e.localizedMessage ?: "Request failed")) }
+  }
 
+  private fun getQuery(url: String, accessToken: String): Result<String> {
+    val req = Request.Builder().url(url).addHeader("apikey", SupabaseConfig.anonKey)
+      .addHeader("Authorization", "Bearer $accessToken").addHeader("Accept", "application/json").get().build()
+    return try {
+      client.newCall(req).execute().use { res ->
+        val bodyStr = res.body?.string().orEmpty()
+        if (res.isSuccessful) Result.success(bodyStr)
+        else Result.failure(Exception(SupabaseConfig.extractErrorMessage(bodyStr, res.code)))
+      }
+    } catch (e: Exception) { Result.failure(Exception(e.localizedMessage ?: "Request failed")) }
+  }
+
+  suspend fun createAttendanceSessionV2(
+    classId: String, courseId: String? = null, sessionExpiryIso: String,
+    sessionTitle: String = "Class Attendance", accessToken: String
+  ): Result<CreateSessionV2Result> = withContext(Dispatchers.IO) {
+    if (!SupabaseConfig.isConfigured()) return@withContext Result.failure(IllegalStateException(SupabaseConfig.MISSING_CONFIG_ERROR))
     val body = JSONObject().apply {
-      put("target_class_id", classId)
-      put("target_course_id", JSONObject.NULL)
-      put("session_code", sessionCode)
-      put("session_expiry", sessionExpiryIso)
+      put("target_class_id", classId); put("target_course_id", courseId ?: JSONObject.NULL)
+      put("session_expiry", sessionExpiryIso); put("session_title", sessionTitle)
     }
-
-    val url = "${SupabaseConfig.url}/rest/v1/rpc/create_attendance_session"
-    val request = Request.Builder()
-      .url(url)
-      .addHeader("apikey", SupabaseConfig.anonKey)
-      .addHeader("Authorization", "Bearer $accessToken")
-      .addHeader("Content-Type", "application/json")
-      .post(body.toString().toRequestBody(jsonMediaType))
-      .build()
-
-    try {
-      client.newCall(request).execute().use { response ->
-        val bodyString = response.body?.string().orEmpty().trim()
-        if (!response.isSuccessful) {
-          return@withContext Result.failure(Exception(SupabaseConfig.extractErrorMessage(bodyString, response.code)))
-        }
-
-        val sessionId = when {
-          bodyString.startsWith("\"") && bodyString.endsWith("\"") -> bodyString.removeSurrounding("\"")
-          bodyString.startsWith("{") -> {
-            val json = JSONObject(bodyString)
-            json.optString("id", json.optString("session_id", bodyString))
-          }
-          else -> bodyString
-        }
-        Result.success(sessionId)
-      }
-    } catch (e: Exception) {
-      Result.failure(Exception(e.localizedMessage ?: "Failed to start attendance session"))
+    postRpc("create_attendance_session_v2", body, accessToken).mapCatching { bodyStr ->
+      val json = if (bodyStr.startsWith("[")) JSONArray(bodyStr).optJSONObject(0) ?: JSONObject() else JSONObject(bodyStr)
+      CreateSessionV2Result(
+        sessionId = json.optString("session_id", json.optString("id")),
+        sessionCode = json.optString("session_code", json.optString("code")),
+        expiresAt = json.optString("expires_at", sessionExpiryIso)
+      )
     }
   }
 
-  suspend fun fetchStaffSessions(
-    classId: String,
-    accessToken: String
-  ): Result<List<AttendanceSessionItem>> = withContext(Dispatchers.IO) {
-    if (!SupabaseConfig.isConfigured()) {
-      return@withContext Result.failure(IllegalStateException(SupabaseConfig.MISSING_CONFIG_ERROR))
-    }
-
-    val url = "${SupabaseConfig.url}/rest/v1/attendance_sessions?class_id=eq.$classId&select=id,starts_at,expires_at,active&order=starts_at.desc"
-    val request = Request.Builder()
-      .url(url)
-      .addHeader("apikey", SupabaseConfig.anonKey)
-      .addHeader("Authorization", "Bearer $accessToken")
-      .addHeader("Accept", "application/json")
-      .get()
-      .build()
-
-    try {
-      client.newCall(request).execute().use { response ->
-        val bodyString = response.body?.string().orEmpty()
-        if (!response.isSuccessful) {
-          return@withContext Result.failure(Exception(SupabaseConfig.extractErrorMessage(bodyString, response.code)))
-        }
-
-        val array = JSONArray(bodyString)
-        val list = mutableListOf<AttendanceSessionItem>()
-        for (i in 0 until array.length()) {
-          val obj = array.getJSONObject(i)
-          list.add(
-            AttendanceSessionItem(
-              id = obj.optString("id"),
-              startsAt = obj.optString("starts_at"),
-              expiresAt = obj.optString("expires_at"),
-              active = obj.optBoolean("active", true)
-            )
-          )
-        }
-        Result.success(list)
-      }
-    } catch (e: Exception) {
-      Result.failure(Exception(e.localizedMessage ?: "Failed to load past sessions"))
-    }
-  }
-
-  suspend fun fetchOpenSessions(
-    classId: String,
-    nowIso: String,
-    accessToken: String
-  ): Result<List<AttendanceSessionItem>> = withContext(Dispatchers.IO) {
-    if (!SupabaseConfig.isConfigured()) {
-      return@withContext Result.failure(IllegalStateException(SupabaseConfig.MISSING_CONFIG_ERROR))
-    }
-
-    val encodedNow = try { URLEncoder.encode(nowIso, "UTF-8") } catch (_: Exception) { nowIso }
-    val url = "${SupabaseConfig.url}/rest/v1/attendance_sessions?class_id=eq.$classId&active=eq.true&expires_at=gt.$encodedNow&select=id,starts_at,expires_at"
-    val request = Request.Builder()
-      .url(url)
-      .addHeader("apikey", SupabaseConfig.anonKey)
-      .addHeader("Authorization", "Bearer $accessToken")
-      .addHeader("Accept", "application/json")
-      .get()
-      .build()
-
-    try {
-      client.newCall(request).execute().use { response ->
-        val bodyString = response.body?.string().orEmpty()
-        if (!response.isSuccessful) {
-          return@withContext Result.failure(Exception(SupabaseConfig.extractErrorMessage(bodyString, response.code)))
-        }
-
-        val array = JSONArray(bodyString)
-        val list = mutableListOf<AttendanceSessionItem>()
-        for (i in 0 until array.length()) {
-          val obj = array.getJSONObject(i)
-          list.add(
-            AttendanceSessionItem(
-              id = obj.optString("id"),
-              startsAt = obj.optString("starts_at"),
-              expiresAt = obj.optString("expires_at"),
-              active = true
-            )
-          )
-        }
-        Result.success(list)
-      }
-    } catch (e: Exception) {
-      Result.failure(Exception(e.localizedMessage ?: "Failed to load open sessions"))
-    }
-  }
-
-  suspend fun getAttendanceList(
-    sessionId: String,
-    accessToken: String
-  ): Result<List<AttendanceRecordItem>> = withContext(Dispatchers.IO) {
-    if (!SupabaseConfig.isConfigured()) {
-      return@withContext Result.failure(IllegalStateException(SupabaseConfig.MISSING_CONFIG_ERROR))
-    }
-
+  suspend fun getAttendanceCode(sessionId: String, accessToken: String): Result<String> = withContext(Dispatchers.IO) {
+    if (!SupabaseConfig.isConfigured()) return@withContext Result.failure(IllegalStateException(SupabaseConfig.MISSING_CONFIG_ERROR))
     val body = JSONObject().apply { put("target_session_id", sessionId) }
-    val url = "${SupabaseConfig.url}/rest/v1/rpc/get_attendance_list"
-    val request = Request.Builder()
-      .url(url)
-      .addHeader("apikey", SupabaseConfig.anonKey)
-      .addHeader("Authorization", "Bearer $accessToken")
-      .addHeader("Content-Type", "application/json")
-      .post(body.toString().toRequestBody(jsonMediaType))
-      .build()
-
-    try {
-      client.newCall(request).execute().use { response ->
-        val bodyString = response.body?.string().orEmpty()
-        if (!response.isSuccessful) {
-          return@withContext Result.failure(Exception(SupabaseConfig.extractErrorMessage(bodyString, response.code)))
+    postRpc("get_attendance_code", body, accessToken).mapCatching { bodyStr ->
+      when {
+        bodyStr.startsWith("[") -> {
+          val arr = JSONArray(bodyStr)
+          val first = if (arr.length() > 0) arr.opt(0) else ""
+          if (first is JSONObject) first.optString("session_code", first.optString("code", "")) else first.toString().removeSurrounding("\"")
         }
-
-        val array = JSONArray(bodyString)
-        val list = mutableListOf<AttendanceRecordItem>()
-        for (i in 0 until array.length()) {
-          val obj = array.getJSONObject(i)
-          val fullName = obj.optString("full_name").ifBlank { obj.optString("name", "Student") }
-          val admNo = obj.optString("admission_number").ifBlank { obj.optString("admission_no", "N/A") }
-          val timeSigned = obj.optString("signed_at").ifBlank { obj.optString("created_at", "") }
-          val sigData = obj.optString("signature_data").ifBlank { obj.optString("signature", "") }
-          list.add(AttendanceRecordItem(fullName = fullName, admissionNumber = admNo, timeSigned = timeSigned, signatureData = sigData.ifBlank { null }))
-        }
-        Result.success(list)
-      }
-    } catch (e: Exception) {
-      Result.failure(Exception(e.localizedMessage ?: "Failed to load attendance records"))
+        bodyStr.startsWith("{") -> JSONObject(bodyStr).optString("session_code", JSONObject(bodyStr).optString("code", ""))
+        bodyStr.startsWith("\"") && bodyStr.endsWith("\"") -> bodyStr.removeSurrounding("\"")
+        else -> bodyStr
+      }.trim()
     }
   }
 
-  suspend fun signAttendance(
-    sessionId: String,
-    providedCode: String,
-    signatureBase64: String,
-    accessToken: String
-  ): Result<Unit> = withContext(Dispatchers.IO) {
-    if (!SupabaseConfig.isConfigured()) {
-      return@withContext Result.failure(IllegalStateException(SupabaseConfig.MISSING_CONFIG_ERROR))
-    }
-
+  suspend fun signAttendanceV2(
+    sessionId: String, providedCode: String, signatureBase64: String, accessToken: String
+  ): Result<SignAttendanceResult> = withContext(Dispatchers.IO) {
+    if (!SupabaseConfig.isConfigured()) return@withContext Result.failure(IllegalStateException(SupabaseConfig.MISSING_CONFIG_ERROR))
     val body = JSONObject().apply {
-      put("target_session_id", sessionId)
-      put("provided_code", providedCode.trim())
-      put("signature", signatureBase64)
+      put("target_session_id", sessionId); put("provided_code", providedCode.trim()); put("signature", signatureBase64)
     }
-
-    val url = "${SupabaseConfig.url}/rest/v1/rpc/sign_attendance"
-    val request = Request.Builder()
-      .url(url)
-      .addHeader("apikey", SupabaseConfig.anonKey)
-      .addHeader("Authorization", "Bearer $accessToken")
-      .addHeader("Content-Type", "application/json")
-      .post(body.toString().toRequestBody(jsonMediaType))
-      .build()
-
-    try {
-      client.newCall(request).execute().use { response ->
-        val bodyString = response.body?.string().orEmpty()
-        if (response.isSuccessful) {
-          Result.success(Unit)
-        } else {
-          Result.failure(Exception(SupabaseConfig.extractErrorMessage(bodyString, response.code)))
-        }
-      }
-    } catch (e: Exception) {
-      Result.failure(Exception(e.localizedMessage ?: "Failed to sign attendance"))
+    postRpc("sign_attendance_v2", body, accessToken).mapCatching { bodyStr ->
+      val json = if (bodyStr.startsWith("[")) JSONArray(bodyStr).optJSONObject(0) ?: JSONObject()
+      else if (bodyStr.startsWith("{")) JSONObject(bodyStr) else JSONObject()
+      SignAttendanceResult(ok = json.optBoolean("ok", true), message = json.optString("message", bodyStr))
     }
   }
 
-  suspend fun deleteAttendanceSession(
-    sessionId: String,
-    accessToken: String
+  @Deprecated("Use createAttendanceSessionV2 instead")
+  suspend fun createAttendanceSession(
+    classId: String, sessionCode: String, sessionExpiryIso: String, accessToken: String
+  ): Result<String> = withContext(Dispatchers.IO) {
+    if (!SupabaseConfig.isConfigured()) return@withContext Result.failure(IllegalStateException(SupabaseConfig.MISSING_CONFIG_ERROR))
+    val body = JSONObject().apply {
+      put("target_class_id", classId); put("target_course_id", JSONObject.NULL)
+      put("session_code", sessionCode); put("session_expiry", sessionExpiryIso)
+    }
+    postRpc("create_attendance_session", body, accessToken).mapCatching { b ->
+      if (b.startsWith("{")) JSONObject(b).optString("id", JSONObject(b).optString("session_id", b))
+      else b.removeSurrounding("\"")
+    }
+  }
+
+  @Deprecated("Use signAttendanceV2 instead")
+  suspend fun signAttendance(
+    sessionId: String, providedCode: String, signatureBase64: String, accessToken: String
   ): Result<Unit> = withContext(Dispatchers.IO) {
-    if (!SupabaseConfig.isConfigured()) {
-      return@withContext Result.failure(IllegalStateException(SupabaseConfig.MISSING_CONFIG_ERROR))
+    if (!SupabaseConfig.isConfigured()) return@withContext Result.failure(IllegalStateException(SupabaseConfig.MISSING_CONFIG_ERROR))
+    val body = JSONObject().apply {
+      put("target_session_id", sessionId); put("provided_code", providedCode.trim()); put("signature", signatureBase64)
     }
+    postRpc("sign_attendance", body, accessToken).map { Unit }
+  }
 
-    val url = "${SupabaseConfig.url}/rest/v1/attendance_sessions?id=eq.$sessionId"
-    val request = Request.Builder()
-      .url(url)
-      .addHeader("apikey", SupabaseConfig.anonKey)
-      .addHeader("Authorization", "Bearer $accessToken")
-      .delete()
-      .build()
-
-    try {
-      client.newCall(request).execute().use { response ->
-        val bodyString = response.body?.string().orEmpty()
-        if (response.isSuccessful) {
-          Result.success(Unit)
-        } else {
-          Result.failure(Exception(SupabaseConfig.extractErrorMessage(bodyString, response.code)))
-        }
+  suspend fun fetchStaffSessions(classId: String, accessToken: String): Result<List<AttendanceSessionItem>> = withContext(Dispatchers.IO) {
+    if (!SupabaseConfig.isConfigured()) return@withContext Result.failure(IllegalStateException(SupabaseConfig.MISSING_CONFIG_ERROR))
+    val url = "${SupabaseConfig.url}/rest/v1/attendance_sessions?class_id=eq.$classId&select=id,starts_at,expires_at,active&order=starts_at.desc"
+    getQuery(url, accessToken).mapCatching { bodyStr ->
+      val array = JSONArray(bodyStr)
+      List(array.length()) { i ->
+        val obj = array.getJSONObject(i)
+        AttendanceSessionItem(obj.optString("id"), obj.optString("starts_at"), obj.optString("expires_at"), obj.optBoolean("active", true))
       }
-    } catch (e: Exception) {
-      Result.failure(Exception(e.localizedMessage ?: "Failed to delete attendance session"))
     }
+  }
+
+  suspend fun fetchOpenSessions(classId: String, nowIso: String, accessToken: String): Result<List<AttendanceSessionItem>> = withContext(Dispatchers.IO) {
+    if (!SupabaseConfig.isConfigured()) return@withContext Result.failure(IllegalStateException(SupabaseConfig.MISSING_CONFIG_ERROR))
+    val encNow = try { URLEncoder.encode(nowIso, "UTF-8") } catch (_: Exception) { nowIso }
+    val url = "${SupabaseConfig.url}/rest/v1/attendance_sessions?class_id=eq.$classId&active=eq.true&expires_at=gt.$encNow&select=id,starts_at,expires_at"
+    getQuery(url, accessToken).mapCatching { bodyStr ->
+      val array = JSONArray(bodyStr)
+      List(array.length()) { i ->
+        val obj = array.getJSONObject(i)
+        AttendanceSessionItem(obj.optString("id"), obj.optString("starts_at"), obj.optString("expires_at"), true)
+      }
+    }
+  }
+
+  suspend fun getAttendanceList(sessionId: String, accessToken: String): Result<List<AttendanceRecordItem>> = withContext(Dispatchers.IO) {
+    if (!SupabaseConfig.isConfigured()) return@withContext Result.failure(IllegalStateException(SupabaseConfig.MISSING_CONFIG_ERROR))
+    val body = JSONObject().apply { put("target_session_id", sessionId) }
+    postRpc("get_attendance_list", body, accessToken).mapCatching { bodyStr ->
+      val array = JSONArray(bodyStr)
+      List(array.length()) { i ->
+        val obj = array.getJSONObject(i)
+        AttendanceRecordItem(
+          fullName = obj.optString("full_name").ifBlank { obj.optString("name", "Student") },
+          admissionNumber = obj.optString("admission_number").ifBlank { obj.optString("admission_no", "N/A") },
+          timeSigned = obj.optString("signed_at").ifBlank { obj.optString("created_at", "") },
+          signatureData = obj.optString("signature_data").ifBlank { obj.optString("signature", "") }.ifBlank { null }
+        )
+      }
+    }
+  }
+
+  suspend fun deleteAttendanceSession(sessionId: String, accessToken: String): Result<Unit> = withContext(Dispatchers.IO) {
+    if (!SupabaseConfig.isConfigured()) return@withContext Result.failure(IllegalStateException(SupabaseConfig.MISSING_CONFIG_ERROR))
+    val url = "${SupabaseConfig.url}/rest/v1/attendance_sessions?id=eq.$sessionId"
+    val req = Request.Builder().url(url).addHeader("apikey", SupabaseConfig.anonKey)
+      .addHeader("Authorization", "Bearer $accessToken").delete().build()
+    try {
+      client.newCall(req).execute().use { res ->
+        val body = res.body?.string().orEmpty()
+        if (res.isSuccessful) Result.success(Unit)
+        else Result.failure(Exception(SupabaseConfig.extractErrorMessage(body, res.code)))
+      }
+    } catch (e: Exception) { Result.failure(Exception(e.localizedMessage ?: "Failed to delete session")) }
   }
 }
