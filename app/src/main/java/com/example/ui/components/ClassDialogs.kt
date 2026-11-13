@@ -18,8 +18,10 @@ fun ClassDialogs(
   activeNoticeDetail: NoticeItem?,
   onCloseNoticeDetail: () -> Unit,
   showStartAttendanceDialog: Boolean,
+  classUnits: List<com.example.data.ClassUnitItem> = emptyList(),
+  isUnitsLoading: Boolean = false,
   onDismissStartAttendance: () -> Unit,
-  onStartAttendance: (Int) -> Unit,
+  onStartAttendance: (courseId: String?, courseTitle: String, courseCode: String, lecturerName: String, venueText: String, sessionTitle: String, durationMinutes: Int) -> Unit,
   isAttendanceActionLoading: Boolean,
   showEditClassNameDialog: Boolean,
   currentClassName: String,
@@ -37,7 +39,10 @@ fun ClassDialogs(
   onConfirmDeleteNotice: () -> Unit,
   sessionPendingDelete: AttendanceSessionItem?,
   onDismissPromptDeleteSession: () -> Unit,
-  onConfirmDeleteSession: () -> Unit,
+  onConfirmDeleteSessionWithReason: (String) -> Unit = {},
+  registerPendingDelete: com.example.data.AttendanceRegisterListItem? = null,
+  onDismissPromptDeleteRegister: () -> Unit = {},
+  onConfirmDeleteRegister: (String) -> Unit = {},
   timetableUiState: TimetableUiState,
   onDismissAddEditSchedule: () -> Unit,
   onSaveAddSchedule: (String, Int, String, String, String, String) -> Unit,
@@ -70,9 +75,14 @@ fun ClassDialogs(
 
   if (showStartAttendanceDialog) {
     StartAttendanceDialog(
+      units = classUnits,
+      isUnitsLoading = isUnitsLoading,
       isLoading = isAttendanceActionLoading,
       onDismiss = onDismissStartAttendance,
-      onStart = { duration -> onStartAttendance(duration); onDismissStartAttendance() }
+      onStart = { cId, ct, cc, lec, ven, st, dur ->
+        onStartAttendance(cId, ct, cc, lec, ven, st, dur)
+        onDismissStartAttendance()
+      }
     )
   }
 
@@ -111,15 +121,20 @@ fun ClassDialogs(
     )
   }
 
-  sessionPendingDelete?.let {
-    ConfirmActionDialog(
-      title = "Delete Attendance Session",
-      message = "Are you sure you want to delete this attendance session? All records will be removed.",
-      confirmButtonText = "Delete",
-      confirmButtonColor = ErrorRed,
+  sessionPendingDelete?.let { _ ->
+    com.example.ui.screens.VoidSessionDialog(
       isLoading = isAttendanceActionLoading,
-      onConfirm = onConfirmDeleteSession,
-      onDismiss = onDismissPromptDeleteSession
+      onDismiss = onDismissPromptDeleteSession,
+      onConfirmVoid = { reason -> onConfirmDeleteSessionWithReason(reason) }
+    )
+  }
+
+  registerPendingDelete?.let { reg ->
+    com.example.ui.screens.DeleteRegisterDialog(
+      registerTitle = reg.title.ifBlank { reg.registerNo },
+      isLoading = isAttendanceActionLoading,
+      onDismiss = onDismissPromptDeleteRegister,
+      onConfirmDelete = { reason -> onConfirmDeleteRegister(reason) }
     )
   }
 

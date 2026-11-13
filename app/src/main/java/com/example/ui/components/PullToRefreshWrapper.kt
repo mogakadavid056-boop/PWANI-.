@@ -7,6 +7,7 @@ import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.material3.pulltorefresh.PullToRefreshDefaults
 import androidx.compose.material3.pulltorefresh.rememberPullToRefreshState
 import androidx.compose.runtime.Composable
+import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import com.example.ui.theme.DarkCard
@@ -24,7 +25,7 @@ fun ClassRepPullToRefresh(
   PullToRefreshBox(
     isRefreshing = isRefreshing,
     onRefresh = onRefresh,
-    modifier = modifier.fillMaxSize(),
+    modifier = modifier.fillMaxSize().clipToBounds(),
     state = state,
     indicator = {
       PullToRefreshDefaults.Indicator(

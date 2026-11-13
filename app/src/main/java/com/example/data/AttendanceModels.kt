@@ -22,7 +22,8 @@ data class CreateSessionV2Result(
 
 data class SignAttendanceResult(
   val ok: Boolean,
-  val message: String
+  val message: String,
+  val needsDetails: Boolean = false
 )
 
 enum class AttendanceSubScreen {
@@ -30,7 +31,8 @@ enum class AttendanceSubScreen {
   ViewAttendance,
   SignAttendance,
   AttendanceSummary,
-  MyAttendance
+  MyAttendance,
+  AttendanceRegister
 }
 
 data class StudentAttendanceSummaryItem(

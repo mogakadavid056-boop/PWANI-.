@@ -88,7 +88,7 @@ val ButtonTextStyle = TextStyle(
   fontWeight = FontWeight.SemiBold,
   fontSize = 16.sp,
   lineHeight = 22.sp,
-  color = DarkTextOnGold
+  color = Color.Unspecified
 )
 
 // Material 3 Typography mapping

@@ -45,14 +45,12 @@ object AttendancePdf {
 
     // Pre-decode bitmaps for smooth layout
     val decodedRows = attendanceList.mapIndexed { index, record ->
-      val timeText = if (record.timeSigned.isNotBlank()) {
-        record.timeSigned.replace("T", " ").substringBefore(".").takeLast(8)
-      } else "-"
+      val timeText = com.example.util.NairobiTimeHelper.formatIsoToTimeOnly(record.timeSigned)
       val bmp = decodeSignature(record.signatureData)
       val cells = listOf(
         PdfBuilder.PdfCell.Text("${index + 1}", isBold = true),
-        PdfBuilder.PdfCell.Text(record.fullName, isBold = false),
-        PdfBuilder.PdfCell.Text(record.admissionNumber.ifBlank { "-" }, isBold = false),
+        PdfBuilder.PdfCell.Text(com.example.util.JsonHelper.orDash(record.fullName), isBold = false),
+        PdfBuilder.PdfCell.Text(com.example.util.JsonHelper.orDash(record.admissionNumber), isBold = false),
         PdfBuilder.PdfCell.Text(timeText, isBold = false),
         PdfBuilder.PdfCell.Image(bmp)
       )
@@ -206,15 +204,8 @@ object AttendancePdf {
   }
 
   private fun decodeSignature(base64: String?): Bitmap? {
-    if (base64.isNullOrBlank()) return null
-    return try {
-      val clean = if (base64.contains(",")) base64.substringAfter(",") else base64
-      val bytes = Base64.decode(clean, Base64.DEFAULT)
-      val bmp = BitmapFactory.decodeByteArray(bytes, 0, bytes.size) ?: return null
-      scaleBitmap(bmp, 90f, 30f)
-    } catch (_: Exception) {
-      null
-    }
+    val bmp = com.example.util.SignatureBitmapHelper.decodeTrimmedNavyBitmap(base64) ?: return null
+    return scaleBitmap(bmp, 90f, 30f)
   }
 
   private fun scaleBitmap(src: Bitmap, maxW: Float, maxH: Float): Bitmap {

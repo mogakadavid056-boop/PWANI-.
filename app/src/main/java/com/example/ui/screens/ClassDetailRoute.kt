@@ -2,22 +2,8 @@ package com.example.ui.screens
 
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
-import com.example.data.AttendanceSubScreen
 import com.example.data.UserSession
-import com.example.ui.AttendanceUiState
-import com.example.ui.AttendanceViewModel
-import com.example.ui.ClassesViewModel
-import com.example.ui.GroupsUiState
-import com.example.ui.GroupsViewModel
-import com.example.ui.MaterialsUiState
-import com.example.ui.MaterialsViewModel
-import com.example.ui.MembersViewModel
-import com.example.ui.NoticesUiState
-import com.example.ui.NoticesViewModel
-import com.example.ui.PollsUiState
-import com.example.ui.PollsViewModel
-import com.example.ui.TimetableUiState
-import com.example.ui.TimetableViewModel
+import com.example.ui.*
 
 @Composable
 fun ClassDetailRoute(
@@ -37,6 +23,7 @@ fun ClassDetailRoute(
   materialsViewModel: MaterialsViewModel,
   pollsViewModel: PollsViewModel,
   allClasses: List<com.example.data.ClassItem> = emptyList(),
+  onMemberDetailsSaved: (fullName: String, admissionNumber: String) -> Unit = { _, _ -> },
   onSwitchClass: (com.example.data.ClassItem) -> Unit = {},
   onNavigateToJoinClass: () -> Unit = {},
   onNavigateToCreateClass: () -> Unit = {},
@@ -54,11 +41,73 @@ fun ClassDetailRoute(
   }
   val context = androidx.compose.ui.platform.LocalContext.current
 
+  val attendanceCallbacks = ClassAttendanceCallbacks(
+    onRefreshAttendance = {
+      attendanceViewModel.loadSessions(session = session)
+      attendanceViewModel.loadClassUnits(selectedClass.id, session)
+    },
+    onStartAttendance = { cId, ct, cc, lec, ven, st, dur ->
+      attendanceViewModel.startAttendanceSession(cId, ct, cc, lec, ven, st, dur, session)
+    },
+    onOpenViewAttendance = { sid -> attendanceViewModel.openViewAttendance(sid, session) },
+    onOpenSignAttendance = { sid -> attendanceViewModel.openSignAttendance(sid) },
+    onCloseAttendanceSubScreen = { attendanceViewModel.closeSubScreen() },
+    onOpenAttendanceSummary = { attendanceViewModel.openAttendanceSummary() },
+    onOpenMyAttendance = { attendanceViewModel.openMyAttendance() },
+    onShowActiveCode = { sid, exp -> attendanceViewModel.fetchActiveSessionCode(sid, exp, session) },
+    onOpenRegister = { sid -> attendanceViewModel.openRegister(sid, session) },
+    onCloseSession = { sid -> attendanceViewModel.closeSession(sid, session) },
+    onSignOutSession = { sid -> attendanceViewModel.signOutSession(sid, session) },
+    onVoidRegisterSession = { reason ->
+      val targetId = attendanceUiState.sessionPendingVoid?.id ?: attendanceUiState.selectedSessionId.orEmpty()
+      if (targetId.isNotBlank()) attendanceViewModel.voidSession(targetId, reason, session)
+    },
+    onDeleteRegisterSession = { reason ->
+      val targetId = attendanceUiState.selectedSessionId.orEmpty()
+      if (targetId.isNotBlank()) attendanceViewModel.deleteRegisterSession(targetId, reason, session)
+    },
+    onSignRegister = { role, sig ->
+      val targetId = attendanceUiState.selectedSessionId.orEmpty()
+      if (targetId.isNotBlank()) attendanceViewModel.signRegister(targetId, role, sig, session)
+    },
+    onCorrectRegisterTime = { recId, tIn, tOut, r -> attendanceViewModel.correctRecord(recId, tIn, tOut, r, session) },
+    onMarkPresent = { studentId, tIn, tOut, reason ->
+      val targetId = attendanceUiState.selectedSessionId.orEmpty()
+      if (targetId.isNotBlank()) attendanceViewModel.markStudentPresent(targetId, studentId, tIn, tOut, reason, session)
+    },
+    onUpdateRegisterDetails = { ct, cc, lec, ven, st ->
+      val targetId = attendanceUiState.selectedSessionId.orEmpty()
+      if (targetId.isNotBlank()) attendanceViewModel.updateRegisterDetails(targetId, ct, cc, lec, ven, st, session)
+    },
+    onUpdateMyDetails = { fullName, adm, phone, onSaved ->
+      attendanceViewModel.updateMyDetails(fullName, adm, phone, session) { savedName, savedAdm ->
+        onMemberDetailsSaved(savedName, savedAdm)
+        onSaved()
+      }
+    },
+    onSignAttendanceSubmit = { code, sig, name, adm ->
+      attendanceViewModel.signAttendance(code, sig, name, adm, session) {
+        onMemberDetailsSaved(name, adm)
+      }
+    },
+    onPromptVoidSession = { s -> attendanceViewModel.promptVoidSession(s) },
+    onDismissPromptVoidSession = { attendanceViewModel.dismissPromptVoidSession() },
+    onPromptDeleteRegister = { reg -> attendanceViewModel.promptDeleteRegister(reg) },
+    onDismissPromptDeleteRegister = { attendanceViewModel.dismissPromptDeleteRegister() },
+    onConfirmDeleteRegister = { reason ->
+      val targetId = attendanceUiState.registerPendingDelete?.sessionId.orEmpty()
+      if (targetId.isNotBlank()) attendanceViewModel.deleteRegisterSession(targetId, reason, session)
+    },
+    onDismissAttendanceError = { attendanceViewModel.clearError() },
+    onDismissAttendanceSuccess = { attendanceViewModel.clearSuccess() }
+  )
+
   ClassScreen(
     classItem = selectedClass,
     isStaff = noticesUiState.isStaff,
     prefects = noticesUiState.prefects,
     isPrefect = noticesUiState.isRep,
+    session = session,
     notices = noticesUiState.notices,
     readNoticeIds = noticesUiState.readNoticeIds,
     canPostNotice = noticesUiState.canPostNotice,
@@ -81,18 +130,7 @@ fun ClassDetailRoute(
     onUpdateClassName = { newName -> classesViewModel.updateClassName(selectedClass.id, newName, session) { noticesViewModel.updateSelectedClassName(newName) } },
     onNavigateToManageMembers = { membersViewModel.loadMembers(selectedClass.id, session); onNavigateToManageMembers() },
     attendanceUiState = attendanceUiState,
-    onRefreshAttendance = { attendanceViewModel.loadSessions(session = session) },
-    onStartAttendance = { d -> attendanceViewModel.startAttendanceSession(d, session) },
-    onOpenViewAttendance = { sid -> attendanceViewModel.openViewAttendance(sid, session) },
-    onOpenSignAttendance = { sid -> attendanceViewModel.openSignAttendance(sid) },
-    onShowActiveCode = { sid, exp -> attendanceViewModel.fetchActiveSessionCode(sid, exp, session) },
-    onCloseAttendanceSubScreen = { attendanceViewModel.closeSubScreen() },
-    onSignAttendanceSubmit = { c, s -> attendanceViewModel.signAttendance(c, s, session) {} },
-    onPromptDeleteSession = { s -> attendanceViewModel.promptDeleteSession(s) },
-    onDismissPromptDeleteSession = { attendanceViewModel.dismissPromptDeleteSession() },
-    onConfirmDeleteSession = { attendanceViewModel.confirmDeleteSession(session) },
-    onDismissAttendanceError = { attendanceViewModel.clearError() },
-    onDismissAttendanceSuccess = { attendanceViewModel.clearSuccess() },
+    attendanceCallbacks = attendanceCallbacks,
     groupsUiState = groupsUiState,
     onRefreshGroups = { groupsViewModel.refreshGroups(session) },
     onCreateGroup = { n, d, s -> groupsViewModel.createGroup(n, d, s, session) {} },
@@ -120,21 +158,15 @@ fun ClassDetailRoute(
     onDeleteMaterialClick = { m -> materialsViewModel.setMaterialPendingDelete(m) },
     onDismissAddEditMaterial = { materialsViewModel.setShowAddDialog(false); materialsViewModel.setMaterialPendingEdit(null) },
     onSaveAddMaterial = { t, d, type, u -> materialsViewModel.addLinkMaterial(t, d, type, u, session) {} },
-    onSaveUploadMaterial = { t, d, fn, fs, m, streamProvider ->
-      materialsViewModel.uploadFileMaterial(t, d, fn, fs, m, streamProvider, session) {}
-    },
+    onSaveUploadMaterial = { t, d, fn, fs, m, streamProvider -> materialsViewModel.uploadFileMaterial(t, d, fn, fs, m, streamProvider, session) {} },
     onSaveEditMaterial = { id, t, d -> materialsViewModel.updateMaterial(id, t, d, session) {} },
     onOpenFileMaterial = { material ->
       materialsViewModel.downloadAndOpenFile(material, context, session) { file, mime ->
         com.example.ui.components.MaterialFileOpener.openOrShareFile(context, file, mime)
       }
     },
-    onDownloadMaterial = { material ->
-      materialsViewModel.downloadMaterialForOffline(context, material, session)
-    },
-    onRemoveDownloadMaterial = { material ->
-      materialsViewModel.removeDownloadedMaterial(context, material, session)
-    },
+    onDownloadMaterial = { material -> materialsViewModel.downloadMaterialForOffline(context, material, session) },
+    onRemoveDownloadMaterial = { material -> materialsViewModel.removeDownloadedMaterial(context, material, session) },
     onDismissPromptDeleteMaterial = { materialsViewModel.setMaterialPendingDelete(null) },
     onConfirmDeleteMaterial = { materialsViewModel.confirmDeleteMaterial(session) },
     onDismissMaterialsError = { materialsViewModel.clearError() },

@@ -105,20 +105,20 @@ class ExampleUnitTest {
 
   @Test
   fun testMaterialItemAndTypeLabels() {
-    val mNotes = MaterialItem("1", "Lecture 1", "Basics", "notes", "https://example.com/notes.pdf", "2026-10-10T12:00:00Z")
+    val mNotes = MaterialItem(id = "1", title = "Lecture 1", description = "Basics", materialType = "notes", externalUrl = "https://example.com/notes.pdf", createdAt = "2026-10-10T12:00:00Z")
     assertEquals("Notes", mNotes.typeLabel)
     assertEquals("2026-10-10", mNotes.formattedDate)
 
-    val mSlides = MaterialItem("2", "Deck 2", "", "slides", "https://example.com/deck.pptx", "2026-10-11")
+    val mSlides = MaterialItem(id = "2", title = "Deck 2", description = "", materialType = "slides", externalUrl = "https://example.com/deck.pptx", createdAt = "2026-10-11")
     assertEquals("Slides", mSlides.typeLabel)
 
-    val mPaper = MaterialItem("3", "Midterm 2025", "", "past_paper", "https://example.com/paper.pdf", "")
+    val mPaper = MaterialItem(id = "3", title = "Midterm 2025", description = "", materialType = "past_paper", externalUrl = "https://example.com/paper.pdf", createdAt = "")
     assertEquals("Past Paper", mPaper.typeLabel)
 
-    val mVideo = MaterialItem("4", "Recap", "", "video", "https://youtube.com/watch?v=123", "")
+    val mVideo = MaterialItem(id = "4", title = "Recap", description = "", materialType = "video", externalUrl = "https://youtube.com/watch?v=123", createdAt = "")
     assertEquals("Video", mVideo.typeLabel)
 
-    val mLink = MaterialItem("5", "Doc Reference", "", "link", "https://developer.android.com", "")
+    val mLink = MaterialItem(id = "5", title = "Doc Reference", description = "", materialType = "link", externalUrl = "https://developer.android.com", createdAt = "")
     assertEquals("Link", mLink.typeLabel)
   }
 
@@ -139,9 +139,9 @@ class ExampleUnitTest {
 
   @Test
   fun testMaterialsUiStateFiltering() {
-    val m1 = MaterialItem("1", "Computer Systems Lecture", "", "notes", "https://a.com", "")
-    val m2 = MaterialItem("2", "Database Design", "", "slides", "https://b.com", "")
-    val m3 = MaterialItem("3", "Calculus Past Paper", "", "past_paper", "https://c.com", "")
+    val m1 = MaterialItem(id = "1", title = "Computer Systems Lecture", description = "", materialType = "notes", externalUrl = "https://a.com", createdAt = "")
+    val m2 = MaterialItem(id = "2", title = "Database Design", description = "", materialType = "slides", externalUrl = "https://b.com", createdAt = "")
+    val m3 = MaterialItem(id = "3", title = "Calculus Past Paper", description = "", materialType = "past_paper", externalUrl = "https://c.com", createdAt = "")
 
     val state = MaterialsUiState(materials = listOf(m1, m2, m3))
 
@@ -180,5 +180,14 @@ class ExampleUnitTest {
 
     val classItem = com.example.data.ClassItem("c-1", "Algorithms", "CS201", "JOIN123", programmeName = "BSc Computer Science")
     assertEquals("BSc Computer Science", classItem.programmeName)
+  }
+
+  @Test
+  fun testOrDashNeverShowsNull() {
+    assertEquals("-", com.example.util.JsonHelper.orDash(null))
+    assertEquals("-", com.example.util.JsonHelper.orDash("null"))
+    assertEquals("-", com.example.util.JsonHelper.orDash("NULL"))
+    assertEquals("-", com.example.util.JsonHelper.orDash("   "))
+    assertEquals("Room 4", com.example.util.JsonHelper.orDash("Room 4"))
   }
 }

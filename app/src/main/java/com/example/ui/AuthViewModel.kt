@@ -187,6 +187,18 @@ class AuthViewModel(
     }
   }
 
+  fun updateMemberDetails(fullName: String, admissionNumber: String) {
+    val cleanName = fullName.trim()
+    val cleanAdm = admissionNumber.trim()
+    viewModelScope.launch {
+      sessionManager.updateMemberDetails(cleanName, cleanAdm)
+      _uiState.update { state ->
+        val current = state.session ?: return@update state
+        state.copy(session = current.copy(fullName = cleanName, admissionNumber = cleanAdm))
+      }
+    }
+  }
+
   fun clearError() {
     _uiState.update { it.copy(errorMessage = null) }
   }

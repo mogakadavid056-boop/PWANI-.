@@ -118,15 +118,10 @@ object SupabaseConfig {
     if (responseBody.isBlank()) return "Server responded with status code $statusCode"
     return try {
       val json = org.json.JSONObject(responseBody)
-      when {
-        json.has("message") -> json.getString("message")
-        json.has("msg") -> json.getString("msg")
-        json.has("error_description") -> json.getString("error_description")
-        json.has("error") -> json.getString("error")
-        json.has("details") -> json.getString("details")
-        json.has("hint") -> json.getString("hint")
-        else -> responseBody
-      }
+      val msg = com.example.util.JsonHelper.firstStr(
+        json, "message", "msg", "error_description", "error", "details", "hint"
+      )
+      msg.ifBlank { responseBody }
     } catch (_: Throwable) {
       val keys = listOf("message", "msg", "error_description", "error", "details", "hint")
       for (key in keys) {

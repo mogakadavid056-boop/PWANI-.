@@ -17,7 +17,16 @@ fun HandleClassSubScreenOverlay(
   onOpenViewAttendance: (String) -> Unit,
   onCloseAttendanceSubScreen: () -> Unit,
   onDismissAttendanceSuccess: () -> Unit,
-  onSignAttendanceSubmit: (code: String, signatureBase64: String) -> Unit,
+  onUpdateMyDetails: (fullName: String, admissionNo: String, phone: String, onSaved: () -> Unit) -> Unit = { _, _, _, cb -> cb() },
+  onSignAttendanceSubmit: (code: String, signatureBase64: String, memberFullName: String, memberAdmissionNo: String) -> Unit,
+  onCloseRegisterSession: () -> Unit = {},
+  onVoidRegisterSession: (String) -> Unit = {},
+  onDeleteRegisterSession: (String) -> Unit = {},
+  onSignOutRegisterSession: () -> Unit = {},
+  onSignRegister: (String, String) -> Unit = { _, _ -> },
+  onCorrectRegisterTime: (String, String, String, String) -> Unit = { _, _, _, _ -> },
+  onMarkPresent: (String, String, String, String) -> Unit = { _, _, _, _ -> },
+  onUpdateRegisterDetails: (String, String, String, String, String) -> Unit = { _, _, _, _, _ -> },
   onSelectPollOption: (String) -> Unit,
   onCastVote: () -> Unit,
   onPromptClosePoll: () -> Unit,
@@ -29,6 +38,29 @@ fun HandleClassSubScreenOverlay(
   onDismissPollsError: () -> Unit,
   onClosePollDetail: () -> Unit
 ): Boolean {
+  if (attendanceUiState.currentSubScreen == AttendanceSubScreen.AttendanceRegister) {
+    AttendanceRegisterScreen(
+      detail = attendanceUiState.selectedRegisterDetail,
+      units = attendanceUiState.classUnits,
+      isLoading = attendanceUiState.isRegisterLoading,
+      isActionLoading = attendanceUiState.isActionLoading,
+      errorMessage = attendanceUiState.errorMessage,
+      successMessage = attendanceUiState.successMessage,
+      onDismissError = onDismissAttendanceError,
+      onDismissSuccess = onDismissAttendanceSuccess,
+      onCloseSession = onCloseRegisterSession,
+      onVoidSession = onVoidRegisterSession,
+      onDeleteSession = onDeleteRegisterSession,
+      onSignOut = onSignOutRegisterSession,
+      onSignRegister = onSignRegister,
+      onCorrectTime = onCorrectRegisterTime,
+      onMarkPresent = onMarkPresent,
+      onUpdateDetails = onUpdateRegisterDetails,
+      onBack = onCloseAttendanceSubScreen
+    )
+    return true
+  }
+
   if (attendanceUiState.currentSubScreen == AttendanceSubScreen.ViewAttendance) {
     val selSession = attendanceUiState.staffSessions.find { it.id == attendanceUiState.selectedSessionId }
     val sessionDate = selSession?.startsAt?.replace("T", " ")?.substringBefore(".").orEmpty()
@@ -69,6 +101,9 @@ fun HandleClassSubScreenOverlay(
 
   if (attendanceUiState.currentSubScreen == AttendanceSubScreen.SignAttendance) {
     SignAttendanceScreen(
+      memberFullName = session?.fullName.orEmpty(),
+      memberAdmissionNo = session?.admissionNumber.orEmpty(),
+      needsDetails = attendanceUiState.signNeedsDetails,
       isLoading = attendanceUiState.isActionLoading,
       errorMessage = attendanceUiState.errorMessage,
       successMessage = attendanceUiState.successMessage,
@@ -79,6 +114,7 @@ fun HandleClassSubScreenOverlay(
         onDismissAttendanceSuccess()
         onCloseAttendanceSubScreen()
       },
+      onUpdateMyDetails = onUpdateMyDetails,
       onSubmit = onSignAttendanceSubmit,
       onBack = onCloseAttendanceSubScreen
     )

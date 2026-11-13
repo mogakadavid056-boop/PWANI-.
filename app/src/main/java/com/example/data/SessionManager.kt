@@ -106,6 +106,15 @@ class SessionManager(private val context: Context) {
     } catch (_: Throwable) {}
   }
 
+  suspend fun updateMemberDetails(fullName: String, admissionNumber: String) = withContext(Dispatchers.IO) {
+    try {
+      context.dataStore.edit { prefs ->
+        prefs[KEY_FULL_NAME] = fullName.trim()
+        prefs[KEY_ADMISSION_NUMBER] = admissionNumber.trim()
+      }
+    } catch (_: Throwable) {}
+  }
+
   suspend fun saveLastClassId(classId: String) = withContext(Dispatchers.IO) {
     try {
       context.dataStore.edit { prefs ->

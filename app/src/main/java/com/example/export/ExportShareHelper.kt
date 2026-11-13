@@ -114,8 +114,8 @@ object ExportShareHelper {
     return sb.toString()
   }
 
-  private fun escapeCsv(value: String): String {
-    val v = value.trim()
+  private fun escapeCsv(value: String?): String {
+    val v = com.example.util.JsonHelper.orDash(value)
     return if (v.contains(",") || v.contains("\"") || v.contains("\n")) {
       "\"" + v.replace("\"", "\"\"") + "\""
     } else {

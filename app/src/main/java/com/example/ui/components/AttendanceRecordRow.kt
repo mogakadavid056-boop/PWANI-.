@@ -65,12 +65,12 @@ fun AttendanceRecordRow(record: AttendanceRecordItem) {
 
       Column(modifier = Modifier.weight(1f)) {
         Text(
-          text = record.fullName,
+          text = com.example.util.JsonHelper.orDash(record.fullName),
           fontSize = 14.sp,
           fontWeight = FontWeight.SemiBold,
           color = TextPrimary
         )
-        if (record.admissionNumber.isNotBlank()) {
+        if (record.admissionNumber.isNotBlank() && !record.admissionNumber.equals("null", true)) {
           Text(
             text = "Adm: ${record.admissionNumber}",
             fontSize = 13.sp,
@@ -79,13 +79,12 @@ fun AttendanceRecordRow(record: AttendanceRecordItem) {
         }
       }
 
-      if (record.timeSigned.isNotBlank()) {
+      if (record.timeSigned.isNotBlank() && !record.timeSigned.equals("null", true)) {
         Row(verticalAlignment = Alignment.CenterVertically) {
           Icon(Icons.Default.Schedule, contentDescription = null, tint = TextSecondary, modifier = Modifier.size(13.dp))
           Spacer(modifier = Modifier.width(4.dp))
-          val displayTime = record.timeSigned.replace("T", " ").substringBefore(".")
           Text(
-            text = displayTime.takeLast(8),
+            text = com.example.util.NairobiTimeHelper.formatIsoToTimeOnly(record.timeSigned),
             fontSize = 13.sp,
             color = TextSecondary
           )

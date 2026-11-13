@@ -244,7 +244,9 @@ fun ClassRepNavHost(
         attendanceViewModel = attendanceViewModel, membersViewModel = membersViewModel,
         groupsViewModel = groupsViewModel, timetableViewModel = timetableViewModel,
         materialsViewModel = materialsViewModel, pollsViewModel = pollsViewModel,
-        allClasses = classesUiState.classes, onSwitchClass = openClassDirectly,
+        allClasses = classesUiState.classes,
+        onMemberDetailsSaved = { name, adm -> authViewModel.updateMemberDetails(name, adm) },
+        onSwitchClass = openClassDirectly,
         onNavigateToJoinClass = { classesViewModel.clearError(); authViewModel.navigateTo(Screen.JoinClass) },
         onNavigateToCreateClass = {
           classesViewModel.clearError()

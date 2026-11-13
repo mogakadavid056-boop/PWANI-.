@@ -1,0 +1,262 @@
+package com.example.ui.screens
+
+import androidx.activity.compose.BackHandler
+import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.background
+import androidx.compose.foundation.border
+import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.Edit
+import androidx.compose.material3.*
+import androidx.compose.runtime.*
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
+import com.example.data.AttendanceRegisterDetail
+import com.example.data.AttendanceRegisterRowItem
+import com.example.data.ClassUnitItem
+import com.example.export.AttendanceRegisterActions
+import com.example.ui.components.*
+import com.example.ui.theme.*
+import com.example.util.JsonHelper
+
+@OptIn(ExperimentalLayoutApi::class)
+@Composable
+fun AttendanceRegisterScreen(
+  detail: AttendanceRegisterDetail?,
+  units: List<ClassUnitItem> = emptyList(),
+  isLoading: Boolean,
+  isActionLoading: Boolean,
+  errorMessage: String?,
+  successMessage: String? = null,
+  onDismissError: () -> Unit,
+  onDismissSuccess: () -> Unit = {},
+  onCloseSession: () -> Unit,
+  onVoidSession: (reason: String) -> Unit,
+  onDeleteSession: (reason: String) -> Unit = {},
+  onSignOut: () -> Unit,
+  onSignRegister: (signerRole: String, signatureBase64: String) -> Unit,
+  onCorrectTime: (recordId: String, newTimeIn: String, newTimeOut: String, reason: String) -> Unit,
+  onMarkPresent: (studentId: String, timeIn: String, timeOut: String, reason: String) -> Unit = { _, _, _, _ -> },
+  onUpdateDetails: (courseTitle: String, courseCode: String, lecturerName: String, venueText: String, sessionTitle: String) -> Unit = { _, _, _, _, _ -> },
+  onBack: () -> Unit
+) {
+  BackHandler(onBack = onBack)
+  val context = LocalContext.current
+  var showVoidDialog by remember { mutableStateOf(false) }
+  var showDeleteDialog by remember { mutableStateOf(false) }
+  var showEditDetailsDialog by remember { mutableStateOf(false) }
+  var signRoleToOpen by remember { mutableStateOf<String?>(null) }
+  var rowToCorrect by remember { mutableStateOf<AttendanceRegisterRowItem?>(null) }
+  var rowToMarkPresent by remember { mutableStateOf<AttendanceRegisterRowItem?>(null) }
+  var localFeedback by remember { mutableStateOf<Pair<String, Boolean>?>(null) }
+
+  val snackbarHostState = remember { SnackbarHostState() }
+  LaunchedEffect(errorMessage) {
+    if (!errorMessage.isNullOrBlank()) {
+      localFeedback = errorMessage to true
+      snackbarHostState.showSnackbar(errorMessage, actionLabel = "Dismiss", duration = SnackbarDuration.Long)
+      onDismissError()
+    }
+  }
+  LaunchedEffect(successMessage) {
+    if (!successMessage.isNullOrBlank()) {
+      localFeedback = successMessage to false
+      snackbarHostState.showSnackbar(successMessage, actionLabel = "OK", duration = SnackbarDuration.Short)
+      onDismissSuccess()
+    }
+  }
+
+  Box(modifier = Modifier.fillMaxSize().background(DarkBackground).testTag("attendance_register_screen")) {
+    if (isLoading && detail == null) {
+      Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+        CircularProgressIndicator(color = GoldPrimary)
+      }
+    } else if (detail != null) {
+      val perms = detail.permissions
+      Column(
+        modifier = Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(horizontal = 16.dp, vertical = 20.dp)
+      ) {
+        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
+          Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.weight(1f)) {
+            IconButton(onClick = onBack, modifier = Modifier.size(40.dp).testTag("register_back_btn")) {
+              Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back", tint = GoldLight)
+            }
+            Spacer(modifier = Modifier.width(6.dp))
+            Column(modifier = Modifier.weight(1f)) {
+              Text(JsonHelper.orDash(detail.registerNo), fontSize = 18.sp, fontWeight = FontWeight.Bold, color = GoldLight)
+              Text(JsonHelper.orDash(detail.title), fontSize = 13.sp, color = TextSecondary, maxLines = 1)
+            }
+          }
+          Spacer(modifier = Modifier.width(8.dp))
+          RegisterStatusChip(detail.status)
+        }
+
+        Spacer(modifier = Modifier.height(14.dp))
+
+        if (detail.status.equals("voided", ignoreCase = true)) {
+          Box(
+            modifier = Modifier.fillMaxWidth().clip(RoundedCornerShape(10.dp)).background(ErrorRed.copy(alpha = 0.15f))
+              .border(1.5.dp, ErrorRed, RoundedCornerShape(10.dp)).padding(12.dp).testTag("voided_register_banner")
+          ) {
+            Column {
+              Text("VOIDED REGISTER", fontSize = 14.sp, fontWeight = FontWeight.ExtraBold, color = ErrorRed)
+              if (!detail.voidReason.isNullOrBlank()) {
+                Spacer(modifier = Modifier.height(4.dp))
+                Text("Reason: ${detail.voidReason}", fontSize = 12.5.sp, color = TextPrimary)
+              }
+            }
+          }
+          Spacer(modifier = Modifier.height(12.dp))
+        }
+
+        if (detail.missingDetails && perms.canEditDetails) {
+          Row(
+            modifier = Modifier.fillMaxWidth().clip(RoundedCornerShape(10.dp)).background(GoldPrimary.copy(alpha = 0.14f))
+              .border(1.2.dp, GoldPrimary, RoundedCornerShape(10.dp)).padding(12.dp).testTag("missing_details_banner"),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.SpaceBetween
+          ) {
+            Column(modifier = Modifier.weight(1f).padding(end = 8.dp)) {
+              Text("Add course and lecturer", fontSize = 14.sp, fontWeight = FontWeight.Bold, color = GoldLight)
+              Text("This register is missing unit or lecturer details.", fontSize = 12.sp, color = TextSecondary)
+            }
+            OutlinedButton(
+              onClick = { showEditDetailsDialog = true },
+              modifier = Modifier.height(38.dp).testTag("banner_edit_details_btn"),
+              shape = RoundedCornerShape(8.dp),
+              border = BorderStroke(1.5.dp, GoldPrimary),
+              colors = ButtonDefaults.outlinedButtonColors(containerColor = DarkSurface, contentColor = GoldLight),
+              contentPadding = PaddingValues(horizontal = 12.dp)
+            ) {
+              Icon(Icons.Default.Edit, contentDescription = null, tint = GoldLight, modifier = Modifier.size(14.dp))
+              Spacer(modifier = Modifier.width(4.dp))
+              Text("Edit details", fontSize = 14.sp, fontWeight = FontWeight.Bold, color = GoldLight, maxLines = 1, softWrap = false)
+            }
+          }
+          Spacer(modifier = Modifier.height(12.dp))
+        }
+
+        RegisterExportActionBar(
+          onDownload = {
+            val res = AttendanceRegisterActions.downloadToDownloads(context, detail)
+            localFeedback = res.fold(
+              onSuccess = { msg -> msg to false },
+              onFailure = { e -> (e.message ?: "Download failed") to true }
+            )
+          },
+          onPrint = { AttendanceRegisterActions.printRegister(context, detail) },
+          onShare = { AttendanceRegisterActions.shareRegister(context, detail) }
+        )
+
+        Spacer(modifier = Modifier.height(14.dp))
+        RegisterInfoCard(detail, canEditDetails = perms.canEditDetails, onEditDetails = { showEditDetailsDialog = true })
+        Spacer(modifier = Modifier.height(14.dp))
+
+        if (perms.canClose || perms.canSignOut || perms.canVoid || perms.canDelete) {
+          FlowRow(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+            verticalArrangement = Arrangement.spacedBy(8.dp)
+          ) {
+            if (perms.canClose) {
+              OutlinedButton(
+                onClick = onCloseSession, enabled = !isActionLoading,
+                modifier = Modifier.height(44.dp).testTag("close_session_btn"),
+                shape = RoundedCornerShape(10.dp), border = BorderStroke(1.5.dp, GoldPrimary),
+                colors = ButtonDefaults.outlinedButtonColors(containerColor = DarkSurface, contentColor = GoldLight, disabledContentColor = GoldLight.copy(alpha = 0.5f))
+              ) { Text("Close Session", fontSize = 14.sp, fontWeight = FontWeight.Bold, color = GoldLight, maxLines = 1, softWrap = false) }
+            }
+            if (perms.canSignOut) {
+              OutlinedButton(
+                onClick = onSignOut, enabled = !isActionLoading,
+                modifier = Modifier.height(44.dp).testTag("sign_out_session_btn"),
+                shape = RoundedCornerShape(10.dp), border = BorderStroke(1.5.dp, GoldPrimary),
+                colors = ButtonDefaults.outlinedButtonColors(containerColor = DarkSurface, contentColor = GoldLight, disabledContentColor = GoldLight.copy(alpha = 0.5f))
+              ) { Text("Sign Out", fontSize = 14.sp, fontWeight = FontWeight.Bold, color = GoldLight, maxLines = 1, softWrap = false) }
+            }
+            if (perms.canVoid) {
+              OutlinedButton(
+                onClick = { showVoidDialog = true }, enabled = !isActionLoading,
+                modifier = Modifier.height(44.dp).testTag("void_session_btn"),
+                shape = RoundedCornerShape(10.dp), border = BorderStroke(1.5.dp, ErrorRed),
+                colors = ButtonDefaults.outlinedButtonColors(containerColor = DarkSurface, contentColor = ErrorRed, disabledContentColor = ErrorRed.copy(alpha = 0.5f))
+              ) { Text("Void", fontSize = 14.sp, fontWeight = FontWeight.Bold, color = ErrorRed, maxLines = 1, softWrap = false) }
+            }
+            if (perms.canDelete) {
+              OutlinedButton(
+                onClick = { showDeleteDialog = true }, enabled = !isActionLoading,
+                modifier = Modifier.height(44.dp).testTag("delete_register_btn"),
+                shape = RoundedCornerShape(10.dp), border = BorderStroke(1.5.dp, ErrorRed),
+                colors = ButtonDefaults.outlinedButtonColors(containerColor = DarkSurface, contentColor = ErrorRed, disabledContentColor = ErrorRed.copy(alpha = 0.5f))
+              ) { Text("Delete", fontSize = 14.sp, fontWeight = FontWeight.Bold, color = ErrorRed, maxLines = 1, softWrap = false) }
+            }
+          }
+          Spacer(modifier = Modifier.height(14.dp))
+        }
+
+        RegisterTablePreview(
+          rows = detail.rows,
+          canEditRecords = perms.canEditRecords,
+          showSignatures = perms.canManage || perms.canEditRecords,
+          onCorrectRow = { rowToCorrect = it },
+          onMarkPresentRow = { rowToMarkPresent = it }
+        )
+
+        Spacer(modifier = Modifier.height(16.dp))
+        RegisterSignaturesSection(
+          detail = detail,
+          onSignPrefect = { signRoleToOpen = "prefect" },
+          onSignLecturer = { signRoleToOpen = "lecturer" }
+        )
+        Spacer(modifier = Modifier.height(64.dp))
+      }
+    }
+
+    LaunchedEffect(localFeedback) {
+      val fb = localFeedback ?: return@LaunchedEffect
+      if (fb.first != errorMessage && fb.first != successMessage) {
+        snackbarHostState.showSnackbar(fb.first, actionLabel = "OK", duration = SnackbarDuration.Short)
+      }
+    }
+
+    ClassRepSnackbarHost(
+      hostState = snackbarHostState,
+      isError = localFeedback?.second ?: true,
+      modifier = Modifier.align(Alignment.BottomCenter)
+    )
+  }
+
+  AttendanceRegisterModals(
+    detail = detail,
+    units = units,
+    isActionLoading = isActionLoading,
+    showVoidDialog = showVoidDialog,
+    showDeleteDialog = showDeleteDialog,
+    showEditDetailsDialog = showEditDetailsDialog,
+    signRoleToOpen = signRoleToOpen,
+    rowToCorrect = rowToCorrect,
+    rowToMarkPresent = rowToMarkPresent,
+    onDismissVoid = { showVoidDialog = false },
+    onConfirmVoid = { onVoidSession(it); showVoidDialog = false },
+    onDismissDelete = { showDeleteDialog = false },
+    onConfirmDelete = { onDeleteSession(it); showDeleteDialog = false },
+    onDismissEditDetails = { showEditDetailsDialog = false },
+    onSaveEditDetails = { ct, cc, lec, ven, st -> onUpdateDetails(ct, cc, lec, ven, st); showEditDetailsDialog = false },
+    onDismissSignRole = { signRoleToOpen = null },
+    onConfirmSignRole = { role, sig -> onSignRegister(role, sig); signRoleToOpen = null },
+    onDismissCorrect = { rowToCorrect = null },
+    onConfirmCorrect = { id, tIn, tOut, r -> onCorrectTime(id, tIn, tOut, r); rowToCorrect = null },
+    onDismissMarkPresent = { rowToMarkPresent = null },
+    onConfirmMarkPresent = { sId, tIn, tOut, r -> onMarkPresent(sId, tIn, tOut, r); rowToMarkPresent = null }
+  )
+}

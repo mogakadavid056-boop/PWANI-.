@@ -28,6 +28,7 @@ fun BoxScope.ClassScreenFab(
   moreSubView: MoreSubView,
   isStaff: Boolean,
   canPostNotice: Boolean,
+  canManageAttendance: Boolean = isStaff,
   onNavigateToPostNotice: () -> Unit,
   onStartAttendanceClick: () -> Unit,
   onAddScheduleClick: () -> Unit,
@@ -37,7 +38,7 @@ fun BoxScope.ClassScreenFab(
 ) {
   val showFab = when (selectedTab) {
     ClassTab.Notices -> canPostNotice
-    ClassTab.Attendance -> isStaff
+    ClassTab.Attendance -> canManageAttendance
     ClassTab.Timetable -> isStaff
     ClassTab.Groups -> isStaff
     ClassTab.More -> (moreSubView == MoreSubView.Materials || moreSubView == MoreSubView.Polls) && isStaff
