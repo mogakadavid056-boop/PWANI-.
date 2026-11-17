@@ -190,4 +190,132 @@ class ExampleUnitTest {
     assertEquals("-", com.example.util.JsonHelper.orDash("   "))
     assertEquals("Room 4", com.example.util.JsonHelper.orDash("Room 4"))
   }
+
+  @Test
+  fun testRoleHelperPermissionsAndNormalization() {
+    assertEquals("class_rep", com.example.util.RoleHelper.normalizeRole("class_rep"))
+    assertEquals("class_rep", com.example.util.RoleHelper.normalizeRole("prefect"))
+    assertEquals("admin", com.example.util.RoleHelper.normalizeRole("super_admin"))
+    assertEquals("lecturer", com.example.util.RoleHelper.normalizeRole("Lecturer"))
+    assertEquals("student", com.example.util.RoleHelper.normalizeRole("STUDENT"))
+    assertEquals("", com.example.util.RoleHelper.normalizeRole(null))
+
+    assertTrue(com.example.util.RoleHelper.canManageClassContent("lecturer"))
+    assertTrue(com.example.util.RoleHelper.canManageClassContent("class_rep"))
+    assertTrue(com.example.util.RoleHelper.canManageClassContent("admin"))
+    assertTrue(com.example.util.RoleHelper.canManageClassContent("student", isRepInClass = true))
+    assertFalse(com.example.util.RoleHelper.canManageClassContent("student", isRepInClass = false))
+
+    assertTrue(com.example.util.RoleHelper.canSignAttendance("student"))
+    assertTrue(com.example.util.RoleHelper.canSignAttendance("class_rep"))
+    assertFalse(com.example.util.RoleHelper.canSignAttendance("lecturer"))
+    assertFalse(com.example.util.RoleHelper.canSignAttendance("admin"))
+
+    assertTrue(com.example.util.RoleHelper.usesStaffNumber("lecturer"))
+    assertTrue(com.example.util.RoleHelper.usesStaffNumber("admin"))
+    assertFalse(com.example.util.RoleHelper.usesStaffNumber("student"))
+    assertFalse(com.example.util.RoleHelper.usesStaffNumber("class_rep"))
+
+    assertEquals("Class Rep", com.example.util.RoleHelper.formatDisplayName("class_rep"))
+    assertEquals("Super Admin", com.example.util.RoleHelper.formatDisplayName("admin"))
+    assertEquals("Lecturer", com.example.util.RoleHelper.formatDisplayName("lecturer"))
+    assertEquals("Student", com.example.util.RoleHelper.formatDisplayName("student"))
+  }
+
+  @Test
+  fun testScheduleItemCancelledAndMovedStatus() {
+    val active = ScheduleItem("1", "AI", "Dr. A", 1, "08:00", "10:00", "LT1", status = "scheduled")
+    assertFalse(active.isCancelled)
+    assertFalse(active.isMoved)
+
+    val cancelled = active.copy(status = "cancelled", statusNote = "Public holiday")
+    assertTrue(cancelled.isCancelled)
+    assertFalse(cancelled.isMoved)
+    assertEquals("cancelled", cancelled.normalizedStatus)
+
+    val moved = active.copy(status = "Moved", statusNote = "Moved to Room 204")
+    assertTrue(moved.isMoved)
+    assertFalse(moved.isCancelled)
+    assertEquals("moved", moved.normalizedStatus)
+  }
+
+  @Test
+  fun testAlarmOffsetsAndRequestCodes() {
+    assertEquals(listOf(15, 0), com.example.alarms.AlarmScheduler.getOffsetsToSchedule(15))
+    assertEquals(listOf(30, 0), com.example.alarms.AlarmScheduler.getOffsetsToSchedule(30))
+    assertEquals(listOf(0), com.example.alarms.AlarmScheduler.getOffsetsToSchedule(0))
+
+    val code15 = com.example.alarms.AlarmScheduler.computeAlarmRequestCode("sched-1", 15)
+    val code0 = com.example.alarms.AlarmScheduler.computeAlarmRequestCode("sched-1", 0, setOf(code15))
+    assertTrue(code15 > 0)
+    assertTrue(code0 > 0)
+    assertTrue(code15 != code0)
+    val resolvedCollision = com.example.alarms.AlarmScheduler.computeAlarmRequestCode("sched-1", 15, setOf(code15))
+    assertTrue(resolvedCollision != code15)
+  }
+
+  @Test
+  fun testComputeNextTriggerMillis() {
+    val cal = java.util.Calendar.getInstance().apply {
+      set(2026, java.util.Calendar.NOVEMBER, 9, 7, 0, 0) // Monday 07:00
+      set(java.util.Calendar.MILLISECOND, 0)
+    }
+    val beforeTrigger = com.example.alarms.AlarmScheduler.computeNextTriggerMillis(1, "08:00:00", 15, cal.timeInMillis)!!
+    val outCal1 = java.util.Calendar.getInstance().apply { timeInMillis = beforeTrigger }
+    assertEquals(java.util.Calendar.MONDAY, outCal1.get(java.util.Calendar.DAY_OF_WEEK))
+    assertEquals(7, outCal1.get(java.util.Calendar.HOUR_OF_DAY))
+    assertEquals(45, outCal1.get(java.util.Calendar.MINUTE))
+
+    // After 07:45 -> rolls over 7 days to next Monday 07:45
+    cal.set(java.util.Calendar.MINUTE, 50)
+    val nextWeek = com.example.alarms.AlarmScheduler.computeNextTriggerMillis(1, "08:00", 15, cal.timeInMillis)!!
+    val outCal2 = java.util.Calendar.getInstance().apply { timeInMillis = nextWeek }
+    assertEquals(java.util.Calendar.MONDAY, outCal2.get(java.util.Calendar.DAY_OF_WEEK))
+    assertEquals(16, outCal2.get(java.util.Calendar.DAY_OF_MONTH))
+    assertEquals(7, outCal2.get(java.util.Calendar.HOUR_OF_DAY))
+    assertEquals(45, outCal2.get(java.util.Calendar.MINUTE))
+
+    // Midnight rollover (Monday 00:05 with 15 min offset -> Sunday 23:50)
+    cal.set(2026, java.util.Calendar.NOVEMBER, 8, 22, 0, 0) // Sunday 22:00
+    val midnightCross = com.example.alarms.AlarmScheduler.computeNextTriggerMillis(1, "00:05", 15, cal.timeInMillis)!!
+    val outCal3 = java.util.Calendar.getInstance().apply { timeInMillis = midnightCross }
+    assertEquals(java.util.Calendar.SUNDAY, outCal3.get(java.util.Calendar.DAY_OF_WEEK))
+    assertEquals(23, outCal3.get(java.util.Calendar.HOUR_OF_DAY))
+    assertEquals(50, outCal3.get(java.util.Calendar.MINUTE))
+
+    // Exact start time (0 offset) and invalid inputs
+    assertEquals(null, com.example.alarms.AlarmScheduler.computeNextTriggerMillis(9, "08:00", 0, cal.timeInMillis))
+    assertEquals(null, com.example.alarms.AlarmScheduler.computeNextTriggerMillis(1, "bad", 0, cal.timeInMillis))
+  }
+
+  @Test
+  fun testFormatAlarmTextNeverShowsNull() {
+    val (title, body) = com.example.alarms.AlarmNotificationHelper.formatAlarmText(
+      courseCode = "MGE B101",
+      title = "Applied Geomatics",
+      startTime = "08:00:00",
+      endTime = "10:00:00",
+      room = "LTW",
+      lecturerName = "Dr. B. Othoche",
+      offsetMinutes = 15,
+      isSnooze = false
+    )
+    assertEquals("MGE B101 starts in 15 min - LTW - Dr. B. Othoche", body)
+    assertTrue(title.contains("MGE B101"))
+    assertTrue(title.contains("08:00 - 10:00"))
+
+    val (nullTitle, nullBody) = com.example.alarms.AlarmNotificationHelper.formatAlarmText(
+      courseCode = null,
+      title = "null",
+      startTime = "null",
+      endTime = null,
+      room = "null",
+      lecturerName = null,
+      offsetMinutes = 0,
+      isSnooze = false
+    )
+    assertEquals("Class starts now", nullBody)
+    assertFalse(nullTitle.contains("null", ignoreCase = true))
+    assertFalse(nullBody.contains("null", ignoreCase = true))
+  }
 }

@@ -38,7 +38,7 @@ fun RegisterScreen(
   onDismissError: () -> Unit,
   onRegisterWithKnown: (String, String, String, String, SchoolItem?, ProgrammeItem?, Int?) -> Unit,
   onRegisterWithCode: (String, String, String, String, String) -> Unit,
-  onRegisterLecturer: (fullName: String, staffNumber: String, email: String, password: String, passcode: String) -> Unit = { _, _, _, _, _ -> },
+  onRegisterLecturer: (fullName: String, staffNumber: String, department: String, email: String, password: String) -> Unit = { _, _, _, _, _ -> },
   onNavigateToLogin: () -> Unit,
   onBack: () -> Unit
 ) {
@@ -46,9 +46,9 @@ fun RegisterScreen(
   var fullName by remember { mutableStateOf("") }
   var admissionNumber by remember { mutableStateOf("") }
   var staffNumber by remember { mutableStateOf("") }
+  var department by remember { mutableStateOf("") }
   var email by remember { mutableStateOf("") }
   var password by remember { mutableStateOf("") }
-  var lecturerPasscode by remember { mutableStateOf("") }
   var knowsDetails by remember { mutableStateOf(true) }
   var classCode by remember { mutableStateOf("") }
   var selectedSchool by remember { mutableStateOf<SchoolItem?>(null) }
@@ -69,7 +69,7 @@ fun RegisterScreen(
       }
 
       Spacer(modifier = Modifier.height(14.dp))
-      Text("Join ClassRep for your class", fontSize = 14.sp, color = TextSecondary)
+      Text("Join ClassRep as a Student or Lecturer", fontSize = 14.sp, color = TextSecondary)
       Spacer(modifier = Modifier.height(16.dp))
 
       RegisterRoleSelector(
@@ -96,12 +96,12 @@ fun RegisterScreen(
         LecturerRegisterFields(
           staffNumber = staffNumber,
           onStaffNumberChange = { staffNumber = it },
+          department = department,
+          onDepartmentChange = { department = it },
           email = email,
           onEmailChange = { email = it },
           password = password,
-          onPasswordChange = { password = it },
-          lecturerPasscode = lecturerPasscode,
-          onLecturerPasscodeChange = { lecturerPasscode = it }
+          onPasswordChange = { password = it }
         )
       } else {
         DarkTextField(
@@ -125,7 +125,6 @@ fun RegisterScreen(
         )
         Spacer(modifier = Modifier.height(16.dp))
 
-        // Switch
         Box(
           modifier = Modifier.fillMaxWidth().clip(RoundedCornerShape(12.dp)).background(DarkCard)
             .border(1.dp, DarkBorder, RoundedCornerShape(12.dp)).padding(14.dp)
@@ -208,15 +207,11 @@ fun RegisterScreen(
         onClick = {
           localValidationMessage = null
           if (isLecturerMode) {
-            if (fullName.isBlank() || email.isBlank() || password.isBlank()) {
-              localValidationMessage = "Please enter your full name, email, and password."
+            if (fullName.isBlank() || staffNumber.isBlank() || department.isBlank() || email.isBlank() || password.isBlank()) {
+              localValidationMessage = "Please enter your full name, staff number, department, email, and password."
               return@GoldButton
             }
-            if (lecturerPasscode.isBlank()) {
-              localValidationMessage = "Please enter the lecturer passcode."
-              return@GoldButton
-            }
-            onRegisterLecturer(fullName, staffNumber, email, password, lecturerPasscode)
+            onRegisterLecturer(fullName, staffNumber, department, email, password)
           } else {
             if (fullName.isBlank() || admissionNumber.isBlank() || email.isBlank() || password.isBlank()) {
               localValidationMessage = "Please fill in all registration fields."

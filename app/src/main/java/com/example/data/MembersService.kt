@@ -1,5 +1,7 @@
 package com.example.data
 
+import com.example.util.JsonHelper
+import com.example.util.RoleHelper
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import okhttp3.MediaType.Companion.toMediaType
@@ -51,20 +53,18 @@ class MembersService(
         val list = mutableListOf<ClassMemberItem>()
         for (i in 0 until array.length()) {
           val obj = array.getJSONObject(i)
-          val userId = obj.optString("user_id").ifBlank {
-            obj.optString("id", obj.optString("student_id", obj.optString("target_user_id")))
-          }
-          val fullName = obj.optString("full_name").ifBlank {
-            obj.optString("name", obj.optString("student_name", "Student"))
-          }
-          val admNo = obj.optString("admission_number").ifBlank {
-            obj.optString("admission_no", obj.optString("reg_no", "N/A"))
-          }
-          val rawIsRep = obj.optBoolean("is_rep", obj.optBoolean("is_representative", obj.optBoolean("rep", false)))
-          val memberRole = obj.optString("member_role").ifBlank {
-            obj.optString("role", if (rawIsRep) "prefect" else "student")
-          }
-          val isRep = rawIsRep || memberRole.equals("prefect", ignoreCase = true) || memberRole.equals("rep", ignoreCase = true)
+          val userId = JsonHelper.firstStr(obj, "user_id", "id", "student_id", "target_user_id")
+          val fullName = JsonHelper.firstStr(obj, "full_name", "name", "student_name").ifBlank { "Student" }
+          val admNo = JsonHelper.firstStr(obj, "admission_number", "admission_no", "reg_no").ifBlank { "-" }
+          val rawIsRep = JsonHelper.bool(obj, "is_rep", false) ||
+            JsonHelper.bool(obj, "is_representative", false) ||
+            JsonHelper.bool(obj, "rep", false)
+          val rawRole = JsonHelper.strOrNull(obj, "role")
+          val memberRole = JsonHelper.firstStr(obj, "member_role", "role")
+            .ifBlank { if (rawIsRep) "prefect" else "student" }
+          val isRep = rawIsRep ||
+            RoleHelper.isClassRep(memberRole) ||
+            RoleHelper.isClassRep(rawRole)
 
           list.add(
             ClassMemberItem(
@@ -72,7 +72,7 @@ class MembersService(
               fullName = fullName,
               admissionNumber = admNo,
               isRep = isRep,
-              role = if (obj.has("role")) obj.optString("role") else null,
+              role = rawRole,
               memberRole = memberRole
             )
           )
@@ -80,82 +80,82 @@ class MembersService(
         Result.success(list)
       }
     } catch (e: Exception) {
-      Result.failure(Exception(e.localizedMessage ?: "Failed to load class members"))
+      Result.failure(Exception(SupabaseConfig.formatExceptionMessage(e, "Failed to load class members")))
     }
   }
+
+  private suspend fun postRpcRaw(rpcName: String, body: JSONObject, accessToken: String): Result<Unit> =
+    withContext(Dispatchers.IO) {
+      if (!SupabaseConfig.isConfigured()) {
+        return@withContext Result.failure(IllegalStateException(SupabaseConfig.MISSING_CONFIG_ERROR))
+      }
+      val url = "${SupabaseConfig.url}/rest/v1/rpc/$rpcName"
+      val request = Request.Builder()
+        .url(url)
+        .addHeader("apikey", SupabaseConfig.anonKey)
+        .addHeader("Authorization", "Bearer $accessToken")
+        .addHeader("Content-Type", "application/json")
+        .post(body.toString().toRequestBody(jsonMediaType))
+        .build()
+
+      try {
+        client.newCall(request).execute().use { response ->
+          val bodyString = response.body?.string().orEmpty()
+          if (response.isSuccessful) {
+            Result.success(Unit)
+          } else {
+            Result.failure(Exception(SupabaseConfig.extractErrorMessage(bodyString, response.code)))
+          }
+        }
+      } catch (e: Exception) {
+        Result.failure(Exception(SupabaseConfig.formatExceptionMessage(e, "Network request failed")))
+      }
+    }
 
   suspend fun appointClassRep(
     classId: String,
     targetUserId: String,
     accessToken: String
-  ): Result<Unit> = withContext(Dispatchers.IO) {
-    if (!SupabaseConfig.isConfigured()) {
-      return@withContext Result.failure(IllegalStateException(SupabaseConfig.MISSING_CONFIG_ERROR))
-    }
-
-    val body = JSONObject().apply {
-      put("target_class_id", classId)
+  ): Result<Unit> {
+    val setRepPayload = JSONObject().apply {
       put("target_user_id", targetUserId)
+      put("target_class_id", classId)
+      put("is_rep", true)
     }
-
-    val url = "${SupabaseConfig.url}/rest/v1/rpc/appoint_class_rep"
-    val request = Request.Builder()
-      .url(url)
-      .addHeader("apikey", SupabaseConfig.anonKey)
-      .addHeader("Authorization", "Bearer $accessToken")
-      .addHeader("Content-Type", "application/json")
-      .post(body.toString().toRequestBody(jsonMediaType))
-      .build()
-
-    try {
-      client.newCall(request).execute().use { response ->
-        val bodyString = response.body?.string().orEmpty()
-        if (response.isSuccessful) {
-          Result.success(Unit)
-        } else {
-          Result.failure(Exception(SupabaseConfig.extractErrorMessage(bodyString, response.code)))
-        }
+    val res = postRpcRaw("set_class_rep", setRepPayload, accessToken)
+    if (res.isSuccess) return res
+    val msg = res.exceptionOrNull()?.message.orEmpty()
+    if (msg.contains("PGRST202", ignoreCase = true) || msg.contains("Could not find the function", ignoreCase = true)) {
+      val legacyPayload = JSONObject().apply {
+        put("target_class_id", classId)
+        put("target_user_id", targetUserId)
       }
-    } catch (e: Exception) {
-      Result.failure(Exception(e.localizedMessage ?: "Failed to appoint class representative"))
+      return postRpcRaw("appoint_class_rep", legacyPayload, accessToken)
     }
+    return res
   }
 
   suspend fun removeClassRep(
     classId: String,
     targetUserId: String,
     accessToken: String
-  ): Result<Unit> = withContext(Dispatchers.IO) {
-    if (!SupabaseConfig.isConfigured()) {
-      return@withContext Result.failure(IllegalStateException(SupabaseConfig.MISSING_CONFIG_ERROR))
-    }
-
-    val body = JSONObject().apply {
-      put("target_class_id", classId)
+  ): Result<Unit> {
+    val setRepPayload = JSONObject().apply {
       put("target_user_id", targetUserId)
+      put("target_class_id", classId)
+      put("is_rep", false)
     }
-
-    val url = "${SupabaseConfig.url}/rest/v1/rpc/remove_class_rep"
-    val request = Request.Builder()
-      .url(url)
-      .addHeader("apikey", SupabaseConfig.anonKey)
-      .addHeader("Authorization", "Bearer $accessToken")
-      .addHeader("Content-Type", "application/json")
-      .post(body.toString().toRequestBody(jsonMediaType))
-      .build()
-
-    try {
-      client.newCall(request).execute().use { response ->
-        val bodyString = response.body?.string().orEmpty()
-        if (response.isSuccessful) {
-          Result.success(Unit)
-        } else {
-          Result.failure(Exception(SupabaseConfig.extractErrorMessage(bodyString, response.code)))
-        }
+    val res = postRpcRaw("set_class_rep", setRepPayload, accessToken)
+    if (res.isSuccess) return res
+    val msg = res.exceptionOrNull()?.message.orEmpty()
+    if (msg.contains("PGRST202", ignoreCase = true) || msg.contains("Could not find the function", ignoreCase = true)) {
+      val legacyPayload = JSONObject().apply {
+        put("target_class_id", classId)
+        put("target_user_id", targetUserId)
       }
-    } catch (e: Exception) {
-      Result.failure(Exception(e.localizedMessage ?: "Failed to remove class representative"))
+      return postRpcRaw("remove_class_rep", legacyPayload, accessToken)
     }
+    return res
   }
 
   suspend fun removeFromClass(
@@ -185,7 +185,7 @@ class MembersService(
         }
       }
     } catch (e: Exception) {
-      Result.failure(Exception(e.localizedMessage ?: "Failed to remove member from class"))
+      Result.failure(Exception(SupabaseConfig.formatExceptionMessage(e, "Failed to remove member from class")))
     }
   }
 }

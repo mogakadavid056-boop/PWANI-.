@@ -1,5 +1,7 @@
 package com.example.data
 
+import com.example.util.JsonHelper
+import com.example.util.RoleHelper
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import okhttp3.MediaType.Companion.toMediaType
@@ -8,7 +10,6 @@ import okhttp3.Request
 import okhttp3.RequestBody.Companion.toRequestBody
 import org.json.JSONArray
 import org.json.JSONObject
-import java.util.concurrent.TimeUnit
 
 class UniversityService(
   private val client: OkHttpClient = OfflineCache.getClient()
@@ -43,16 +44,16 @@ class UniversityService(
           val obj = array.getJSONObject(i)
           list.add(
             SchoolItem(
-              id = obj.optString("id"),
-              name = obj.optString("name"),
-              universityId = obj.optString("university_id")
+              id = JsonHelper.str(obj, "id"),
+              name = JsonHelper.str(obj, "name"),
+              universityId = JsonHelper.str(obj, "university_id")
             )
           )
         }
         Result.success(list)
       }
     } catch (e: Exception) {
-      Result.failure(Exception(e.localizedMessage ?: "Failed to load schools"))
+      Result.failure(Exception(SupabaseConfig.formatExceptionMessage(e, "Failed to load schools")))
     }
   }
 
@@ -87,8 +88,8 @@ class UniversityService(
             } else null
             list.add(
               ProgrammeItem(
-                id = obj.optString("id"),
-                name = obj.optString("name"),
+                id = JsonHelper.str(obj, "id"),
+                name = JsonHelper.str(obj, "name"),
                 schoolId = schoolId,
                 durationYears = duration
               )
@@ -97,7 +98,7 @@ class UniversityService(
           Result.success(list)
         }
       } catch (e: Exception) {
-        Result.failure(Exception(e.localizedMessage ?: "Failed to load programmes"))
+        Result.failure(Exception(SupabaseConfig.formatExceptionMessage(e, "Failed to load programmes")))
       }
     }
 
@@ -127,16 +128,16 @@ class UniversityService(
           val obj = array.getJSONObject(i)
           list.add(
             AcademicYearItem(
-              id = obj.optString("id"),
-              name = obj.optString("name"),
-              isCurrent = obj.optBoolean("is_current", false)
+              id = JsonHelper.str(obj, "id"),
+              name = JsonHelper.str(obj, "name"),
+              isCurrent = JsonHelper.bool(obj, "is_current", false)
             )
           )
         }
         Result.success(list)
       }
     } catch (e: Exception) {
-      Result.failure(Exception(e.localizedMessage ?: "Failed to load academic years"))
+      Result.failure(Exception(SupabaseConfig.formatExceptionMessage(e, "Failed to load academic years")))
     }
   }
 
@@ -144,7 +145,7 @@ class UniversityService(
     if (!SupabaseConfig.isConfigured() || userId.isBlank()) {
       return@withContext Result.failure(IllegalStateException("User ID required"))
     }
-    val url = "${SupabaseConfig.url}/rest/v1/profiles?id=eq.$userId&select=id,full_name,email,admission_number,year_of_study,school_id,programme_id,university_id,schools:school_id(name),programmes:programme_id(name)"
+    val url = "${SupabaseConfig.url}/rest/v1/profiles?id=eq.$userId&select=*,schools:school_id(name),programmes:programme_id(name)"
     val request = Request.Builder()
       .url(url)
       .addHeader("apikey", SupabaseConfig.anonKey)
@@ -167,29 +168,33 @@ class UniversityService(
         val obj = array.getJSONObject(0)
         val schoolsObj = obj.optJSONObject("schools")
         val programmesObj = obj.optJSONObject("programmes")
-        val schoolName = schoolsObj?.optString("name")?.takeIf { it.isNotBlank() }
-        val programmeName = programmesObj?.optString("name")?.takeIf { it.isNotBlank() }
+        val schoolName = JsonHelper.strOrNull(schoolsObj, "name")
+        val programmeName = JsonHelper.strOrNull(programmesObj, "name")
         val yearOfStudy = if (obj.has("year_of_study") && !obj.isNull("year_of_study")) {
           obj.optInt("year_of_study")
         } else null
 
         Result.success(
           ProfileItem(
-            id = obj.optString("id", userId),
-            fullName = obj.optString("full_name"),
-            email = obj.optString("email"),
-            admissionNumber = obj.optString("admission_number"),
+            id = JsonHelper.str(obj, "id").ifBlank { userId },
+            fullName = JsonHelper.str(obj, "full_name"),
+            email = JsonHelper.str(obj, "email"),
+            admissionNumber = JsonHelper.str(obj, "admission_number"),
+            staffNumber = JsonHelper.str(obj, "staff_number"),
+            department = JsonHelper.str(obj, "department"),
+            role = RoleHelper.normalizeRole(JsonHelper.str(obj, "role")),
+            roleStatus = RoleHelper.normalizeRoleStatus(JsonHelper.firstStr(obj, "role_status", "status")),
             yearOfStudy = yearOfStudy,
-            schoolId = obj.optString("school_id").takeIf { it.isNotBlank() },
+            schoolId = JsonHelper.strOrNull(obj, "school_id"),
             schoolName = schoolName,
-            programmeId = obj.optString("programme_id").takeIf { it.isNotBlank() },
+            programmeId = JsonHelper.strOrNull(obj, "programme_id"),
             programmeName = programmeName,
-            universityId = obj.optString("university_id").takeIf { it.isNotBlank() }
+            universityId = JsonHelper.strOrNull(obj, "university_id")
           )
         )
       }
     } catch (e: Exception) {
-      Result.failure(Exception(e.localizedMessage ?: "Failed to fetch profile"))
+      Result.failure(Exception(SupabaseConfig.formatExceptionMessage(e, "Failed to fetch profile")))
     }
   }
 
@@ -222,7 +227,7 @@ class UniversityService(
         }
       }
     } catch (e: Exception) {
-      Result.failure(Exception(e.localizedMessage ?: "Failed to update profile"))
+      Result.failure(Exception(SupabaseConfig.formatExceptionMessage(e, "Failed to update profile")))
     }
   }
 }

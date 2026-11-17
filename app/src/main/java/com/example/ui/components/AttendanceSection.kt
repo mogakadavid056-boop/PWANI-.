@@ -29,6 +29,7 @@ import com.example.ui.theme.*
 @Composable
 fun AttendanceSection(
   isStaff: Boolean,
+  canSignAttendance: Boolean = !isStaff,
   isLoading: Boolean,
   staffSessions: List<AttendanceSessionItem>,
   openSessions: List<AttendanceSessionItem>,
@@ -52,10 +53,9 @@ fun AttendanceSection(
 ) {
   val context = LocalContext.current
   val isOnline by com.example.data.NetworkMonitor.isOnline.collectAsStateWithLifecycle()
-  val hasManageRights = if (registers.isNotEmpty()) registers.any { it.canManage } else isStaff
+  val hasManageRights = isStaff || registers.any { it.canManage }
 
   Column(modifier = Modifier.fillMaxWidth().padding(top = 6.dp)) {
-    // Header
     Row(
       modifier = Modifier.fillMaxWidth(),
       horizontalArrangement = Arrangement.SpaceBetween,
@@ -106,9 +106,8 @@ fun AttendanceSection(
 
     Spacer(modifier = Modifier.height(14.dp))
 
-    // Active session banner ONLY when server can_manage is true for active session
-    val activeRegCanManage = canManageActiveSession ||
-      (!activeSessionId.isNullOrBlank() && registers.any { it.sessionId == activeSessionId && it.canManage })
+    val activeRegCanManage = isStaff && (canManageActiveSession ||
+      (!activeSessionId.isNullOrBlank() && registers.any { it.sessionId == activeSessionId && it.canManage }))
     if (activeRegCanManage && !activeSessionCode.isNullOrBlank()) {
       ActiveSessionBanner(
         sessionCode = activeSessionCode,
@@ -123,8 +122,7 @@ fun AttendanceSection(
       Spacer(modifier = Modifier.height(16.dp))
     }
 
-    // Student open sessions
-    if (!hasManageRights && openSessions.isNotEmpty()) {
+    if (canSignAttendance && openSessions.isNotEmpty()) {
       Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
         openSessions.forEach { session ->
           StudentOpenSessionCard(
@@ -137,8 +135,7 @@ fun AttendanceSection(
       Spacer(modifier = Modifier.height(14.dp))
     }
 
-    // Student personal report card
-    if (!hasManageRights) {
+    if (canSignAttendance) {
       ClassRepCard(modifier = Modifier.fillMaxWidth().testTag("student_my_attendance_card"), onClick = onOpenMyAttendance) {
         Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
           Box(modifier = Modifier.size(38.dp).clip(RoundedCornerShape(8.dp)).background(DarkSurfaceVariant), contentAlignment = Alignment.Center) {
@@ -168,7 +165,7 @@ fun AttendanceSection(
           AttendanceRegisterCard(
             item = reg,
             onClick = { onOpenRegister(reg.sessionId) },
-            onDelete = if (reg.canDelete) { { onDeleteRegisterPrompt(reg) } } else null
+            onDelete = if (hasManageRights && reg.canDelete) { { onDeleteRegisterPrompt(reg) } } else null
           )
         }
       }

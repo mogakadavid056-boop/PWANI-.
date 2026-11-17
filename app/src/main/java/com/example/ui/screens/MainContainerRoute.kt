@@ -32,6 +32,7 @@ import com.example.ui.UniversityViewModel
 import com.example.ui.components.MainBottomNavigationBar
 import com.example.ui.components.MainTab
 import com.example.ui.theme.DarkBackground
+import com.example.util.RoleHelper
 
 @Composable
 fun MainContainerRoute(
@@ -49,14 +50,15 @@ fun MainContainerRoute(
   onNavigateToFindClasses: () -> Unit = {},
   onSelectClass: (ClassItem) -> Unit,
   onOpenManageMembersForClass: (String, String) -> Unit = { _, _ -> },
-  onBecomeLecturer: ((String) -> Unit)? = null,
   onLogout: () -> Unit
 ) {
   var selectedTab by remember { mutableStateOf(MainTab.Home) }
-  val isAdmin = session?.role?.equals("admin", ignoreCase = true) == true
-  val isStaff = isAdmin || session?.role?.equals("lecturer", ignoreCase = true) == true
+  val role = session?.role.orEmpty()
+  val isAdmin = RoleHelper.isAdmin(role)
+  val isLecturer = RoleHelper.isLecturer(role)
+  val isStaff = RoleHelper.isStaffRole(role)
 
-  LaunchedEffect(session?.userId) {
+  LaunchedEffect(session?.userId, role) {
     if (session != null) {
       noticesViewModel.loadLatestAnnouncements(session)
       if (isStaff) {
@@ -135,7 +137,7 @@ fun MainContainerRoute(
                   classes = classesUiState.classes,
                   isStaff = isStaff,
                   isAdmin = isAdmin,
-                  isLecturer = session?.role?.equals("lecturer", ignoreCase = true) == true,
+                  isLecturer = isLecturer,
                   isVerifiedLecturer = session?.isVerified == true,
                   isLoading = classesUiState.isLoading,
                   errorMessage = classesUiState.errorMessage,
@@ -153,6 +155,7 @@ fun MainContainerRoute(
               profile = universityUiState.profile,
               schools = universityUiState.schools,
               programmes = universityUiState.programmes,
+              role = role,
               isStaff = isStaff,
               isStudentInClass = classesUiState.classes.isNotEmpty(),
               isLoading = universityUiState.isProfileLoading,
@@ -162,10 +165,9 @@ fun MainContainerRoute(
               onDismissError = { universityViewModel.clearError() },
               onDismissSuccess = { universityViewModel.clearSuccess() },
               onSchoolSelected = { s -> universityViewModel.loadProgrammesForSchool(s.id, session?.accessToken) },
-              onSaveProfile = { name, s, prog, y ->
-                session?.let { universityViewModel.updateProfile(it.userId, it.accessToken, name, s, prog, y) }
+              onSaveProfile = { name, s, prog, y, dept ->
+                session?.let { universityViewModel.updateProfile(it.userId, it.accessToken, name, s, prog, y, dept) }
               },
-              onBecomeLecturer = onBecomeLecturer,
               onLogout = onLogout,
               onBack = { selectedTab = MainTab.Home }
             )
@@ -175,7 +177,9 @@ fun MainContainerRoute(
                 selectedTab = MainTab.Home
               } else {
                 ManageUsersScreen(
-                  users = adminUiState.users,
+                  users = adminUiState.displayedUsers,
+                  pendingCount = adminUiState.pendingCount,
+                  selectedFilterTab = adminUiState.filterTab,
                   searchQuery = adminUiState.searchQuery,
                   isLoading = adminUiState.isLoading,
                   isActionLoading = adminUiState.isActionLoading,
@@ -187,6 +191,11 @@ fun MainContainerRoute(
                   verificationPendingUser = adminUiState.verificationPendingUser,
                   verificationTargetStatus = adminUiState.verificationTargetStatus,
                   showVerificationConfirmDialog = adminUiState.showVerificationConfirmDialog,
+                  approvalPendingUser = adminUiState.approvalPendingUser,
+                  approvalDecisionApprove = adminUiState.approvalDecisionApprove,
+                  repTogglePendingUser = adminUiState.repTogglePendingUser,
+                  repTargetIsRep = adminUiState.repTargetIsRep,
+                  onSelectFilterTab = { tab -> adminViewModel.setFilterTab(tab) },
                   onSearchQueryChanged = { q -> adminViewModel.onSearchQueryChanged(q) },
                   onRefresh = { adminViewModel.refreshUsers() },
                   onUserClick = { u -> adminViewModel.selectUserForRoleChange(u) },
@@ -198,6 +207,12 @@ fun MainContainerRoute(
                   onToggleVerification = { u -> adminViewModel.promptToggleLecturerVerification(u) },
                   onDismissVerificationDialog = { adminViewModel.dismissVerificationDialog() },
                   onConfirmToggleVerification = { adminViewModel.confirmToggleLecturerVerification() },
+                  onApproveLecturer = { u, approve -> adminViewModel.promptApproveLecturer(u, approve) },
+                  onDismissApprovalDialog = { adminViewModel.dismissApprovalDialog() },
+                  onConfirmApproveLecturer = { adminViewModel.confirmApproveLecturer() },
+                  onSetClassRep = { u, isRep -> adminViewModel.promptSetClassRep(u, isRep) },
+                  onDismissRepDialog = { adminViewModel.dismissRepToggleDialog() },
+                  onConfirmSetClassRep = { adminViewModel.confirmSetClassRep() },
                   onDismissError = { adminViewModel.clearError() },
                   onDismissSuccess = { adminViewModel.clearSuccess() },
                   onBack = {

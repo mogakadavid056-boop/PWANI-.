@@ -10,6 +10,7 @@ import com.example.data.ClassUnitItem
 data class AttendanceUiState(
   val classId: String = "",
   val isStaff: Boolean = false,
+  val canSignAttendance: Boolean = true,
   val isLoading: Boolean = false,
   val isActionLoading: Boolean = false,
   val isUnitsLoading: Boolean = false,

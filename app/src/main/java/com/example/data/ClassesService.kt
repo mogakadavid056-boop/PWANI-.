@@ -1,5 +1,7 @@
 package com.example.data
 
+import com.example.util.JsonHelper
+import com.example.util.RoleHelper
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import okhttp3.MediaType.Companion.toMediaType
@@ -8,7 +10,6 @@ import okhttp3.Request
 import okhttp3.RequestBody.Companion.toRequestBody
 import org.json.JSONArray
 import org.json.JSONObject
-import java.util.concurrent.TimeUnit
 
 class ClassesService(
   private val client: OkHttpClient = OfflineCache.getClient()
@@ -25,7 +26,7 @@ class ClassesService(
       return@withContext Result.failure(IllegalStateException(SupabaseConfig.MISSING_CONFIG_ERROR))
     }
 
-    val isLecturer = role.equals("lecturer", ignoreCase = true)
+    val isLecturer = RoleHelper.isLecturer(role)
     val url = "${SupabaseConfig.url}/rest/v1/classes?select=id,name,code,join_code,year_of_study,created_by,programmes(name),class_members(user_id,status)&order=created_at.desc"
 
     val request = Request.Builder()
@@ -49,14 +50,14 @@ class ClassesService(
 
         for (i in 0 until array.length()) {
           val item = array.getJSONObject(i)
-          val id = item.optString("id")
-          val name = item.optString("name")
-          val code = item.optString("code")
-          val joinCode = item.optString("join_code").takeIf { it.isNotBlank() }
+          val id = JsonHelper.str(item, "id")
+          val name = JsonHelper.str(item, "name")
+          val code = JsonHelper.str(item, "code")
+          val joinCode = JsonHelper.strOrNull(item, "join_code")
           val yearOfStudy = if (item.has("year_of_study") && !item.isNull("year_of_study")) item.optInt("year_of_study") else null
           val progObj = item.optJSONObject("programmes")
-          val progName = progObj?.optString("name")?.takeIf { it.isNotBlank() }
-          val createdBy = item.optString("created_by")
+          val progName = JsonHelper.strOrNull(progObj, "name")
+          val createdBy = JsonHelper.str(item, "created_by")
 
           if (isLecturer && userId.isNotBlank()) {
             val isCreator = createdBy.equals(userId, ignoreCase = true)
@@ -65,8 +66,8 @@ class ClassesService(
             if (membersArr != null) {
               for (m in 0 until membersArr.length()) {
                 val mObj = membersArr.getJSONObject(m)
-                val mUid = mObj.optString("user_id")
-                val mStatus = mObj.optString("status", "active")
+                val mUid = JsonHelper.str(mObj, "user_id")
+                val mStatus = JsonHelper.str(mObj, "status").ifBlank { "active" }
                 if (mUid.equals(userId, ignoreCase = true) && mStatus.equals("active", ignoreCase = true)) {
                   isApprovedMember = true
                   break

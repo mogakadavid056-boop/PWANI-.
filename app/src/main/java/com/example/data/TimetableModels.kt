@@ -1,5 +1,7 @@
 package com.example.data
 
+import com.example.util.JsonHelper
+
 data class ScheduleItem(
   val id: String,
   val title: String,
@@ -7,8 +9,32 @@ data class ScheduleItem(
   val dayOfWeek: Int,
   val startTime: String,
   val endTime: String,
-  val room: String
+  val room: String,
+  val status: String = "scheduled",
+  val statusNote: String = "",
+  val classId: String = "",
+  val courseId: String = "",
+  val courseCode: String = ""
 ) {
+  val normalizedStatus: String
+    get() = when (status.trim().lowercase()) {
+      "cancelled", "canceled" -> "cancelled"
+      "moved", "rescheduled" -> "moved"
+      else -> "scheduled"
+    }
+
+  val isCancelled: Boolean
+    get() = normalizedStatus == "cancelled"
+
+  val isMoved: Boolean
+    get() = normalizedStatus == "moved"
+
+  val courseKey: String
+    get() = courseId.ifBlank { courseCode.ifBlank { title.trim().lowercase() } }
+
+  val displayCourseLabel: String
+    get() = JsonHelper.orDash(courseCode.ifBlank { title })
+
   val dayName: String
     get() = when (dayOfWeek) {
       1 -> "Monday"
@@ -28,3 +54,10 @@ data class ScheduleItem(
       return if (start.isNotBlank() && end.isNotBlank()) "$start - $end" else "$startTime - $endTime"
     }
 }
+
+data class RegisteredCourseItem(
+  val courseId: String,
+  val courseCode: String = "",
+  val courseName: String = "",
+  val classId: String = ""
+)

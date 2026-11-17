@@ -23,6 +23,7 @@ data class TimetableUiState(
   val successMessage: String? = null,
   val schedulePendingDelete: ScheduleItem? = null,
   val schedulePendingEdit: ScheduleItem? = null,
+  val schedulePendingStatus: ScheduleItem? = null,
   val showAddDialog: Boolean = false
 )
 
@@ -70,6 +71,11 @@ class TimetableViewModel : ViewModel() {
       result.fold(
         onSuccess = { list ->
           _uiState.update { it.copy(isLoading = false, schedules = list) }
+          com.example.data.OfflineCache.appContext?.let { appCtx ->
+            viewModelScope.launch {
+              com.example.alarms.TimetableAlarmSync.onClassTimetableRefreshed(appCtx, session, classId, list)
+            }
+          }
         },
         onFailure = { error ->
           _uiState.update { it.copy(isLoading = false, errorMessage = error.message) }
@@ -97,6 +103,10 @@ class TimetableViewModel : ViewModel() {
 
   fun setSchedulePendingDelete(item: ScheduleItem?) {
     _uiState.update { it.copy(schedulePendingDelete = item) }
+  }
+
+  fun setSchedulePendingStatus(item: ScheduleItem?) {
+    _uiState.update { it.copy(schedulePendingStatus = item) }
   }
 
   fun addSchedule(
@@ -207,6 +217,29 @@ class TimetableViewModel : ViewModel() {
       result.fold(
         onSuccess = {
           _uiState.update { it.copy(isActionLoading = false, successMessage = "Class deleted from timetable") }
+          loadSchedules(cid, session)
+        },
+        onFailure = { error ->
+          _uiState.update { it.copy(isActionLoading = false, errorMessage = error.message) }
+        }
+      )
+    }
+  }
+
+  fun updateScheduleStatus(
+    scheduleId: String,
+    status: String,
+    note: String,
+    session: UserSession?
+  ) {
+    val cid = _uiState.value.classId
+    if (session == null || cid.isBlank()) return
+    viewModelScope.launch {
+      _uiState.update { it.copy(isActionLoading = true, errorMessage = null) }
+      val result = timetableService.updateScheduleStatus(scheduleId, status, note, session.accessToken)
+      result.fold(
+        onSuccess = {
+          _uiState.update { it.copy(isActionLoading = false, schedulePendingStatus = null, successMessage = "Class status updated") }
           loadSchedules(cid, session)
         },
         onFailure = { error ->

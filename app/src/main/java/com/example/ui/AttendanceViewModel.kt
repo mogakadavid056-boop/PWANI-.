@@ -22,23 +22,23 @@ class AttendanceViewModel : ViewModel() {
   private var countdownJob: Job? = null
   private var lockoutJob: Job? = null
 
-  fun initForClass(classId: String, isStaff: Boolean, session: UserSession?) {
+  fun initForClass(classId: String, isStaff: Boolean, canSignAttendance: Boolean = !isStaff, session: UserSession?) {
     _uiState.update {
       it.copy(
-        classId = classId, isStaff = isStaff, errorMessage = null, successMessage = null,
-        sessionPendingVoid = null, registerPendingDelete = null,
+        classId = classId, isStaff = isStaff, canSignAttendance = canSignAttendance,
+        errorMessage = null, successMessage = null, sessionPendingVoid = null, registerPendingDelete = null,
         activeSessionId = null, activeSessionCode = null, canManageActiveSession = false,
         currentSubScreen = AttendanceSubScreen.None, signNeedsDetails = false
       )
     }
-    loadSessions(classId, isStaff, session)
+    loadSessions(classId, isStaff, canSignAttendance, session)
     loadClassUnits(classId, session)
   }
 
-  fun setStaff(isStaff: Boolean, session: UserSession?) {
-    val changed = _uiState.value.isStaff != isStaff
-    _uiState.update { it.copy(isStaff = isStaff) }
-    if (changed) loadSessions(_uiState.value.classId, isStaff, session)
+  fun setRolePermissions(isStaff: Boolean, canSignAttendance: Boolean, session: UserSession?) {
+    val changed = _uiState.value.isStaff != isStaff || _uiState.value.canSignAttendance != canSignAttendance
+    _uiState.update { it.copy(isStaff = isStaff, canSignAttendance = canSignAttendance) }
+    if (changed) loadSessions(_uiState.value.classId, isStaff, canSignAttendance, session)
   }
 
   fun loadClassUnits(classId: String = _uiState.value.classId, session: UserSession?) {
@@ -52,13 +52,18 @@ class AttendanceViewModel : ViewModel() {
     }
   }
 
-  fun loadSessions(classId: String = _uiState.value.classId, isStaff: Boolean = _uiState.value.isStaff, session: UserSession?) {
+  fun loadSessions(
+    classId: String = _uiState.value.classId,
+    isStaff: Boolean = _uiState.value.isStaff,
+    canSignAttendance: Boolean = _uiState.value.canSignAttendance,
+    session: UserSession?
+  ) {
     if (classId.isBlank() || session == null || session.accessToken.isBlank()) return
     viewModelScope.launch {
       _uiState.update { it.copy(isLoading = true, errorMessage = null) }
       val regList = registerService.listRegisters(classId, session.accessToken).getOrElse { emptyList() }
       val openManageableReg = regList.firstOrNull { it.status == "open" && it.canManage }
-      val canManageCur = _uiState.value.activeSessionId?.let { aid -> regList.find { it.sessionId == aid }?.canManage } ?: (openManageableReg != null)
+      val canManageCur = isStaff && (_uiState.value.activeSessionId?.let { aid -> regList.find { it.sessionId == aid }?.canManage } ?: (openManageableReg != null))
       _uiState.update { it.copy(registers = regList, canManageActiveSession = canManageCur) }
 
       if (isStaff || openManageableReg != null) {
@@ -67,18 +72,20 @@ class AttendanceViewModel : ViewModel() {
             _uiState.update { it.copy(isLoading = false, staffSessions = list) }
             val targetId = openManageableReg?.sessionId
             val openSession = if (targetId != null) list.find { it.id == targetId } else list.firstOrNull { it.active && NairobiTimeHelper.calculateRemainingSeconds(it.expiresAt) > 0 }
-            if (openSession != null && regList.any { it.sessionId == openSession.id && it.canManage } && _uiState.value.activeSessionCode.isNullOrBlank()) {
+            if (isStaff && openSession != null && regList.any { it.sessionId == openSession.id && it.canManage } && _uiState.value.activeSessionCode.isNullOrBlank()) {
               fetchActiveSessionCode(openSession.id, openSession.expiresAt, session)
             }
           },
           onFailure = { err -> _uiState.update { it.copy(isLoading = false, errorMessage = err.message) } }
         )
       }
-      if (!isStaff) {
+      if (canSignAttendance) {
         attendanceService.fetchOpenSessions(classId, NairobiTimeHelper.toIsoUtc(), session.accessToken).fold(
           onSuccess = { list -> _uiState.update { it.copy(isLoading = false, openSessions = list) } },
           onFailure = { err -> _uiState.update { it.copy(isLoading = false, errorMessage = err.message) } }
         )
+      } else {
+        _uiState.update { it.copy(isLoading = false, openSessions = emptyList()) }
       }
     }
   }
@@ -98,7 +105,7 @@ class AttendanceViewModel : ViewModel() {
           registerService.updateRegisterDetails(res.sessionId, courseTitle, courseCode, lecturerName, venueText, sessionTitle, session.accessToken)
           _uiState.update { it.copy(isActionLoading = false, activeSessionId = res.sessionId, activeSessionCode = res.sessionCode, activeSessionRemainingSeconds = rem, canManageActiveSession = true) }
           startCountdown(rem)
-          loadSessions(currentClassId, isStaff = true, session)
+          loadSessions(currentClassId, isStaff = true, canSignAttendance = _uiState.value.canSignAttendance, session = session)
           onCreated()
         },
         onFailure = { err -> _uiState.update { it.copy(isActionLoading = false, errorMessage = err.message) } }

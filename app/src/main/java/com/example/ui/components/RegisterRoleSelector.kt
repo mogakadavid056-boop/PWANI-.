@@ -7,10 +7,10 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Apartment
 import androidx.compose.material.icons.filled.Badge
 import androidx.compose.material.icons.filled.Email
 import androidx.compose.material.icons.filled.Lock
-import androidx.compose.material.icons.filled.VpnKey
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
@@ -19,6 +19,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
+import androidx.compose.ui.text.input.KeyboardCapitalization
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -88,39 +89,59 @@ fun RegisterRoleSelector(
 fun LecturerRegisterFields(
   staffNumber: String,
   onStaffNumberChange: (String) -> Unit,
+  department: String,
+  onDepartmentChange: (String) -> Unit,
   email: String,
   onEmailChange: (String) -> Unit,
   password: String,
-  onPasswordChange: (String) -> Unit,
-  lecturerPasscode: String,
-  onLecturerPasscodeChange: (String) -> Unit
+  onPasswordChange: (String) -> Unit
 ) {
   Column(modifier = Modifier.fillMaxWidth()) {
     DarkTextField(
-      value = staffNumber, onValueChange = onStaffNumberChange, label = "Staff Number (Optional)",
-      leadingIcon = Icons.Default.Badge, keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Text, imeAction = ImeAction.Next),
+      value = staffNumber,
+      onValueChange = onStaffNumberChange,
+      label = "Staff Number *",
+      leadingIcon = Icons.Default.Badge,
+      keyboardOptions = KeyboardOptions(
+        capitalization = KeyboardCapitalization.Characters,
+        keyboardType = KeyboardType.Text,
+        imeAction = ImeAction.Next
+      ),
       testTag = "register_staff_number_input"
     )
     Spacer(modifier = Modifier.height(12.dp))
 
     DarkTextField(
-      value = email, onValueChange = onEmailChange, label = "University Email *",
-      leadingIcon = Icons.Default.Email, keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Email, imeAction = ImeAction.Next),
+      value = department,
+      onValueChange = onDepartmentChange,
+      label = "Department *",
+      leadingIcon = Icons.Default.Apartment,
+      keyboardOptions = KeyboardOptions(
+        capitalization = KeyboardCapitalization.Words,
+        keyboardType = KeyboardType.Text,
+        imeAction = ImeAction.Next
+      ),
+      testTag = "register_department_input"
+    )
+    Spacer(modifier = Modifier.height(12.dp))
+
+    DarkTextField(
+      value = email,
+      onValueChange = onEmailChange,
+      label = "University Email *",
+      leadingIcon = Icons.Default.Email,
+      keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Email, imeAction = ImeAction.Next),
       testTag = "register_email_input"
     )
     Spacer(modifier = Modifier.height(12.dp))
 
     PasswordTextField(
-      value = password, onValueChange = onPasswordChange, label = "Password *",
-      leadingIcon = Icons.Default.Lock, keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password, imeAction = ImeAction.Next),
+      value = password,
+      onValueChange = onPasswordChange,
+      label = "Password *",
+      leadingIcon = Icons.Default.Lock,
+      keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password, imeAction = ImeAction.Done),
       testTag = "register_password_input"
-    )
-    Spacer(modifier = Modifier.height(12.dp))
-
-    PasswordTextField(
-      value = lecturerPasscode, onValueChange = onLecturerPasscodeChange, label = "Lecturer passcode *",
-      leadingIcon = Icons.Default.VpnKey, keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password, imeAction = ImeAction.Done),
-      testTag = "register_lecturer_passcode_input"
     )
   }
 }

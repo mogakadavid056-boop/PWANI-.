@@ -13,6 +13,7 @@ import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 
 import com.example.data.ClassPrefectInfo
+import com.example.util.RoleHelper
 
 data class NoticesUiState(
   val selectedClass: ClassItem? = null,
@@ -42,16 +43,16 @@ class NoticesViewModel : ViewModel() {
   val uiState: StateFlow<NoticesUiState> = _uiState.asStateFlow()
 
   fun selectClassAndLoad(classItem: ClassItem, session: UserSession?) {
-    val isRoleStaff = session?.role?.equals("admin", ignoreCase = true) == true ||
-      session?.role?.equals("lecturer", ignoreCase = true) == true
+    val isGlobalRep = RoleHelper.isClassRep(session?.role)
+    val canManage = RoleHelper.canManageClassContent(session?.role)
     _uiState.update {
       it.copy(
         selectedClass = classItem,
         notices = emptyList(),
         readNoticeIds = emptySet(),
-        isRep = false,
-        isStaff = isRoleStaff,
-        canPostNotice = isRoleStaff,
+        isRep = isGlobalRep,
+        isStaff = canManage,
+        canPostNotice = canManage,
         errorMessage = null,
         successMessage = null,
         activeNoticeDetail = null,
@@ -80,26 +81,27 @@ class NoticesViewModel : ViewModel() {
     viewModelScope.launch {
       _uiState.update { it.copy(isLoading = true, errorMessage = null) }
 
-      val isRoleStaff = session.role.equals("admin", ignoreCase = true) ||
-        session.role.equals("lecturer", ignoreCase = true)
+      val isRoleStaff = RoleHelper.isStaffRole(session.role)
+      val isGlobalRep = RoleHelper.isClassRep(session.role)
 
       val noticesResult = noticesService.fetchNotices(classId, session.accessToken)
       val readsResult = noticesService.fetchReadNoticeIds(session.userId, session.accessToken)
       val prefectsResult = classesService.listClassReps(classId, session.accessToken)
       val prefects = prefectsResult.getOrDefault(emptyList())
 
-      var isRep = false
-      if (!isRoleStaff) {
+      var isMemberRep = false
+      if (!isRoleStaff && !isGlobalRep) {
         val repFromList = prefects.any { it.userId == session.userId }
         if (repFromList) {
-          isRep = true
+          isMemberRep = true
         } else {
           val repResult = noticesService.checkIsStudentRep(classId, session.userId, session.accessToken)
-          isRep = repResult.getOrDefault(false)
+          isMemberRep = repResult.getOrDefault(false)
         }
       }
 
-      val isStaff = isRoleStaff || isRep
+      val isRep = isGlobalRep || isMemberRep
+      val isStaff = RoleHelper.canManageClassContent(session.role, isRep)
 
       if (noticesResult.isSuccess) {
         val notices = noticesResult.getOrDefault(emptyList())

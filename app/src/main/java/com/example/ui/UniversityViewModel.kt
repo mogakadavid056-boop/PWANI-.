@@ -91,6 +91,7 @@ class UniversityViewModel : ViewModel() {
     school: SchoolItem?,
     programme: ProgrammeItem?,
     yearOfStudy: Int?,
+    department: String? = null,
     onSuccess: () -> Unit = {}
   ) {
     if (userId.isBlank() || token.isBlank()) return
@@ -101,18 +102,16 @@ class UniversityViewModel : ViewModel() {
     }
     _uiState.update { it.copy(isActionLoading = true, errorMessage = null) }
 
+    val cleanDept = department?.trim()
     val payload = JSONObject().apply {
       put("full_name", cleanName)
+      if (!cleanDept.isNullOrBlank()) put("department", cleanDept)
       if (school != null) {
         put("school_id", school.id)
         if (school.universityId.isNotBlank()) put("university_id", school.universityId)
       }
-      if (programme != null) {
-        put("programme_id", programme.id)
-      }
-      if (yearOfStudy != null) {
-        put("year_of_study", yearOfStudy)
-      }
+      if (programme != null) put("programme_id", programme.id)
+      if (yearOfStudy != null) put("year_of_study", yearOfStudy)
     }
 
     viewModelScope.launch {
@@ -122,6 +121,7 @@ class UniversityViewModel : ViewModel() {
           _uiState.update { state ->
             val updatedProfile = state.profile?.copy(
               fullName = cleanName,
+              department = cleanDept ?: state.profile.department,
               schoolId = school?.id ?: state.profile.schoolId,
               schoolName = school?.name ?: state.profile.schoolName,
               programmeId = programme?.id ?: state.profile.programmeId,
@@ -141,57 +141,6 @@ class UniversityViewModel : ViewModel() {
           _uiState.update { it.copy(isActionLoading = false, errorMessage = err.message) }
         }
       )
-    }
-  }
-
-  private val lecturerService = com.example.data.LecturerService()
-
-  fun becomeLecturer(
-    passcode: String,
-    session: UserSession?,
-    onSuccess: () -> Unit
-  ) {
-    val cleanPasscode = passcode.trim()
-    if (cleanPasscode.isBlank()) {
-      _uiState.update { it.copy(errorMessage = "Please enter the lecturer passcode.") }
-      return
-    }
-    if (session == null || session.accessToken.isBlank()) {
-      _uiState.update { it.copy(errorMessage = "Session expired. Please sign in again.") }
-      return
-    }
-
-    _uiState.update { it.copy(isActionLoading = true, errorMessage = null) }
-
-    viewModelScope.launch {
-      val res = lecturerService.becomeLecturer(cleanPasscode, session.accessToken)
-      when (res) {
-        is com.example.data.BecomeLecturerResult.Success -> {
-          _uiState.update {
-            it.copy(
-              isActionLoading = false,
-              successMessage = "Congratulations! You are now a Lecturer."
-            )
-          }
-          onSuccess()
-        }
-        is com.example.data.BecomeLecturerResult.WrongPasscode -> {
-          _uiState.update {
-            it.copy(
-              isActionLoading = false,
-              errorMessage = "Wrong passcode. Please check and try again."
-            )
-          }
-        }
-        is com.example.data.BecomeLecturerResult.Error -> {
-          _uiState.update {
-            it.copy(
-              isActionLoading = false,
-              errorMessage = res.message
-            )
-          }
-        }
-      }
     }
   }
 

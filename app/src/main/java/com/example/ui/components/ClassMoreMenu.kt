@@ -9,13 +9,13 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowForwardIos
+import androidx.compose.material.icons.filled.Alarm
 import androidx.compose.material.icons.filled.Description
 import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.filled.People
@@ -48,11 +48,22 @@ fun ClassMoreMenu(
   isStaff: Boolean,
   materialsCount: Int,
   pollsCount: Int,
+  alarmsEnabled: Boolean = true,
+  alarmReminderMinutes: Int = 15,
   onOpenMaterials: () -> Unit,
   onOpenPolls: () -> Unit,
+  onOpenAlarmSettings: () -> Unit = {},
   onOpenManageMembers: () -> Unit,
   modifier: Modifier = Modifier
 ) {
+  val alarmSubtitle = if (!alarmsEnabled) {
+    "Class alarms paused"
+  } else if (alarmReminderMinutes > 0) {
+    "Active • $alarmReminderMinutes min before & at start"
+  } else {
+    "Active • At class start time"
+  }
+
   Column(
     modifier = modifier.fillMaxWidth().testTag("class_more_menu"),
     verticalArrangement = Arrangement.spacedBy(12.dp)
@@ -62,6 +73,14 @@ fun ClassMoreMenu(
       style = SectionHeadingStyle,
       color = GoldLight,
       modifier = Modifier.padding(bottom = 4.dp)
+    )
+
+    MoreMenuItem(
+      title = "Class Alarms",
+      subtitle = alarmSubtitle,
+      icon = Icons.Default.Alarm,
+      onClick = onOpenAlarmSettings,
+      tag = "more_item_alarms"
     )
 
     MoreMenuItem(
@@ -90,7 +109,6 @@ fun ClassMoreMenu(
       )
     }
 
-    // Welfare (Coming soon)
     MoreMenuItem(
       title = "Welfare",
       subtitle = "Class support & welfare services (Coming soon)",

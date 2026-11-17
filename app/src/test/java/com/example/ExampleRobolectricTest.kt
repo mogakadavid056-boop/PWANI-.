@@ -131,4 +131,151 @@ class ExampleRobolectricTest {
     org.junit.Assert.assertTrue(detail.rows[0].manual)
     assertEquals("", detail.rows[0].timeOutText)
   }
+
+  @Test
+  fun `buildSignUpMetadata excludes admission number for lecturers`() {
+    val lecMeta = com.example.data.SupabaseAuthService.buildSignUpMetadata(
+      fullName = "Dr. Ada",
+      requestedRole = "lecturer",
+      staffNumber = "STF-104",
+      department = "Computer Science"
+    )
+    assertEquals("lecturer", lecMeta.getString("requested_role"))
+    assertEquals("STF-104", lecMeta.getString("staff_number"))
+    assertEquals("Computer Science", lecMeta.getString("department"))
+    org.junit.Assert.assertFalse(lecMeta.has("admission_number"))
+    org.junit.Assert.assertFalse(lecMeta.has("role"))
+
+    val stuMeta = com.example.data.SupabaseAuthService.buildSignUpMetadata(
+      fullName = "John Student",
+      requestedRole = "student",
+      admissionNumber = "SCT221-0100/2024"
+    )
+    assertEquals("student", stuMeta.getString("requested_role"))
+    assertEquals("SCT221-0100/2024", stuMeta.getString("admission_number"))
+    org.junit.Assert.assertFalse(stuMeta.has("staff_number"))
+    org.junit.Assert.assertFalse(stuMeta.has("role"))
+  }
+
+  @Test
+  fun `parseProfileRoleInfo never defaults blank role to student`() {
+    val missingRole = com.example.data.SupabaseAuthService.parseProfileRoleInfo("""[{"id":"u1","role":null,"role_status":"pending"}]""")
+    org.junit.Assert.assertTrue(missingRole.isFailure)
+
+    val pendingLecturer = com.example.data.SupabaseAuthService.parseProfileRoleInfo(
+      """[{"id":"u2","role":"lecturer","role_status":"pending","staff_number":"STF-1","department":"CS","verified":false}]"""
+    )
+    org.junit.Assert.assertTrue(pendingLecturer.isSuccess)
+    val info = pendingLecturer.getOrThrow()
+    assertEquals("lecturer", info.role)
+    assertEquals("pending", info.roleStatus)
+    assertEquals("STF-1", info.staffNumber)
+    org.junit.Assert.assertFalse(info.isVerified)
+
+    val rep = com.example.data.SupabaseAuthService.parseProfileRoleInfo(
+      """[{"id":"u3","role":"class_rep","role_status":"approved","admission_number":"ADM-9"}]"""
+    ).getOrThrow()
+    assertEquals("class_rep", rep.role)
+    assertEquals("approved", rep.roleStatus)
+    org.junit.Assert.assertTrue(rep.isVerified)
+  }
+
+  @Test
+  fun `adminUiState filters pending lecturers and class reps accurately`() {
+    val pendingLec = com.example.data.AdminUserItem("1", "Dr Pending", "p@uni.edu", "", "lecturer", isVerified = false, roleStatus = "pending", staffNumber = "S1", department = "IT")
+    val repUser = com.example.data.AdminUserItem("2", "Rep Alice", "r@uni.edu", "A1", "class_rep", isVerified = true, roleStatus = "approved")
+    val studentUser = com.example.data.AdminUserItem("3", "Stu Bob", "b@uni.edu", "A2", "student", isVerified = true, roleStatus = "approved")
+
+    val base = com.example.ui.AdminUiState(users = listOf(pendingLec, repUser, studentUser))
+    assertEquals(1, base.pendingCount)
+    assertEquals(1, base.copy(filterTab = "pending").displayedUsers.size)
+    assertEquals(1, base.copy(filterTab = "class_rep").displayedUsers.size)
+    assertEquals("2", base.copy(filterTab = "class_rep").displayedUsers[0].id)
+    assertEquals(1, base.copy(filterTab = "student").displayedUsers.size)
+  }
+
+  @Test
+  fun `alarmPreferences persists master, reminder, course toggles, and schedules`() {
+    val context = ApplicationProvider.getApplicationContext<Context>()
+    com.example.alarms.AlarmPreferences.setMasterEnabled(context, false)
+    com.example.alarms.AlarmPreferences.setReminderMinutes(context, 30)
+    com.example.alarms.AlarmPreferences.setCourseEnabled(context, "CS101", false)
+    val item = com.example.data.ScheduleItem(
+      id = "s-alarm-1", title = "Algorithms", lecturerName = "Dr. Ada",
+      dayOfWeek = 2, startTime = "09:00", endTime = "11:00", room = "LT1",
+      classId = "cls-1", courseId = "c-1", courseCode = "CS101"
+    )
+    com.example.alarms.AlarmPreferences.saveCachedSchedules(context, listOf(item))
+
+    val state = com.example.alarms.AlarmPreferences.refreshState(context)
+    org.junit.Assert.assertFalse(state.masterEnabled)
+    assertEquals(30, state.reminderMinutes)
+    org.junit.Assert.assertFalse(state.isCourseEnabled("CS101"))
+    assertEquals(1, state.cachedSchedules.size)
+    assertEquals("CS101", state.cachedSchedules[0].courseCode)
+  }
+
+  @Test
+  fun `timetableAlarmSync parseSchedulesArray handles null fields cleanly`() {
+    val json = """
+      [
+        {
+          "id": "sch-1",
+          "class_id": "cls-1",
+          "course_id": "crs-1",
+          "title": null,
+          "lecturer_name": "null",
+          "day_of_week": 3,
+          "start_time": "10:30:00",
+          "end_time": "12:30:00",
+          "room": "LTW",
+          "status": null,
+          "courses": { "id": "crs-1", "code": "MGE B101", "name": "Surveying" }
+        }
+      ]
+    """.trimIndent()
+    val items = com.example.alarms.TimetableAlarmSync.parseSchedulesArray(json)
+    assertEquals(1, items.size)
+    assertEquals("MGE B101", items[0].courseCode)
+    assertEquals("Surveying", items[0].title)
+    assertEquals("", items[0].lecturerName)
+    assertEquals("scheduled", items[0].status)
+  }
+
+  @Test
+  fun `alarmScheduler schedules active classes, skips cancelled, and handles snooze and boot`() {
+    val context = ApplicationProvider.getApplicationContext<Context>()
+    com.example.alarms.AlarmPreferences.setMasterEnabled(context, true)
+    com.example.alarms.AlarmPreferences.setReminderMinutes(context, 15)
+    val active = com.example.data.ScheduleItem(
+      id = "sch-active", title = "Geomatics", lecturerName = "Dr. B. Othoche",
+      dayOfWeek = 1, startTime = "08:00", endTime = "10:00", room = "LTW",
+      status = "scheduled", classId = "cls-1", courseId = "crs-1", courseCode = "MGE B101"
+    )
+    val cancelled = active.copy(id = "sch-cancel", status = "cancelled")
+    com.example.alarms.AlarmScheduler.rescheduleAll(context, listOf(active, cancelled))
+
+    val registry = com.example.alarms.AlarmPreferences.getScheduledRegistry(context)
+    assertEquals(2, registry.size) // 15 min before + 0 min start; cancelled excluded
+
+    val receiver = com.example.alarms.AlarmReceiver()
+    val alarmIntent = com.example.alarms.AlarmReceiver.buildAlarmIntent(context, registry[0])
+    receiver.onReceive(context, alarmIntent)
+
+    val snoozeIntent = com.example.alarms.AlarmReceiver.buildActionIntent(
+      context, com.example.alarms.AlarmReceiver.ACTION_SNOZE, registry[0], registry[0].requestCode
+    )
+    receiver.onReceive(context, snoozeIntent)
+
+    val dismissIntent = com.example.alarms.AlarmReceiver.buildActionIntent(
+      context, com.example.alarms.AlarmReceiver.ACTION_DISMISS, registry[0], registry[0].requestCode
+    )
+    receiver.onReceive(context, dismissIntent)
+
+    com.example.alarms.BootReceiver().onReceive(context, android.content.Intent(android.content.Intent.ACTION_BOOT_COMPLETED))
+    assertEquals(2, com.example.alarms.AlarmPreferences.getScheduledRegistry(context).size)
+
+    com.example.alarms.AlarmScheduler.cancelAllAlarms(context)
+    assertEquals(0, com.example.alarms.AlarmPreferences.getScheduledRegistry(context).size)
+  }
 }

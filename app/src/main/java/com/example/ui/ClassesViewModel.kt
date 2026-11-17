@@ -97,7 +97,7 @@ class ClassesViewModel : ViewModel() {
 
       result.fold(
         onSuccess = { classId ->
-          val isLecturer = session.role.equals("lecturer", ignoreCase = true)
+          val isLecturer = com.example.util.RoleHelper.isLecturer(session.role)
           if (isLecturer && !classId.isNullOrBlank()) {
             val statusRes = lecturerService.checkClassMemberStatus(classId, session.userId, session.accessToken)
             val status = statusRes.getOrDefault("active")
@@ -249,9 +249,7 @@ class ClassesViewModel : ViewModel() {
 
   fun loadClassesWaitingForRep(session: UserSession?) {
     if (session == null || session.accessToken.isBlank()) return
-    val isStaff = session.role.equals("admin", ignoreCase = true) ||
-      session.role.equals("lecturer", ignoreCase = true)
-    if (!isStaff) return
+    if (!com.example.util.RoleHelper.isStaffRole(session.role)) return
 
     _uiState.update { it.copy(isWaitingLoading = true) }
     viewModelScope.launch {

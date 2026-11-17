@@ -1,15 +1,14 @@
 package com.example.ui
 
 import com.example.data.*
-import kotlinx.coroutines.flow.MutableStateFlow
-import kotlinx.coroutines.flow.update
+import com.example.util.RoleHelper
 import org.json.JSONObject
 
 class RegistrationHandler(
   private val authService: SupabaseAuthService,
   private val classesService: ClassesService,
-  private val lecturerService: LecturerService,
   private val sessionManager: SessionManager,
+  private val onSubscribeRealtime: (UserSession) -> Unit = {},
   private val updateState: ((AuthUiState) -> AuthUiState) -> Unit
 ) {
 
@@ -37,11 +36,28 @@ class RegistrationHandler(
       return
     }
 
-    updateState { it.copy(isLoading = true, errorMessage = null) }
+    updateState { it.copy(isLoading = true, errorMessage = null, infoMessage = null) }
 
-    val signupResult = authService.signUp(cleanName, cleanAdm, cleanEmail, cleanPassword)
+    val signupResult = authService.signUp(
+      fullName = cleanName,
+      email = cleanEmail,
+      password = cleanPassword,
+      requestedRole = RoleHelper.ROLE_STUDENT,
+      admissionNumber = cleanAdm
+    )
     signupResult.fold(
       onSuccess = { auth ->
+        if (!auth.hasSession || auth.accessToken.isBlank()) {
+          updateState {
+            it.copy(
+              isLoading = false,
+              currentScreen = Screen.Login,
+              infoMessage = "Account created. Please verify your email and sign in."
+            )
+          }
+          return@fold
+        }
+
         val patchJson = JSONObject().apply {
           put("admission_number", cleanAdm)
           put("university_id", school.universityId)
@@ -50,14 +66,12 @@ class RegistrationHandler(
           put("year_of_study", yearOfStudy)
         }
         authService.patchProfile(auth.userId, auth.accessToken, patchJson)
-        val role = authService.fetchUserRole(auth.userId, auth.accessToken).getOrDefault("Student")
-        val session = UserSession(
-          userId = auth.userId, email = auth.email, fullName = cleanName,
-          admissionNumber = cleanAdm, role = role, accessToken = auth.accessToken, refreshToken = auth.refreshToken
-        )
-        sessionManager.saveSession(session)
-        com.example.data.OfflineCache.currentUserId = session.userId
-        updateState { it.copy(session = session, isLoading = false) }
+
+        val session = resolveAndSaveSession(auth, cleanName, cleanAdm) ?: return@fold
+        if (RoleHelper.isPendingApproval(session.roleStatus)) {
+          updateState { it.copy(currentScreen = Screen.PendingApproval, isLoading = false) }
+          return@fold
+        }
 
         val joinResult = classesService.joinMyClass(auth.accessToken)
         val classId = joinResult.getOrNull()
@@ -97,20 +111,36 @@ class RegistrationHandler(
       return
     }
 
-    updateState { it.copy(isLoading = true, errorMessage = null) }
+    updateState { it.copy(isLoading = true, errorMessage = null, infoMessage = null) }
 
-    val signupResult = authService.signUp(cleanName, cleanAdm, cleanEmail, cleanPassword)
+    val signupResult = authService.signUp(
+      fullName = cleanName,
+      email = cleanEmail,
+      password = cleanPassword,
+      requestedRole = RoleHelper.ROLE_STUDENT,
+      admissionNumber = cleanAdm
+    )
     signupResult.fold(
       onSuccess = { auth ->
-        authService.patchAdmissionNumber(auth.userId, auth.accessToken, cleanAdm)
-        val role = authService.fetchUserRole(auth.userId, auth.accessToken).getOrDefault("Student")
-        val session = UserSession(
-          userId = auth.userId, email = auth.email, fullName = cleanName,
-          admissionNumber = cleanAdm, role = role, accessToken = auth.accessToken, refreshToken = auth.refreshToken
-        )
-        sessionManager.saveSession(session)
-        com.example.data.OfflineCache.currentUserId = session.userId
-        updateState { it.copy(session = session, isLoading = false) }
+        if (!auth.hasSession || auth.accessToken.isBlank()) {
+          updateState {
+            it.copy(
+              isLoading = false,
+              currentScreen = Screen.Login,
+              infoMessage = "Account created. Please verify your email and sign in."
+            )
+          }
+          return@fold
+        }
+
+        val patchJson = JSONObject().apply { put("admission_number", cleanAdm) }
+        authService.patchProfile(auth.userId, auth.accessToken, patchJson)
+
+        val session = resolveAndSaveSession(auth, cleanName, cleanAdm) ?: return@fold
+        if (RoleHelper.isPendingApproval(session.roleStatus)) {
+          updateState { it.copy(currentScreen = Screen.PendingApproval, isLoading = false) }
+          return@fold
+        }
 
         val joinResult = classesService.joinClass(cleanCode, auth.accessToken)
         joinResult.fold(
@@ -132,75 +162,116 @@ class RegistrationHandler(
   suspend fun registerLecturer(
     fullName: String,
     staffNumber: String,
+    department: String,
     email: String,
     password: String,
-    passcode: String,
-    onSuccessLecturer: (UserSession) -> Unit,
-    onWrongPasscode: (UserSession, String) -> Unit
+    onActiveLecturer: (UserSession) -> Unit,
+    onPendingApproval: (UserSession) -> Unit
   ) {
     val cleanName = fullName.trim()
     val cleanStaff = staffNumber.trim()
+    val cleanDepartment = department.trim()
     val cleanEmail = email.trim().lowercase()
     val cleanPassword = password.trim()
-    val cleanPasscode = passcode.trim()
 
-    if (cleanName.isBlank() || cleanEmail.isBlank() || cleanPassword.isBlank()) {
-      updateState { it.copy(errorMessage = "Please enter your name, email, and password.") }
-      return
-    }
-    if (cleanPasscode.isBlank()) {
-      updateState { it.copy(errorMessage = "Please enter the lecturer passcode.") }
+    if (cleanName.isBlank() || cleanStaff.isBlank() || cleanDepartment.isBlank() || cleanEmail.isBlank() || cleanPassword.isBlank()) {
+      updateState { it.copy(errorMessage = "Please fill in full name, staff number, department, email, and password.") }
       return
     }
 
-    updateState { it.copy(isLoading = true, errorMessage = null) }
+    updateState { it.copy(isLoading = true, errorMessage = null, infoMessage = null) }
 
-    val signupResult = authService.signUp(cleanName, cleanStaff, cleanEmail, cleanPassword)
+    val signupResult = authService.signUp(
+      fullName = cleanName,
+      email = cleanEmail,
+      password = cleanPassword,
+      requestedRole = RoleHelper.ROLE_LECTURER,
+      staffNumber = cleanStaff,
+      department = cleanDepartment
+    )
     signupResult.fold(
       onSuccess = { auth ->
-        val patchJson = JSONObject().apply {
-          put("admission_number", cleanStaff)
+        if (!auth.hasSession || auth.accessToken.isBlank()) {
+          updateState {
+            it.copy(
+              isLoading = false,
+              currentScreen = Screen.Login,
+              infoMessage = "Lecturer account created. Please verify your email and sign in."
+            )
+          }
+          return@fold
         }
-        authService.patchProfile(auth.userId, auth.accessToken, patchJson)
 
-        val becomeRes = lecturerService.becomeLecturer(cleanPasscode, auth.accessToken)
-        when (becomeRes) {
-          is BecomeLecturerResult.Success -> {
-            val session = UserSession(
-              userId = auth.userId, email = auth.email, fullName = cleanName,
-              admissionNumber = cleanStaff, role = "Lecturer", accessToken = auth.accessToken, refreshToken = auth.refreshToken
-            )
-            sessionManager.saveSession(session)
-            com.example.data.OfflineCache.currentUserId = session.userId
-            updateState { it.copy(session = session, isLoading = false, errorMessage = null, currentScreen = Screen.Home) }
-            onSuccessLecturer(session)
-          }
-          is BecomeLecturerResult.WrongPasscode -> {
-            val session = UserSession(
-              userId = auth.userId, email = auth.email, fullName = cleanName,
-              admissionNumber = cleanStaff, role = "Student", accessToken = auth.accessToken, refreshToken = auth.refreshToken
-            )
-            sessionManager.saveSession(session)
-            com.example.data.OfflineCache.currentUserId = session.userId
-            val infoMsg = "Wrong passcode. Your account was created as a student. You can try again from your Profile."
-            updateState {
-              it.copy(
-                session = session,
-                isLoading = false,
-                errorMessage = infoMsg,
-                currentScreen = Screen.Waiting
-              )
-            }
-            onWrongPasscode(session, infoMsg)
-          }
-          is BecomeLecturerResult.Error -> {
-            updateState { it.copy(isLoading = false, errorMessage = becomeRes.message) }
-          }
+        val session = resolveAndSaveSession(
+          auth = auth,
+          fallbackName = cleanName,
+          fallbackAdmission = "",
+          fallbackStaff = cleanStaff,
+          fallbackDept = cleanDepartment
+        ) ?: return@fold
+
+        if (RoleHelper.isPendingApproval(session.roleStatus)) {
+          updateState { it.copy(currentScreen = Screen.PendingApproval, isLoading = false, errorMessage = null) }
+          onPendingApproval(session)
+        } else {
+          updateState { it.copy(currentScreen = Screen.Home, isLoading = false, errorMessage = null) }
+          onActiveLecturer(session)
         }
       },
       onFailure = { error ->
         updateState { it.copy(isLoading = false, errorMessage = error.message ?: "Registration failed.") }
       }
     )
+  }
+
+  private suspend fun resolveAndSaveSession(
+    auth: SupabaseAuthService.AuthResult,
+    fallbackName: String,
+    fallbackAdmission: String,
+    fallbackStaff: String = "",
+    fallbackDept: String = ""
+  ): UserSession? {
+    val profileRes = authService.fetchProfileRoleInfo(auth.userId, auth.accessToken)
+    val profile = profileRes.getOrElse { err ->
+      updateState {
+        it.copy(
+          isLoading = false,
+          errorMessage = err.message ?: "Unable to verify account role from profile."
+        )
+      }
+      return null
+    }
+
+    if (RoleHelper.isRejectedStatus(profile.roleStatus)) {
+      sessionManager.clearSession()
+      updateState {
+        it.copy(
+          session = null,
+          isLoading = false,
+          currentScreen = Screen.Login,
+          errorMessage = "Your account application was rejected by an administrator."
+        )
+      }
+      return null
+    }
+
+    val session = UserSession(
+      userId = auth.userId,
+      email = auth.email,
+      fullName = profile.fullName.ifBlank { fallbackName },
+      admissionNumber = profile.admissionNumber.ifBlank { fallbackAdmission },
+      role = profile.role,
+      accessToken = auth.accessToken,
+      refreshToken = auth.refreshToken,
+      isVerified = profile.isVerified,
+      roleStatus = profile.roleStatus,
+      staffNumber = profile.staffNumber.ifBlank { fallbackStaff },
+      department = profile.department.ifBlank { fallbackDept }
+    )
+    sessionManager.saveSession(session)
+    OfflineCache.currentUserId = session.userId
+    onSubscribeRealtime(session)
+    updateState { it.copy(session = session, isLoading = false) }
+    return session
   }
 }

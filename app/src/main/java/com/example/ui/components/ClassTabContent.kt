@@ -7,17 +7,22 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.example.alarms.AlarmPreferences
 import com.example.data.DiscussionGroupItem
 import com.example.data.MaterialItem
 import com.example.data.NoticeItem
 import com.example.data.PollItem
 import com.example.data.ScheduleItem
+import com.example.data.UserSession
 import com.example.ui.AttendanceUiState
 import com.example.ui.GroupsUiState
 import com.example.ui.MaterialsUiState
 import com.example.ui.PollsUiState
 import com.example.ui.TimetableUiState
+import com.example.ui.screens.AlarmSettingsScreen
 import com.example.ui.screens.MoreSubView
 import com.example.ui.theme.GoldLight
 import com.example.ui.theme.SectionHeadingStyle
@@ -27,6 +32,7 @@ fun ClassTabContent(
   selectedTab: ClassTab,
   moreSubView: MoreSubView,
   isStaff: Boolean,
+  session: UserSession? = null,
   notices: List<NoticeItem>,
   readNoticeIds: Set<String>,
   canPostNotice: Boolean,
@@ -62,6 +68,7 @@ fun ClassTabContent(
   onAddScheduleClick: () -> Unit,
   onEditScheduleClick: (ScheduleItem) -> Unit,
   onDeleteScheduleClick: (ScheduleItem) -> Unit,
+  onStatusScheduleClick: (ScheduleItem) -> Unit = {},
   onRefreshMaterials: () -> Unit,
   onMaterialsSearchChange: (String) -> Unit,
   onMaterialsSelectTypeFilter: (String) -> Unit,
@@ -76,9 +83,12 @@ fun ClassTabContent(
   onPollClick: (PollItem) -> Unit,
   onOpenMaterials: () -> Unit,
   onOpenPolls: () -> Unit,
+  onOpenAlarmSettings: () -> Unit = {},
   onOpenManageMembers: () -> Unit,
   onBackFromMoreSubView: () -> Unit
 ) {
+  val alarmSettings by AlarmPreferences.state.collectAsStateWithLifecycle()
+
   when (selectedTab) {
     ClassTab.Notices -> NoticesSection(
       notices = notices, readNoticeIds = readNoticeIds, canPostNotice = canPostNotice, isStaff = isStaff, isLoading = isLoading,
@@ -86,7 +96,9 @@ fun ClassTabContent(
       onEditNotice = onEditNoticeClick, onDeleteNotice = onDeleteNoticeClick
     )
     ClassTab.Attendance -> AttendanceSection(
-      isStaff = isStaff, isLoading = attendanceUiState.isLoading, staffSessions = attendanceUiState.staffSessions, openSessions = attendanceUiState.openSessions,
+      isStaff = isStaff,
+      canSignAttendance = attendanceUiState.canSignAttendance,
+      isLoading = attendanceUiState.isLoading, staffSessions = attendanceUiState.staffSessions, openSessions = attendanceUiState.openSessions,
       registers = attendanceUiState.registers,
       activeSessionCode = attendanceUiState.activeSessionCode, activeSessionId = attendanceUiState.activeSessionId, activeRemainingSeconds = attendanceUiState.activeSessionRemainingSeconds,
       canManageActiveSession = attendanceUiState.canManageActiveSession,
@@ -98,7 +110,8 @@ fun ClassTabContent(
     ClassTab.Timetable -> TimetableSection(
       schedules = timetableUiState.schedules, selectedDay = timetableUiState.selectedDay, todayDayOfWeek = timetableUiState.todayDayOfWeek,
       isStaff = isStaff, isLoading = timetableUiState.isLoading, onRefresh = onRefreshTimetable, onSelectDay = onSelectTimetableDay,
-      onAddClassClick = onAddScheduleClick, onEditSchedule = onEditScheduleClick, onDeleteSchedule = onDeleteScheduleClick
+      onAddClassClick = onAddScheduleClick, onEditSchedule = onEditScheduleClick, onDeleteSchedule = onDeleteScheduleClick,
+      onChangeScheduleStatus = onStatusScheduleClick
     )
     ClassTab.Groups -> GroupsSection(
       groups = groupsUiState.groups, isLoading = groupsUiState.isLoadingGroups, isStaff = isStaff, onRefreshGroups = onRefreshGroups,
@@ -106,9 +119,28 @@ fun ClassTabContent(
     )
     ClassTab.More -> when (moreSubView) {
       MoreSubView.None -> ClassMoreMenu(
-        isStaff = isStaff, materialsCount = materialsUiState.materials.size, pollsCount = pollsUiState.polls.size,
-        onOpenMaterials = onOpenMaterials, onOpenPolls = onOpenPolls, onOpenManageMembers = onOpenManageMembers
+        isStaff = isStaff,
+        materialsCount = materialsUiState.materials.size,
+        pollsCount = pollsUiState.polls.size,
+        alarmsEnabled = alarmSettings.masterEnabled,
+        alarmReminderMinutes = alarmSettings.reminderMinutes,
+        onOpenMaterials = onOpenMaterials,
+        onOpenPolls = onOpenPolls,
+        onOpenAlarmSettings = onOpenAlarmSettings,
+        onOpenManageMembers = onOpenManageMembers
       )
+      MoreSubView.AlarmSettings -> {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+          IconButton(onClick = onBackFromMoreSubView) {
+            Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back", tint = GoldLight)
+          }
+          Text("Class Alarm Settings", style = SectionHeadingStyle, color = GoldLight)
+        }
+        AlarmSettingsScreen(
+          currentClassSchedules = timetableUiState.schedules,
+          session = session
+        )
+      }
       MoreSubView.Materials -> {
         Row(verticalAlignment = Alignment.CenterVertically) {
           IconButton(onClick = onBackFromMoreSubView) {

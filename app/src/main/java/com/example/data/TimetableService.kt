@@ -24,7 +24,7 @@ class TimetableService(
       return@withContext Result.failure(IllegalStateException(SupabaseConfig.MISSING_CONFIG_ERROR))
     }
 
-    val url = "${SupabaseConfig.url}/rest/v1/schedules?class_id=eq.$classId&select=id,title,lecturer_name,day_of_week,start_time,end_time,room&order=day_of_week.asc,start_time.asc"
+    val url = "${SupabaseConfig.url}/rest/v1/schedules?class_id=eq.$classId&select=*&order=day_of_week.asc,start_time.asc"
     val request = Request.Builder()
       .url(url)
       .addHeader("apikey", SupabaseConfig.anonKey)
@@ -44,15 +44,24 @@ class TimetableService(
         val list = mutableListOf<ScheduleItem>()
         for (i in 0 until array.length()) {
           val obj = array.getJSONObject(i)
+          val courseObj = obj.optJSONObject("courses")
+          val parsedCourseCode = com.example.util.JsonHelper.str(obj, "course_code")
+            .ifBlank { com.example.util.JsonHelper.str(courseObj, "code") }
           list.add(
             ScheduleItem(
-              id = obj.optString("id"),
-              title = obj.optString("title"),
-              lecturerName = obj.optString("lecturer_name"),
+              id = com.example.util.JsonHelper.str(obj, "id"),
+              title = com.example.util.JsonHelper.str(obj, "title"),
+              lecturerName = com.example.util.JsonHelper.str(obj, "lecturer_name"),
               dayOfWeek = obj.optInt("day_of_week", 1),
-              startTime = obj.optString("start_time"),
-              endTime = obj.optString("end_time"),
-              room = obj.optString("room")
+              startTime = com.example.util.JsonHelper.str(obj, "start_time"),
+              endTime = com.example.util.JsonHelper.str(obj, "end_time"),
+              room = com.example.util.JsonHelper.str(obj, "room"),
+              status = com.example.util.JsonHelper.str(obj, "status").ifBlank { "scheduled" },
+              statusNote = com.example.util.JsonHelper.firstStr(obj, "status_note", "note", "reason"),
+              classId = com.example.util.JsonHelper.str(obj, "class_id").ifBlank { classId },
+              courseId = com.example.util.JsonHelper.str(obj, "course_id")
+                .ifBlank { com.example.util.JsonHelper.str(courseObj, "id") },
+              courseCode = parsedCourseCode
             )
           )
         }
@@ -183,6 +192,44 @@ class TimetableService(
       }
     } catch (e: Exception) {
       Result.failure(Exception(e.localizedMessage ?: "Failed to delete timetable class"))
+    }
+  }
+
+  suspend fun updateScheduleStatus(
+    scheduleId: String,
+    status: String,
+    statusNote: String,
+    accessToken: String
+  ): Result<Unit> = withContext(Dispatchers.IO) {
+    if (!SupabaseConfig.isConfigured()) {
+      return@withContext Result.failure(IllegalStateException(SupabaseConfig.MISSING_CONFIG_ERROR))
+    }
+
+    val body = JSONObject().apply {
+      put("status", status.trim().lowercase())
+      put("status_note", statusNote.trim())
+    }
+
+    val url = "${SupabaseConfig.url}/rest/v1/schedules?id=eq.$scheduleId"
+    val request = Request.Builder()
+      .url(url)
+      .addHeader("apikey", SupabaseConfig.anonKey)
+      .addHeader("Authorization", "Bearer $accessToken")
+      .addHeader("Content-Type", "application/json")
+      .patch(body.toString().toRequestBody(jsonMediaType))
+      .build()
+
+    try {
+      client.newCall(request).execute().use { response ->
+        val bodyString = response.body?.string().orEmpty()
+        if (response.isSuccessful) {
+          Result.success(Unit)
+        } else {
+          Result.failure(Exception(SupabaseConfig.extractErrorMessage(bodyString, response.code)))
+        }
+      }
+    } catch (e: Exception) {
+      Result.failure(Exception(e.localizedMessage ?: "Failed to update class status"))
     }
   }
 }

@@ -39,12 +39,14 @@ import com.example.ui.theme.DarkBorder
 import com.example.ui.theme.DarkCard
 import com.example.ui.theme.DarkSurface
 import com.example.ui.theme.DarkSurfaceVariant
+import com.example.ui.theme.DarkTextOnGold
 import com.example.ui.theme.ErrorContainer
 import com.example.ui.theme.ErrorRed
 import com.example.ui.theme.GoldLight
 import com.example.ui.theme.GoldPrimary
 import com.example.ui.theme.TextPrimary
 import com.example.ui.theme.TextSecondary
+import com.example.util.RoleHelper
 
 @Composable
 fun AssignRoleDialog(
@@ -59,14 +61,15 @@ fun AssignRoleDialog(
   onDismiss: () -> Unit
 ) {
   val roleOptions = listOf(
-    Pair("student", "Student"),
-    Pair("lecturer", "Lecturer"),
-    Pair("admin", "Super Admin")
+    Pair(RoleHelper.ROLE_STUDENT, "Student"),
+    Pair(RoleHelper.ROLE_CLASS_REP, "Class Rep"),
+    Pair(RoleHelper.ROLE_LECTURER, "Lecturer"),
+    Pair(RoleHelper.ROLE_ADMIN, "Super Admin")
   )
 
   if (showConfirmDialog) {
-    val isSuperAdminSelected = selectedRoleChoice == "admin"
-    val chosenDisplayRole = if (isSuperAdminSelected) "Super Admin" else roleOptions.find { it.first == selectedRoleChoice }?.second ?: "Student"
+    val isSuperAdminSelected = selectedRoleChoice == RoleHelper.ROLE_ADMIN
+    val chosenDisplayRole = roleOptions.find { it.first == selectedRoleChoice }?.second ?: "Student"
 
     AlertDialog(
       onDismissRequest = { if (!isActionLoading) onDismissConfirm() },
@@ -122,17 +125,14 @@ fun AssignRoleDialog(
         Button(
           onClick = onConfirmSave,
           enabled = !isActionLoading,
-          colors = ButtonDefaults.buttonColors(
-            containerColor = GoldPrimary,
-            contentColor = com.example.ui.theme.DarkTextOnGold
-          ),
+          colors = ButtonDefaults.buttonColors(containerColor = GoldPrimary, contentColor = DarkTextOnGold),
           shape = RoundedCornerShape(10.dp),
           modifier = Modifier.defaultMinSize(minHeight = 48.dp).testTag("admin_confirm_role_button")
         ) {
           if (isActionLoading) {
-            CircularProgressIndicator(color = com.example.ui.theme.DarkTextOnGold, strokeWidth = 2.dp, modifier = Modifier.size(18.dp))
+            CircularProgressIndicator(color = DarkTextOnGold, strokeWidth = 2.dp, modifier = Modifier.size(18.dp))
           } else {
-            Text("Confirm", fontWeight = FontWeight.Bold, fontSize = 16.sp, color = com.example.ui.theme.DarkTextOnGold)
+            Text("Confirm", fontWeight = FontWeight.Bold, fontSize = 16.sp, color = DarkTextOnGold)
           }
         }
       },
@@ -169,7 +169,7 @@ fun AssignRoleDialog(
         Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
           roleOptions.forEach { (roleValue, roleLabel) ->
             val isSelected = selectedRoleChoice == roleValue
-            val isOptionSuperAdmin = roleValue == "admin"
+            val isOptionSuperAdmin = roleValue == RoleHelper.ROLE_ADMIN
             Row(
               modifier = Modifier
                 .fillMaxWidth()
@@ -203,11 +203,11 @@ fun AssignRoleDialog(
       confirmButton = {
         Button(
           onClick = onPromptConfirm,
-          colors = ButtonDefaults.buttonColors(containerColor = GoldPrimary, contentColor = com.example.ui.theme.DarkTextOnGold),
+          colors = ButtonDefaults.buttonColors(containerColor = GoldPrimary, contentColor = DarkTextOnGold),
           shape = RoundedCornerShape(10.dp),
           modifier = Modifier.defaultMinSize(minHeight = 48.dp).testTag("admin_save_role_button")
         ) {
-          Text("Save", fontWeight = FontWeight.Bold, fontSize = 16.sp, color = com.example.ui.theme.DarkTextOnGold)
+          Text("Save", fontWeight = FontWeight.Bold, fontSize = 16.sp, color = DarkTextOnGold)
         }
       },
       dismissButton = {

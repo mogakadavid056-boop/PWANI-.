@@ -39,9 +39,13 @@ fun HandleClassSubScreenOverlay(
   onClosePollDetail: () -> Unit
 ): Boolean {
   if (attendanceUiState.currentSubScreen == AttendanceSubScreen.AttendanceRegister) {
+    val canManageRole = com.example.util.RoleHelper.canManageClassContent(session?.role, isStaff)
+    val canSignRole = com.example.util.RoleHelper.canSignAttendance(session?.role)
     AttendanceRegisterScreen(
       detail = attendanceUiState.selectedRegisterDetail,
       units = attendanceUiState.classUnits,
+      canManageRole = canManageRole,
+      canSignAttendanceRole = canSignRole,
       isLoading = attendanceUiState.isRegisterLoading,
       isActionLoading = attendanceUiState.isActionLoading,
       errorMessage = attendanceUiState.errorMessage,

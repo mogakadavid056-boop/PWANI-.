@@ -24,7 +24,7 @@ import com.example.ui.theme.DarkBackground
 import com.example.ui.theme.ItemSpacing
 import com.example.ui.theme.ScreenPadding
 
-enum class MoreSubView { None, Materials, Polls }
+enum class MoreSubView { None, Materials, Polls, AlarmSettings }
 
 @Composable
 fun ClassScreen(
@@ -53,10 +53,12 @@ fun ClassScreen(
   onJoinGroup: (DiscussionGroupItem) -> Unit, onDismissGroupsError: () -> Unit,
   timetableUiState: TimetableUiState, onRefreshTimetable: () -> Unit, onSelectTimetableDay: (Int) -> Unit,
   onAddScheduleClick: () -> Unit, onEditScheduleClick: (ScheduleItem) -> Unit, onDeleteScheduleClick: (ScheduleItem) -> Unit,
-  onDismissAddEditSchedule: () -> Unit,
+  onStatusScheduleClick: (ScheduleItem) -> Unit = {}, onDismissAddEditSchedule: () -> Unit,
   onSaveAddSchedule: (title: String, day: Int, start: String, end: String, room: String, lecturer: String) -> Unit,
   onSaveEditSchedule: (id: String, title: String, day: Int, start: String, end: String, room: String, lecturer: String) -> Unit,
-  onDismissPromptDeleteSchedule: () -> Unit, onConfirmDeleteSchedule: () -> Unit, onDismissTimetableError: () -> Unit,
+  onDismissPromptDeleteSchedule: () -> Unit, onConfirmDeleteSchedule: () -> Unit,
+  onDismissScheduleStatus: () -> Unit = {}, onSaveScheduleStatus: (String, String, String) -> Unit = { _, _, _ -> },
+  onDismissTimetableError: () -> Unit,
   materialsUiState: MaterialsUiState, onRefreshMaterials: () -> Unit,
   onMaterialsSearchChange: (String) -> Unit, onMaterialsSelectTypeFilter: (String) -> Unit,
   onAddMaterialClick: () -> Unit, onOpenFileMaterial: (MaterialItem) -> Unit = {},
@@ -73,12 +75,13 @@ fun ClassScreen(
   onPromptDeletePoll: () -> Unit, onDismissDeletePoll: () -> Unit, onConfirmDeletePoll: () -> Unit,
   onDismissPollsError: () -> Unit, onClosePollDetail: () -> Unit, onDismissCreatePoll: () -> Unit,
   onCreatePollSubmit: (String, List<String>, String) -> Unit,
-  allClasses: List<ClassItem> = emptyList(), isAdmin: Boolean = false, isLecturer: Boolean = false,
+  allClasses: List<ClassItem> = emptyList(), isAdmin: Boolean = false, isLecturer: Boolean = false, openTimetableSignal: Int = 0,
   onSwitchClass: (ClassItem) -> Unit = {}, onJoinWithCode: () -> Unit = {}, onNavigateToCreateClass: () -> Unit = {},
   onFindMoreClasses: () -> Unit = {}, onNavigateToProfile: () -> Unit = {}, onBack: () -> Unit
 ) {
   var selectedTab by remember { mutableStateOf(ClassTab.Notices) }
   var moreSubView by remember { mutableStateOf(MoreSubView.None) }
+  LaunchedEffect(openTimetableSignal) { if (openTimetableSignal > 0) { selectedTab = ClassTab.Timetable; moreSubView = MoreSubView.None } }
   var showStartAttendanceDialog by remember { mutableStateOf(false) }
   var showEditClassNameDialog by remember { mutableStateOf(false) }
   var showCreateGroupDialog by remember { mutableStateOf(false) }
@@ -200,7 +203,7 @@ fun ClassScreen(
             label = "class_tab_content_transition"
           ) { (curTab, curMore) ->
             ClassTabContent(
-              selectedTab = curTab, moreSubView = curMore, isStaff = isStaff, notices = notices,
+              selectedTab = curTab, moreSubView = curMore, isStaff = isStaff, session = session, notices = notices,
               readNoticeIds = readNoticeIds, canPostNotice = canPostNotice, isLoading = isLoading,
               attendanceUiState = attendanceUiState, groupsUiState = groupsUiState, timetableUiState = timetableUiState,
               materialsUiState = materialsUiState, pollsUiState = pollsUiState, onRefreshNotices = onRefreshNotices,
@@ -220,12 +223,13 @@ fun ClassScreen(
               onRefreshGroups = onRefreshGroups, onCreateGroupClick = { showCreateGroupDialog = true },
               onOpenChat = onOpenChat, onJoinGroup = onJoinGroup, onRefreshTimetable = onRefreshTimetable,
               onSelectTimetableDay = onSelectTimetableDay, onAddScheduleClick = onAddScheduleClick, onEditScheduleClick = onEditScheduleClick,
-              onDeleteScheduleClick = onDeleteScheduleClick, onRefreshMaterials = onRefreshMaterials, onMaterialsSearchChange = onMaterialsSearchChange,
+              onDeleteScheduleClick = onDeleteScheduleClick, onStatusScheduleClick = onStatusScheduleClick, onRefreshMaterials = onRefreshMaterials, onMaterialsSearchChange = onMaterialsSearchChange,
               onMaterialsSelectTypeFilter = onMaterialsSelectTypeFilter, onAddMaterialClick = onAddMaterialClick,
               onOpenFileMaterial = onOpenFileMaterial, onDownloadMaterial = onDownloadMaterial, onRemoveDownloadMaterial = onRemoveDownloadMaterial,
               onEditMaterialClick = onEditMaterialClick, onDeleteMaterialClick = onDeleteMaterialClick, onRefreshPolls = onRefreshPolls,
               onCreatePollClick = onCreatePollClick, onPollClick = onPollClick,
               onOpenMaterials = { moreSubView = MoreSubView.Materials }, onOpenPolls = { moreSubView = MoreSubView.Polls },
+              onOpenAlarmSettings = { moreSubView = MoreSubView.AlarmSettings },
               onOpenManageMembers = onNavigateToManageMembers, onBackFromMoreSubView = { moreSubView = MoreSubView.None }
             )
           }
@@ -269,6 +273,7 @@ fun ClassScreen(
       timetableUiState = timetableUiState, onDismissAddEditSchedule = onDismissAddEditSchedule,
       onSaveAddSchedule = onSaveAddSchedule, onSaveEditSchedule = onSaveEditSchedule,
       onDismissPromptDeleteSchedule = onDismissPromptDeleteSchedule, onConfirmDeleteSchedule = onConfirmDeleteSchedule,
+      onDismissScheduleStatus = onDismissScheduleStatus, onSaveScheduleStatus = onSaveScheduleStatus,
       materialsUiState = materialsUiState, onDismissAddEditMaterial = onDismissAddEditMaterial,
       onSaveAddLinkMaterial = onSaveAddMaterial, onSaveUploadMaterial = onSaveUploadMaterial, onSaveEditMaterial = onSaveEditMaterial,
       onDismissPromptDeleteMaterial = onDismissPromptDeleteMaterial, onConfirmDeleteMaterial = onConfirmDeleteMaterial,
@@ -276,18 +281,11 @@ fun ClassScreen(
       onDismissCreatePollDialog = onDismissCreatePoll, onCreatePoll = onCreatePollSubmit
     )
 
-    if (showClassSwitcherSheet) {
-      ClassSwitcherBottomSheet(
-        classes = allClasses, currentClassId = classItem.id, isAdmin = isAdmin, isLecturer = isLecturer,
-        onSelectClass = onSwitchClass, onJoinWithCode = onJoinWithCode, onCreateClass = onNavigateToCreateClass,
-        onFindMoreClasses = onFindMoreClasses, onDismiss = { showClassSwitcherSheet = false }
-      )
-    }
-
-    ClassRepSnackbarHost(
-      hostState = attendanceSnackbarHostState,
-      isError = attendanceSnackbarIsError,
-      modifier = Modifier.align(Alignment.BottomCenter).padding(bottom = 72.dp)
+    if (showClassSwitcherSheet) ClassSwitcherBottomSheet(
+      classes = allClasses, currentClassId = classItem.id, isAdmin = isAdmin, isLecturer = isLecturer,
+      onSelectClass = onSwitchClass, onJoinWithCode = onJoinWithCode, onCreateClass = onNavigateToCreateClass,
+      onFindMoreClasses = onFindMoreClasses, onDismiss = { showClassSwitcherSheet = false }
     )
+    ClassRepSnackbarHost(attendanceSnackbarHostState, attendanceSnackbarIsError, Modifier.align(Alignment.BottomCenter).padding(bottom = 72.dp))
   }
 }

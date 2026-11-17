@@ -3,6 +3,7 @@ package com.example.data
 import android.content.Context
 import androidx.datastore.core.DataStore
 import androidx.datastore.preferences.core.Preferences
+import androidx.datastore.preferences.core.booleanPreferencesKey
 import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.emptyPreferences
 import androidx.datastore.preferences.core.stringPreferencesKey
@@ -25,16 +26,17 @@ class SessionManager(private val context: Context) {
     private val KEY_FULL_NAME = stringPreferencesKey("full_name")
     private val KEY_ADMISSION_NUMBER = stringPreferencesKey("admission_number")
     private val KEY_ROLE = stringPreferencesKey("role")
+    private val KEY_ROLE_STATUS = stringPreferencesKey("role_status")
+    private val KEY_STAFF_NUMBER = stringPreferencesKey("staff_number")
+    private val KEY_DEPARTMENT = stringPreferencesKey("department")
     private val KEY_ACCESS_TOKEN = stringPreferencesKey("access_token")
     private val KEY_REFRESH_TOKEN = stringPreferencesKey("refresh_token")
     private val KEY_LAST_CLASS_ID = stringPreferencesKey("last_class_id")
-    private val KEY_IS_VERIFIED = androidx.datastore.preferences.core.booleanPreferencesKey("is_verified")
+    private val KEY_IS_VERIFIED = booleanPreferencesKey("is_verified")
   }
 
   val sessionFlow: Flow<UserSession?> = context.dataStore.data
-    .catch { _ ->
-      emit(emptyPreferences())
-    }
+    .catch { _ -> emit(emptyPreferences()) }
     .map { prefs ->
       val userId = prefs[KEY_USER_ID]
       val accessToken = prefs[KEY_ACCESS_TOKEN]
@@ -44,10 +46,13 @@ class SessionManager(private val context: Context) {
           email = prefs[KEY_EMAIL].orEmpty(),
           fullName = prefs[KEY_FULL_NAME].orEmpty(),
           admissionNumber = prefs[KEY_ADMISSION_NUMBER].orEmpty(),
-          role = prefs[KEY_ROLE].orEmpty().ifBlank { "Student" },
+          role = prefs[KEY_ROLE].orEmpty(),
           accessToken = accessToken,
           refreshToken = prefs[KEY_REFRESH_TOKEN],
-          isVerified = prefs[KEY_IS_VERIFIED] ?: false
+          isVerified = prefs[KEY_IS_VERIFIED] ?: false,
+          roleStatus = prefs[KEY_ROLE_STATUS].orEmpty(),
+          staffNumber = prefs[KEY_STAFF_NUMBER].orEmpty(),
+          department = prefs[KEY_DEPARTMENT].orEmpty()
         )
       } else {
         null
@@ -56,9 +61,7 @@ class SessionManager(private val context: Context) {
 
   suspend fun getSession(): UserSession? = withContext(Dispatchers.IO) {
     try {
-      withTimeoutOrNull(600L) {
-        sessionFlow.firstOrNull()
-      }
+      withTimeoutOrNull(600L) { sessionFlow.firstOrNull() }
     } catch (_: Throwable) {
       null
     }
@@ -72,6 +75,9 @@ class SessionManager(private val context: Context) {
         prefs[KEY_FULL_NAME] = session.fullName
         prefs[KEY_ADMISSION_NUMBER] = session.admissionNumber
         prefs[KEY_ROLE] = session.role
+        prefs[KEY_ROLE_STATUS] = session.roleStatus
+        prefs[KEY_STAFF_NUMBER] = session.staffNumber
+        prefs[KEY_DEPARTMENT] = session.department
         prefs[KEY_ACCESS_TOKEN] = session.accessToken
         prefs[KEY_IS_VERIFIED] = session.isVerified
         if (!session.refreshToken.isNullOrBlank()) {
@@ -83,26 +89,23 @@ class SessionManager(private val context: Context) {
 
   suspend fun updateRole(newRole: String) = withContext(Dispatchers.IO) {
     try {
-      context.dataStore.edit { prefs ->
-        prefs[KEY_ROLE] = newRole
-      }
+      context.dataStore.edit { prefs -> prefs[KEY_ROLE] = newRole }
     } catch (_: Throwable) {}
   }
 
-  suspend fun updateRoleAndVerification(newRole: String, isVerified: Boolean) = withContext(Dispatchers.IO) {
+  suspend fun updateRoleAndVerification(newRole: String, isVerified: Boolean, roleStatus: String = "") = withContext(Dispatchers.IO) {
     try {
       context.dataStore.edit { prefs ->
         prefs[KEY_ROLE] = newRole
         prefs[KEY_IS_VERIFIED] = isVerified
+        if (roleStatus.isNotBlank()) prefs[KEY_ROLE_STATUS] = roleStatus
       }
     } catch (_: Throwable) {}
   }
 
   suspend fun updateAdmissionNumber(admissionNumber: String) = withContext(Dispatchers.IO) {
     try {
-      context.dataStore.edit { prefs ->
-        prefs[KEY_ADMISSION_NUMBER] = admissionNumber
-      }
+      context.dataStore.edit { prefs -> prefs[KEY_ADMISSION_NUMBER] = admissionNumber }
     } catch (_: Throwable) {}
   }
 
@@ -117,9 +120,7 @@ class SessionManager(private val context: Context) {
 
   suspend fun saveLastClassId(classId: String) = withContext(Dispatchers.IO) {
     try {
-      context.dataStore.edit { prefs ->
-        prefs[KEY_LAST_CLASS_ID] = classId
-      }
+      context.dataStore.edit { prefs -> prefs[KEY_LAST_CLASS_ID] = classId }
     } catch (_: Throwable) {}
   }
 
@@ -133,9 +134,7 @@ class SessionManager(private val context: Context) {
 
   suspend fun clearSession() = withContext(Dispatchers.IO) {
     try {
-      context.dataStore.edit { prefs ->
-        prefs.clear()
-      }
+      context.dataStore.edit { prefs -> prefs.clear() }
     } catch (_: Throwable) {}
   }
 }

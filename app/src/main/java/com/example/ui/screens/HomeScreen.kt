@@ -31,7 +31,6 @@ import com.example.data.ClassItem
 import com.example.data.ClassWaitingForPrefect
 import com.example.data.NoticeItem
 import com.example.data.UserSession
-import com.example.data.formatRoleDisplayName
 import com.example.ui.components.ClassRepCard
 import com.example.ui.components.ClassRepPullToRefresh
 import com.example.ui.components.ClassesWaitingForPrefectCard
@@ -39,6 +38,7 @@ import com.example.ui.components.FriendlyErrorSnackbar
 import com.example.ui.components.LatestAnnouncementsSection
 import com.example.ui.components.PrimaryButton
 import com.example.ui.theme.*
+import com.example.util.RoleHelper
 
 @Composable
 fun HomeScreen(
@@ -63,12 +63,12 @@ fun HomeScreen(
   onNoticeClick: (NoticeItem) -> Unit = {},
   onLogout: () -> Unit = {}
 ) {
-  val rawRole = session?.role.orEmpty().ifBlank { "student" }
-  val isAdmin = rawRole.equals("admin", ignoreCase = true)
-  val isLecturer = rawRole.equals("lecturer", ignoreCase = true)
-  val isStaff = isAdmin || isLecturer
-  val isVerified = session?.isVerified == true
-  val displayRole = formatRoleDisplayName(rawRole)
+  val rawRole = session?.role.orEmpty()
+  val isAdmin = RoleHelper.isAdmin(rawRole)
+  val isLecturer = RoleHelper.isLecturer(rawRole)
+  val isStaff = RoleHelper.isStaffRole(rawRole)
+  val isVerified = session?.isVerified == true && !RoleHelper.isPendingApproval(session?.roleStatus)
+  val displayRole = RoleHelper.formatDisplayName(rawRole)
 
   val firstName = session?.fullName?.trim()
     ?.split("\\s+".toRegex())

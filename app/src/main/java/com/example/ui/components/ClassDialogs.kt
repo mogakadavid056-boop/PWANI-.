@@ -49,6 +49,8 @@ fun ClassDialogs(
   onSaveEditSchedule: (String, String, Int, String, String, String, String) -> Unit,
   onDismissPromptDeleteSchedule: () -> Unit,
   onConfirmDeleteSchedule: () -> Unit,
+  onDismissScheduleStatus: () -> Unit = {},
+  onSaveScheduleStatus: (String, String, String) -> Unit = { _, _, _ -> },
   materialsUiState: MaterialsUiState,
   onDismissAddEditMaterial: () -> Unit,
   onSaveAddLinkMaterial: (String, String, String, String) -> Unit,
@@ -169,6 +171,15 @@ fun ClassDialogs(
       isLoading = timetableUiState.isActionLoading,
       onConfirm = onConfirmDeleteSchedule,
       onDismiss = onDismissPromptDeleteSchedule
+    )
+  }
+
+  timetableUiState.schedulePendingStatus?.let { schedule ->
+    ScheduleStatusDialog(
+      schedule = schedule,
+      isLoading = timetableUiState.isActionLoading,
+      onDismiss = onDismissScheduleStatus,
+      onSaveStatus = { status, note -> onSaveScheduleStatus(schedule.id, status, note) }
     )
   }
 

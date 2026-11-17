@@ -12,6 +12,7 @@ import androidx.compose.runtime.LaunchedEffect
 import com.example.data.ClassItem
 import com.example.data.UserSession
 import com.example.ui.screens.*
+import com.example.util.RoleHelper
 
 @Composable
 fun ClassRepNavHost(
@@ -38,6 +39,7 @@ fun ClassRepNavHost(
   universityViewModel: UniversityViewModel,
   pollsViewModel: PollsViewModel,
   adminViewModel: AdminViewModel,
+  openTimetableSignal: Int = 0,
   openClassDirectly: (ClassItem) -> Unit,
   resolveDestination: (UserSession) -> Unit,
   navigateToProfileScreen: () -> Unit
@@ -51,10 +53,7 @@ fun ClassRepNavHost(
     label = "main_screen_transition"
   ) { screen ->
     when (screen) {
-      Screen.Welcome -> WelcomeScreen(
-        onNavigateToLogin = { authViewModel.navigateTo(Screen.Login) }
-      )
-      Screen.Landing -> WelcomeScreen(
+      Screen.Welcome, Screen.Landing -> WelcomeScreen(
         onNavigateToLogin = { authViewModel.navigateTo(Screen.Login) }
       )
       Screen.Register -> RegisterScreen(
@@ -80,41 +79,56 @@ fun ClassRepNavHost(
             }
           }
         },
-        onRegisterLecturer = { name, staffNo, email, pass, passcode ->
+        onRegisterLecturer = { name, staffNo, department, email, pass ->
           authViewModel.registerLecturer(
             fullName = name,
             staffNumber = staffNo,
+            department = department,
             email = email,
             password = pass,
-            passcode = passcode,
-            onSuccessLecturer = { session ->
+            onActiveLecturer = { session ->
               classesViewModel.loadClasses(session)
               authViewModel.navigateTo(Screen.Home)
             },
-            onWrongPasscode = { session, _ ->
-              classesViewModel.loadClasses(session)
-              authViewModel.navigateTo(Screen.Waiting)
-            }
+            onPendingApproval = { _ -> }
           )
         },
         onNavigateToLogin = { authViewModel.navigateTo(Screen.Login) },
         onBack = { authViewModel.navigateTo(Screen.Welcome) }
       )
       Screen.Login -> LoginScreen(
-        isLoading = authUiState.isLoading, errorMessage = authUiState.errorMessage, onDismissError = { authViewModel.clearError() },
+        isLoading = authUiState.isLoading,
+        errorMessage = authUiState.errorMessage,
+        infoMessage = authUiState.infoMessage,
+        onDismissError = { authViewModel.clearError() },
+        onDismissInfo = { authViewModel.clearInfo() },
         onLoginSubmit = { e, p -> authViewModel.login(e, p) { session -> resolveDestination(session) } },
         onNavigateToRegister = { universityViewModel.loadSchools(); authViewModel.navigateTo(Screen.Register) },
         onBack = { authViewModel.navigateTo(Screen.Welcome) }
+      )
+      Screen.PendingApproval -> PendingApprovalScreen(
+        session = authUiState.session,
+        isLoading = authUiState.isLoading,
+        errorMessage = authUiState.errorMessage,
+        infoMessage = authUiState.infoMessage,
+        onDismissError = { authViewModel.clearError() },
+        onRefresh = {
+          authViewModel.refreshProfileStatus(userTriggered = true) { session ->
+            resolveDestination(session)
+          }
+        },
+        onLogout = {
+          classesViewModel.clearError()
+          noticesViewModel.clearSelectedClass()
+          authViewModel.logout()
+        }
       )
       Screen.Waiting -> WaitingScreen(
         isLoading = classesUiState.isActionLoading, errorMessage = classesUiState.errorMessage ?: authUiState.errorMessage,
         onDismissError = { classesViewModel.clearError(); authViewModel.clearError() },
         onJoinWithCode = { code ->
           classesViewModel.joinClass(code, authUiState.session, onSuccess = { classId, isPending ->
-            if (isPending) {
-              // Stay on Waiting screen with error/info message
-              return@joinClass
-            }
+            if (isPending) return@joinClass
             classesViewModel.loadClasses(authUiState.session) { list ->
               val target = if (!classId.isNullOrBlank()) list.find { it.id == classId } else list.firstOrNull()
               if (target != null) openClassDirectly(target)
@@ -149,44 +163,25 @@ fun ClassRepNavHost(
         onNavigateToFindClasses = { authViewModel.navigateTo(Screen.FindClasses) },
         onSelectClass = openClassDirectly,
         onOpenManageMembersForClass = { classId, className ->
-          noticesViewModel.selectClassAndLoad(com.example.data.ClassItem(id = classId, name = className, code = ""), authUiState.session)
+          noticesViewModel.selectClassAndLoad(ClassItem(id = classId, name = className, code = ""), authUiState.session)
           membersViewModel.loadMembers(classId, authUiState.session)
           authViewModel.navigateTo(Screen.ManageMembers)
-        },
-        onBecomeLecturer = { passcode ->
-          universityViewModel.becomeLecturer(passcode, authUiState.session) {
-            val current = authUiState.session
-            if (current != null) {
-              val updated = current.copy(role = "Lecturer")
-              authViewModel.updateSessionRole("Lecturer")
-              classesViewModel.loadClasses(updated)
-            }
-          }
         },
         onLogout = { classesViewModel.clearError(); noticesViewModel.clearSelectedClass(); authViewModel.logout() }
       )
       Screen.Profile -> {
-        val isStaff = authUiState.session?.role?.equals("admin", ignoreCase = true) == true ||
-          authUiState.session?.role?.equals("lecturer", ignoreCase = true) == true
+        val role = authUiState.session?.role.orEmpty()
+        val isStaff = RoleHelper.isStaffRole(role)
         ProfileScreen(
           profile = universityUiState.profile, schools = universityUiState.schools,
-          programmes = universityUiState.programmes, isStaff = isStaff,
+          programmes = universityUiState.programmes, role = role, isStaff = isStaff,
           isStudentInClass = classesUiState.classes.isNotEmpty(), isLoading = universityUiState.isProfileLoading,
           isActionLoading = universityUiState.isActionLoading, errorMessage = universityUiState.errorMessage,
           successMessage = universityUiState.successMessage, onDismissError = { universityViewModel.clearError() },
           onDismissSuccess = { universityViewModel.clearSuccess() },
           onSchoolSelected = { s -> universityViewModel.loadProgrammesForSchool(s.id, authUiState.session?.accessToken) },
-          onSaveProfile = { name, s, prog, y -> authUiState.session?.let { universityViewModel.updateProfile(it.userId, it.accessToken, name, s, prog, y) } },
-          onBecomeLecturer = { passcode ->
-            universityViewModel.becomeLecturer(passcode, authUiState.session) {
-              val current = authUiState.session
-              if (current != null) {
-                val updated = current.copy(role = "Lecturer")
-                authViewModel.updateSessionRole("Lecturer")
-                classesViewModel.loadClasses(updated)
-                authViewModel.navigateTo(Screen.Home)
-              }
-            }
+          onSaveProfile = { name, s, prog, y, dept ->
+            authUiState.session?.let { universityViewModel.updateProfile(it.userId, it.accessToken, name, s, prog, y, dept) }
           },
           onLogout = { classesViewModel.clearError(); noticesViewModel.clearSelectedClass(); authViewModel.logout() },
           onBack = {
@@ -201,10 +196,7 @@ fun ClassRepNavHost(
         onDismissError = { classesViewModel.clearError() },
         onJoinSubmit = { code ->
           classesViewModel.joinClass(code, authUiState.session, onSuccess = { classId, isPending ->
-            if (isPending) {
-              // Stay on JoinClass screen showing the pending message in errorMessage
-              return@joinClass
-            }
+            if (isPending) return@joinClass
             classesViewModel.loadClasses(authUiState.session) { list ->
               val target = if (!classId.isNullOrBlank()) list.find { it.id == classId } else list.firstOrNull()
               if (target != null) openClassDirectly(target) else authViewModel.navigateTo(Screen.Home)
@@ -214,7 +206,7 @@ fun ClassRepNavHost(
         onBack = { classesViewModel.clearError(); authViewModel.navigateTo(Screen.Home) }
       )
       Screen.CreateClass -> {
-        val isAdmin = authUiState.session?.role?.equals("admin", ignoreCase = true) == true
+        val isAdmin = RoleHelper.isAdmin(authUiState.session?.role)
         if (!isAdmin) LaunchedEffect(Unit) { authViewModel.navigateTo(Screen.Home) }
         else CreateClassScreen(
           isLoading = classesUiState.isActionLoading, errorMessage = classesUiState.errorMessage,
@@ -229,7 +221,7 @@ fun ClassRepNavHost(
       }
       Screen.FindClasses -> FindClassesScreen(
         session = authUiState.session,
-        isAdmin = authUiState.session?.role?.equals("admin", ignoreCase = true) == true,
+        isAdmin = RoleHelper.isAdmin(authUiState.session?.role),
         onBack = { authViewModel.navigateTo(Screen.Home) },
         onOpenClass = { cls ->
           classesViewModel.loadClasses(authUiState.session) {
@@ -245,6 +237,7 @@ fun ClassRepNavHost(
         groupsViewModel = groupsViewModel, timetableViewModel = timetableViewModel,
         materialsViewModel = materialsViewModel, pollsViewModel = pollsViewModel,
         allClasses = classesUiState.classes,
+        openTimetableSignal = openTimetableSignal,
         onMemberDetailsSaved = { name, adm -> authViewModel.updateMemberDetails(name, adm) },
         onSwitchClass = openClassDirectly,
         onNavigateToJoinClass = { classesViewModel.clearError(); authViewModel.navigateTo(Screen.JoinClass) },

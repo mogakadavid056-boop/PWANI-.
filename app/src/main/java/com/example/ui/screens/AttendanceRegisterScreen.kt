@@ -34,6 +34,8 @@ import com.example.util.JsonHelper
 fun AttendanceRegisterScreen(
   detail: AttendanceRegisterDetail?,
   units: List<ClassUnitItem> = emptyList(),
+  canManageRole: Boolean = true,
+  canSignAttendanceRole: Boolean = true,
   isLoading: Boolean,
   isActionLoading: Boolean,
   errorMessage: String?,
@@ -83,6 +85,12 @@ fun AttendanceRegisterScreen(
       }
     } else if (detail != null) {
       val perms = detail.permissions
+      val allowClose = perms.canClose && canManageRole
+      val allowVoid = perms.canVoid && canManageRole
+      val allowDelete = perms.canDelete && canManageRole
+      val allowEditDetails = perms.canEditDetails && canManageRole
+      val allowEditRecords = perms.canEditRecords && canManageRole
+      val allowSignOut = perms.canSignOut && canSignAttendanceRole
       Column(
         modifier = Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(horizontal = 16.dp, vertical = 20.dp)
       ) {
@@ -119,7 +127,7 @@ fun AttendanceRegisterScreen(
           Spacer(modifier = Modifier.height(12.dp))
         }
 
-        if (detail.missingDetails && perms.canEditDetails) {
+        if (detail.missingDetails && allowEditDetails) {
           Row(
             modifier = Modifier.fillMaxWidth().clip(RoundedCornerShape(10.dp)).background(GoldPrimary.copy(alpha = 0.14f))
               .border(1.2.dp, GoldPrimary, RoundedCornerShape(10.dp)).padding(12.dp).testTag("missing_details_banner"),
@@ -159,16 +167,16 @@ fun AttendanceRegisterScreen(
         )
 
         Spacer(modifier = Modifier.height(14.dp))
-        RegisterInfoCard(detail, canEditDetails = perms.canEditDetails, onEditDetails = { showEditDetailsDialog = true })
+        RegisterInfoCard(detail, canEditDetails = allowEditDetails, onEditDetails = { showEditDetailsDialog = true })
         Spacer(modifier = Modifier.height(14.dp))
 
-        if (perms.canClose || perms.canSignOut || perms.canVoid || perms.canDelete) {
+        if (allowClose || allowSignOut || allowVoid || allowDelete) {
           FlowRow(
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.spacedBy(8.dp),
             verticalArrangement = Arrangement.spacedBy(8.dp)
           ) {
-            if (perms.canClose) {
+            if (allowClose) {
               OutlinedButton(
                 onClick = onCloseSession, enabled = !isActionLoading,
                 modifier = Modifier.height(44.dp).testTag("close_session_btn"),
@@ -176,7 +184,7 @@ fun AttendanceRegisterScreen(
                 colors = ButtonDefaults.outlinedButtonColors(containerColor = DarkSurface, contentColor = GoldLight, disabledContentColor = GoldLight.copy(alpha = 0.5f))
               ) { Text("Close Session", fontSize = 14.sp, fontWeight = FontWeight.Bold, color = GoldLight, maxLines = 1, softWrap = false) }
             }
-            if (perms.canSignOut) {
+            if (allowSignOut) {
               OutlinedButton(
                 onClick = onSignOut, enabled = !isActionLoading,
                 modifier = Modifier.height(44.dp).testTag("sign_out_session_btn"),
@@ -184,7 +192,7 @@ fun AttendanceRegisterScreen(
                 colors = ButtonDefaults.outlinedButtonColors(containerColor = DarkSurface, contentColor = GoldLight, disabledContentColor = GoldLight.copy(alpha = 0.5f))
               ) { Text("Sign Out", fontSize = 14.sp, fontWeight = FontWeight.Bold, color = GoldLight, maxLines = 1, softWrap = false) }
             }
-            if (perms.canVoid) {
+            if (allowVoid) {
               OutlinedButton(
                 onClick = { showVoidDialog = true }, enabled = !isActionLoading,
                 modifier = Modifier.height(44.dp).testTag("void_session_btn"),
@@ -192,7 +200,7 @@ fun AttendanceRegisterScreen(
                 colors = ButtonDefaults.outlinedButtonColors(containerColor = DarkSurface, contentColor = ErrorRed, disabledContentColor = ErrorRed.copy(alpha = 0.5f))
               ) { Text("Void", fontSize = 14.sp, fontWeight = FontWeight.Bold, color = ErrorRed, maxLines = 1, softWrap = false) }
             }
-            if (perms.canDelete) {
+            if (allowDelete) {
               OutlinedButton(
                 onClick = { showDeleteDialog = true }, enabled = !isActionLoading,
                 modifier = Modifier.height(44.dp).testTag("delete_register_btn"),
@@ -206,8 +214,8 @@ fun AttendanceRegisterScreen(
 
         RegisterTablePreview(
           rows = detail.rows,
-          canEditRecords = perms.canEditRecords,
-          showSignatures = perms.canManage || perms.canEditRecords,
+          canEditRecords = allowEditRecords,
+          showSignatures = (perms.canManage && canManageRole) || allowEditRecords,
           onCorrectRow = { rowToCorrect = it },
           onMarkPresentRow = { rowToMarkPresent = it }
         )

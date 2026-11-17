@@ -55,7 +55,8 @@ fun TimetableSection(
   onSelectDay: (Int) -> Unit,
   onAddClassClick: () -> Unit,
   onEditSchedule: (ScheduleItem) -> Unit,
-  onDeleteSchedule: (ScheduleItem) -> Unit
+  onDeleteSchedule: (ScheduleItem) -> Unit,
+  onChangeScheduleStatus: (ScheduleItem) -> Unit = {}
 ) {
   val dayFilters = listOf(
     0 to "All",
@@ -208,7 +209,8 @@ fun TimetableSection(
                 schedule = scheduleItem,
                 isStaff = isStaff,
                 onEdit = { onEditSchedule(scheduleItem) },
-                onDelete = { onDeleteSchedule(scheduleItem) }
+                onDelete = { onDeleteSchedule(scheduleItem) },
+                onChangeStatus = { onChangeScheduleStatus(scheduleItem) }
               )
             }
           }

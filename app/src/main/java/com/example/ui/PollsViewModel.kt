@@ -41,7 +41,7 @@ class PollsViewModel(
     loadPolls(cid, session)
   }
 
-  fun openPoll(poll: PollItem, isStaff: Boolean, session: UserSession?) {
+  fun openPoll(poll: PollItem, canVote: Boolean, session: UserSession?) {
     val token = session?.accessToken.orEmpty()
     _uiState.update {
       it.copy(
@@ -55,7 +55,7 @@ class PollsViewModel(
     }
 
     viewModelScope.launch {
-      val needVote = poll.isOpen() && !poll.hasVoted && !isStaff
+      val needVote = poll.isOpen() && !poll.hasVoted && canVote
       if (needVote) {
         val resultAttempt = pollsService.getPollResults(poll.id, token)
         if (resultAttempt.isSuccess) {

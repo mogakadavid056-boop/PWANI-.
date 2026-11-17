@@ -51,7 +51,9 @@ import com.example.ui.theme.TextSecondary
 fun LoginScreen(
   isLoading: Boolean,
   errorMessage: String?,
+  infoMessage: String? = null,
   onDismissError: () -> Unit,
+  onDismissInfo: () -> Unit = {},
   onLoginSubmit: (email: String, password: String) -> Unit,
   onNavigateToRegister: () -> Unit,
   onBack: () -> Unit
@@ -108,6 +110,14 @@ fun LoginScreen(
         ErrorBanner(
           message = errorMessage,
           onDismiss = onDismissError
+        )
+        Spacer(modifier = Modifier.height(16.dp))
+      }
+
+      if (!infoMessage.isNullOrBlank()) {
+        ErrorBanner(
+          message = infoMessage,
+          onDismiss = onDismissInfo
         )
         Spacer(modifier = Modifier.height(16.dp))
       }
