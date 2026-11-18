@@ -38,15 +38,11 @@ fun RegisterScreen(
   onDismissError: () -> Unit,
   onRegisterWithKnown: (String, String, String, String, SchoolItem?, ProgrammeItem?, Int?) -> Unit,
   onRegisterWithCode: (String, String, String, String, String) -> Unit,
-  onRegisterLecturer: (fullName: String, staffNumber: String, department: String, email: String, password: String) -> Unit = { _, _, _, _, _ -> },
   onNavigateToLogin: () -> Unit,
   onBack: () -> Unit
 ) {
-  var isLecturerMode by remember { mutableStateOf(false) }
   var fullName by remember { mutableStateOf("") }
   var admissionNumber by remember { mutableStateOf("") }
-  var staffNumber by remember { mutableStateOf("") }
-  var department by remember { mutableStateOf("") }
   var email by remember { mutableStateOf("") }
   var password by remember { mutableStateOf("") }
   var knowsDetails by remember { mutableStateOf(true) }
@@ -69,14 +65,7 @@ fun RegisterScreen(
       }
 
       Spacer(modifier = Modifier.height(14.dp))
-      Text("Join ClassRep as a Student or Lecturer", fontSize = 14.sp, color = TextSecondary)
-      Spacer(modifier = Modifier.height(16.dp))
-
-      RegisterRoleSelector(
-        isLecturerMode = isLecturerMode,
-        onSelectStudent = { isLecturerMode = false; localValidationMessage = null },
-        onSelectLecturer = { isLecturerMode = true; localValidationMessage = null }
-      )
+      Text("Join your class in ClassRep", fontSize = 14.sp, color = TextSecondary)
       Spacer(modifier = Modifier.height(18.dp))
 
       val activeError = errorMessage ?: localValidationMessage
@@ -92,112 +81,99 @@ fun RegisterScreen(
       )
       Spacer(modifier = Modifier.height(12.dp))
 
-      if (isLecturerMode) {
-        LecturerRegisterFields(
-          staffNumber = staffNumber,
-          onStaffNumberChange = { staffNumber = it },
-          department = department,
-          onDepartmentChange = { department = it },
-          email = email,
-          onEmailChange = { email = it },
-          password = password,
-          onPasswordChange = { password = it }
+      DarkTextField(
+        value = admissionNumber, onValueChange = { admissionNumber = it }, label = "Admission Number *",
+        leadingIcon = Icons.Default.Badge, keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Text, imeAction = ImeAction.Next),
+        testTag = "register_admission_input"
+      )
+      Spacer(modifier = Modifier.height(12.dp))
+
+      DarkTextField(
+        value = email, onValueChange = { email = it }, label = "University Email *",
+        leadingIcon = Icons.Default.Email, keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Email, imeAction = ImeAction.Next),
+        testTag = "register_email_input"
+      )
+      Spacer(modifier = Modifier.height(12.dp))
+
+      PasswordTextField(
+        value = password, onValueChange = { password = it }, label = "Password *",
+        leadingIcon = Icons.Default.Lock, keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password, imeAction = ImeAction.Done),
+        testTag = "register_password_input"
+      )
+      Spacer(modifier = Modifier.height(16.dp))
+
+      Box(
+        modifier = Modifier.fillMaxWidth().clip(RoundedCornerShape(12.dp)).background(DarkCard)
+          .border(1.dp, DarkBorder, RoundedCornerShape(12.dp)).padding(14.dp)
+      ) {
+        Row(
+          modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically,
+          horizontalArrangement = Arrangement.SpaceBetween
+        ) {
+          Column(modifier = Modifier.weight(1f).padding(end = 10.dp)) {
+            Text(
+              text = if (knowsDetails) "I know my school, programme and year" else "I'm not sure, I'll use a class code",
+              fontSize = 13.sp, fontWeight = FontWeight.SemiBold, color = TextPrimary
+            )
+            Spacer(modifier = Modifier.height(2.dp))
+            Text(
+              text = if (knowsDetails) "Tap switch to use class code instead" else "Tap switch to choose programme & year",
+              fontSize = 11.sp, color = TextSecondary
+            )
+          }
+
+          Switch(
+            checked = knowsDetails,
+            onCheckedChange = { knowsDetails = it },
+            colors = SwitchDefaults.colors(
+              checkedThumbColor = GoldPrimary, checkedTrackColor = GoldPrimary.copy(alpha = 0.3f),
+              uncheckedThumbColor = TextSecondary, uncheckedTrackColor = DarkSurface
+            ),
+            modifier = Modifier.testTag("register_mode_switch")
+          )
+        }
+      }
+      Spacer(modifier = Modifier.height(16.dp))
+
+      if (knowsDetails) {
+        AppDropdownField(
+          label = "School *", selectedValueText = selectedSchool?.name.orEmpty(),
+          items = schools, itemText = { it.name },
+          onItemSelected = { selectedSchool = it; selectedProgramme = null; onSchoolSelected(it) },
+          leadingIcon = Icons.Default.AccountBalance, placeholder = "Select your school",
+          testTag = "register_school_dropdown"
+        )
+        Spacer(modifier = Modifier.height(12.dp))
+
+        AppDropdownField(
+          label = "Programme *", selectedValueText = selectedProgramme?.name.orEmpty(),
+          items = programmes, itemText = { it.name },
+          onItemSelected = { prog ->
+            selectedProgramme = prog
+            val maxYears = prog.durationYears ?: 4
+            if (selectedYearOfStudy != null && selectedYearOfStudy!! > maxYears) {
+              selectedYearOfStudy = null
+            }
+          },
+          leadingIcon = Icons.Default.School, placeholder = if (selectedSchool == null) "Select school first" else "Select your programme",
+          testTag = "register_programme_dropdown"
+        )
+        Spacer(modifier = Modifier.height(12.dp))
+
+        val maxYears = selectedProgramme?.durationYears ?: 4
+        val availableYears = (1..maxYears).toList()
+        AppDropdownField(
+          label = "Year of Study *", selectedValueText = selectedYearOfStudy?.let { "Year $it" }.orEmpty(),
+          items = availableYears, itemText = { "Year $it" }, onItemSelected = { selectedYearOfStudy = it },
+          leadingIcon = Icons.Default.CalendarMonth, placeholder = "Select year (1 to $maxYears)",
+          testTag = "register_year_dropdown"
         )
       } else {
         DarkTextField(
-          value = admissionNumber, onValueChange = { admissionNumber = it }, label = "Admission Number *",
-          leadingIcon = Icons.Default.Badge, keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Text, imeAction = ImeAction.Next),
-          testTag = "register_admission_input"
+          value = classCode, onValueChange = { classCode = it.uppercase() }, label = "Class Join Code *",
+          leadingIcon = Icons.Default.Key, keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.Characters, imeAction = ImeAction.Done),
+          testTag = "register_class_code_input"
         )
-        Spacer(modifier = Modifier.height(12.dp))
-
-        DarkTextField(
-          value = email, onValueChange = { email = it }, label = "University Email *",
-          leadingIcon = Icons.Default.Email, keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Email, imeAction = ImeAction.Next),
-          testTag = "register_email_input"
-        )
-        Spacer(modifier = Modifier.height(12.dp))
-
-        PasswordTextField(
-          value = password, onValueChange = { password = it }, label = "Password *",
-          leadingIcon = Icons.Default.Lock, keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password, imeAction = ImeAction.Done),
-          testTag = "register_password_input"
-        )
-        Spacer(modifier = Modifier.height(16.dp))
-
-        Box(
-          modifier = Modifier.fillMaxWidth().clip(RoundedCornerShape(12.dp)).background(DarkCard)
-            .border(1.dp, DarkBorder, RoundedCornerShape(12.dp)).padding(14.dp)
-        ) {
-          Row(
-            modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.SpaceBetween
-          ) {
-            Column(modifier = Modifier.weight(1f).padding(end = 10.dp)) {
-              Text(
-                text = if (knowsDetails) "I know my school, programme and year" else "I'm not sure, I'll use a class code",
-                fontSize = 13.sp, fontWeight = FontWeight.SemiBold, color = TextPrimary
-              )
-              Spacer(modifier = Modifier.height(2.dp))
-              Text(
-                text = if (knowsDetails) "Tap switch to use class code instead" else "Tap switch to choose programme & year",
-                fontSize = 11.sp, color = TextSecondary
-              )
-            }
-
-            Switch(
-              checked = knowsDetails,
-              onCheckedChange = { knowsDetails = it },
-              colors = SwitchDefaults.colors(
-                checkedThumbColor = GoldPrimary, checkedTrackColor = GoldPrimary.copy(alpha = 0.3f),
-                uncheckedThumbColor = TextSecondary, uncheckedTrackColor = DarkSurface
-              ),
-              modifier = Modifier.testTag("register_mode_switch")
-            )
-          }
-        }
-        Spacer(modifier = Modifier.height(16.dp))
-
-        if (knowsDetails) {
-          AppDropdownField(
-            label = "School *", selectedValueText = selectedSchool?.name.orEmpty(),
-            items = schools, itemText = { it.name },
-            onItemSelected = { selectedSchool = it; selectedProgramme = null; onSchoolSelected(it) },
-            leadingIcon = Icons.Default.AccountBalance, placeholder = "Select your school",
-            testTag = "register_school_dropdown"
-          )
-          Spacer(modifier = Modifier.height(12.dp))
-
-          AppDropdownField(
-            label = "Programme *", selectedValueText = selectedProgramme?.name.orEmpty(),
-            items = programmes, itemText = { it.name },
-            onItemSelected = { prog ->
-              selectedProgramme = prog
-              val maxYears = prog.durationYears ?: 4
-              if (selectedYearOfStudy != null && selectedYearOfStudy!! > maxYears) {
-                selectedYearOfStudy = null
-              }
-            },
-            leadingIcon = Icons.Default.School, placeholder = if (selectedSchool == null) "Select school first" else "Select your programme",
-            testTag = "register_programme_dropdown"
-          )
-          Spacer(modifier = Modifier.height(12.dp))
-
-          val maxYears = selectedProgramme?.durationYears ?: 4
-          val availableYears = (1..maxYears).toList()
-          AppDropdownField(
-            label = "Year of Study *", selectedValueText = selectedYearOfStudy?.let { "Year $it" }.orEmpty(),
-            items = availableYears, itemText = { "Year $it" }, onItemSelected = { selectedYearOfStudy = it },
-            leadingIcon = Icons.Default.CalendarMonth, placeholder = "Select year (1 to $maxYears)",
-            testTag = "register_year_dropdown"
-          )
-        } else {
-          DarkTextField(
-            value = classCode, onValueChange = { classCode = it.uppercase() }, label = "Class Join Code *",
-            leadingIcon = Icons.Default.Key, keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.Characters, imeAction = ImeAction.Done),
-            testTag = "register_class_code_input"
-          )
-        }
       }
 
       Spacer(modifier = Modifier.height(24.dp))
@@ -206,30 +182,22 @@ fun RegisterScreen(
         text = "Register",
         onClick = {
           localValidationMessage = null
-          if (isLecturerMode) {
-            if (fullName.isBlank() || staffNumber.isBlank() || department.isBlank() || email.isBlank() || password.isBlank()) {
-              localValidationMessage = "Please enter your full name, staff number, department, email, and password."
+          if (fullName.isBlank() || admissionNumber.isBlank() || email.isBlank() || password.isBlank()) {
+            localValidationMessage = "Please fill in all registration fields."
+            return@GoldButton
+          }
+          if (knowsDetails) {
+            if (selectedSchool == null || selectedProgramme == null || selectedYearOfStudy == null) {
+              localValidationMessage = "Please select your School, Programme, and Year of Study."
               return@GoldButton
             }
-            onRegisterLecturer(fullName, staffNumber, department, email, password)
+            onRegisterWithKnown(fullName, admissionNumber, email, password, selectedSchool, selectedProgramme, selectedYearOfStudy)
           } else {
-            if (fullName.isBlank() || admissionNumber.isBlank() || email.isBlank() || password.isBlank()) {
-              localValidationMessage = "Please fill in all registration fields."
+            if (classCode.isBlank()) {
+              localValidationMessage = "Please enter your class code."
               return@GoldButton
             }
-            if (knowsDetails) {
-              if (selectedSchool == null || selectedProgramme == null || selectedYearOfStudy == null) {
-                localValidationMessage = "Please select your School, Programme, and Year of Study."
-                return@GoldButton
-              }
-              onRegisterWithKnown(fullName, admissionNumber, email, password, selectedSchool, selectedProgramme, selectedYearOfStudy)
-            } else {
-              if (classCode.isBlank()) {
-                localValidationMessage = "Please enter your class code."
-                return@GoldButton
-              }
-              onRegisterWithCode(fullName, admissionNumber, email, password, classCode)
-            }
+            onRegisterWithCode(fullName, admissionNumber, email, password, classCode)
           }
         },
         isLoading = isLoading,

@@ -8,7 +8,6 @@ import com.example.data.UserSession
 import com.example.util.RoleHelper
 import kotlinx.coroutines.FlowPreview
 import kotlinx.coroutines.Job
-import kotlinx.coroutines.async
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -54,10 +53,6 @@ class AdminViewModel(
     _searchQueryFlow.value = query
   }
 
-  fun setFilterTab(tab: String) {
-    _uiState.update { it.copy(filterTab = tab) }
-  }
-
   fun refreshUsers() {
     executeSearch(_uiState.value.searchQuery)
   }
@@ -67,29 +62,18 @@ class AdminViewModel(
     searchJob?.cancel()
     searchJob = viewModelScope.launch {
       _uiState.update { it.copy(isLoading = true, errorMessage = null) }
-      val usersDeferred = async {
-        adminService.listUsers(searchText = query.trim(), maxRows = 50, accessToken = session.accessToken)
-      }
-      val pendingDeferred = async {
-        adminService.listPendingLecturers(accessToken = session.accessToken)
-      }
-      val usersResult = usersDeferred.await()
-      val pendingResult = pendingDeferred.await()
-      val pendingList = pendingResult.getOrDefault(_uiState.value.pendingLecturers)
-
-      usersResult.fold(
+      val res = adminService.listUsers(
+        searchText = query.trim(),
+        maxRows = 50,
+        accessToken = session.accessToken
+      )
+      res.fold(
         onSuccess = { list ->
-          _uiState.update {
-            it.copy(users = list, pendingLecturers = pendingList, isLoading = false)
-          }
+          _uiState.update { it.copy(users = list, isLoading = false) }
         },
         onFailure = { err ->
           _uiState.update {
-            it.copy(
-              pendingLecturers = pendingList,
-              isLoading = false,
-              errorMessage = err.message ?: "Failed to list users"
-            )
+            it.copy(isLoading = false, errorMessage = err.message ?: "Failed to list users")
           }
         }
       )
@@ -137,20 +121,18 @@ class AdminViewModel(
 
     _uiState.update { it.copy(isActionLoading = true, errorMessage = null) }
     viewModelScope.launch {
-      val result: Result<String> = when {
-        newRole == RoleHelper.ROLE_CLASS_REP -> adminService.setClassRep(user.id, true, accessToken = session.accessToken)
-        user.isClassRep && newRole == RoleHelper.ROLE_STUDENT -> adminService.setClassRep(user.id, false, accessToken = session.accessToken)
-        else -> adminService.assignRole(targetUserId = user.id, newRole = newRole, accessToken = session.accessToken)
-          .map { "Role updated successfully for ${user.fullName.ifBlank { "user" }}" }
-      }
-      result.fold(
-        onSuccess = { msg ->
+      adminService.assignRole(
+        targetUserId = user.id,
+        newRole = newRole,
+        accessToken = session.accessToken
+      ).fold(
+        onSuccess = {
           _uiState.update {
             it.copy(
               isActionLoading = false,
               selectedUser = null,
               showConfirmDialog = false,
-              successMessage = msg
+              successMessage = "Role updated successfully for ${user.fullName.ifBlank { "user" }}"
             )
           }
           refreshUsers()
@@ -161,82 +143,6 @@ class AdminViewModel(
               isActionLoading = false,
               showConfirmDialog = false,
               errorMessage = err.message ?: "Failed to assign role"
-            )
-          }
-        }
-      )
-    }
-  }
-
-  fun promptApproveLecturer(user: AdminUserItem, approve: Boolean) {
-    _uiState.update {
-      it.copy(approvalPendingUser = user, approvalDecisionApprove = approve, errorMessage = null)
-    }
-  }
-
-  fun dismissApprovalDialog() {
-    _uiState.update { it.copy(approvalPendingUser = null) }
-  }
-
-  fun confirmApproveLecturer() {
-    val user = _uiState.value.approvalPendingUser ?: return
-    val approve = _uiState.value.approvalDecisionApprove
-    val session = activeSession ?: return
-
-    _uiState.update { it.copy(isActionLoading = true, errorMessage = null) }
-    viewModelScope.launch {
-      val result = adminService.approveLecturer(user.id, approve, session.accessToken)
-      result.fold(
-        onSuccess = { msg ->
-          _uiState.update {
-            it.copy(isActionLoading = false, approvalPendingUser = null, successMessage = msg)
-          }
-          refreshUsers()
-        },
-        onFailure = { err ->
-          _uiState.update {
-            it.copy(
-              isActionLoading = false,
-              approvalPendingUser = null,
-              errorMessage = err.message ?: "Failed to update lecturer approval"
-            )
-          }
-        }
-      )
-    }
-  }
-
-  fun promptSetClassRep(user: AdminUserItem, isRep: Boolean) {
-    _uiState.update {
-      it.copy(repTogglePendingUser = user, repTargetIsRep = isRep, errorMessage = null)
-    }
-  }
-
-  fun dismissRepToggleDialog() {
-    _uiState.update { it.copy(repTogglePendingUser = null) }
-  }
-
-  fun confirmSetClassRep() {
-    val user = _uiState.value.repTogglePendingUser ?: return
-    val isRep = _uiState.value.repTargetIsRep
-    val session = activeSession ?: return
-
-    _uiState.update { it.copy(isActionLoading = true, errorMessage = null) }
-    viewModelScope.launch {
-      val result = adminService.setClassRep(user.id, isRep, accessToken = session.accessToken)
-      result.fold(
-        onSuccess = { msg ->
-          _uiState.update {
-            it.copy(isActionLoading = false, repTogglePendingUser = null, successMessage = msg)
-          }
-          refreshUsers()
-        },
-        onFailure = { err ->
-          _uiState.update {
-            it.copy(
-              isActionLoading = false,
-              repTogglePendingUser = null,
-              errorMessage = err.message ?: "Failed to update Class Rep role"
             )
           }
         }

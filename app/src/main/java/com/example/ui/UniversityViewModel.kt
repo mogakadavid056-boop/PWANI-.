@@ -91,7 +91,6 @@ class UniversityViewModel : ViewModel() {
     school: SchoolItem?,
     programme: ProgrammeItem?,
     yearOfStudy: Int?,
-    department: String? = null,
     onSuccess: () -> Unit = {}
   ) {
     if (userId.isBlank() || token.isBlank()) return
@@ -102,10 +101,8 @@ class UniversityViewModel : ViewModel() {
     }
     _uiState.update { it.copy(isActionLoading = true, errorMessage = null) }
 
-    val cleanDept = department?.trim()
     val payload = JSONObject().apply {
       put("full_name", cleanName)
-      if (!cleanDept.isNullOrBlank()) put("department", cleanDept)
       if (school != null) {
         put("school_id", school.id)
         if (school.universityId.isNotBlank()) put("university_id", school.universityId)
@@ -121,7 +118,6 @@ class UniversityViewModel : ViewModel() {
           _uiState.update { state ->
             val updatedProfile = state.profile?.copy(
               fullName = cleanName,
-              department = cleanDept ?: state.profile.department,
               schoolId = school?.id ?: state.profile.schoolId,
               schoolName = school?.name ?: state.profile.schoolName,
               programmeId = programme?.id ?: state.profile.programmeId,
@@ -142,6 +138,14 @@ class UniversityViewModel : ViewModel() {
         }
       )
     }
+  }
+
+  fun showError(message: String) {
+    _uiState.update { it.copy(errorMessage = message) }
+  }
+
+  fun showSuccess(message: String) {
+    _uiState.update { it.copy(successMessage = message) }
   }
 
   fun clearError() {

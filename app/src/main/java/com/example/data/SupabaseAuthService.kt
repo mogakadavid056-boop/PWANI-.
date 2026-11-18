@@ -12,13 +12,8 @@ import org.json.JSONArray
 import org.json.JSONObject
 import java.util.concurrent.TimeUnit
 
-data class ProfileRoleInfo(
-  val role: String,
-  val roleStatus: String,
-  val fullName: String = "",
-  val admissionNumber: String = "",
-  val staffNumber: String = "",
-  val department: String = "",
+data class UserRoleInfo(
+  val role: String = RoleHelper.ROLE_STUDENT,
   val isVerified: Boolean = false
 )
 
@@ -35,6 +30,7 @@ class SupabaseAuthService(
     val userId: String,
     val email: String,
     val fullName: String,
+    val admissionNumber: String = "",
     val accessToken: String,
     val refreshToken: String?,
     val hasSession: Boolean = true
@@ -43,56 +39,31 @@ class SupabaseAuthService(
   companion object {
     fun buildSignUpMetadata(
       fullName: String,
-      requestedRole: String,
-      admissionNumber: String? = null,
-      staffNumber: String? = null,
-      department: String? = null
+      admissionNumber: String? = null
     ): JSONObject = JSONObject().apply {
       put("full_name", fullName.trim())
-      put("requested_role", RoleHelper.normalizeRole(requestedRole))
       if (!admissionNumber.isNullOrBlank()) {
         put("admission_number", admissionNumber.trim())
       }
-      if (!staffNumber.isNullOrBlank()) {
-        put("staff_number", staffNumber.trim())
-      }
-      if (!department.isNullOrBlank()) {
-        put("department", department.trim())
-      }
     }
 
-    fun parseProfileRoleInfo(body: String): Result<ProfileRoleInfo> {
+    fun parseUserRoleInfo(body: String): UserRoleInfo {
       return try {
         val array = JSONArray(body)
         if (array.length() == 0) {
-          return Result.failure(Exception("Account profile not found. Please contact an administrator."))
+          return UserRoleInfo(role = RoleHelper.ROLE_STUDENT, isVerified = false)
         }
         val first = array.getJSONObject(0)
         val role = RoleHelper.normalizeRole(JsonHelper.str(first, "role"))
-        if (role.isBlank()) {
-          return Result.failure(Exception("Your account role is not configured yet. Please contact an administrator."))
+          .ifBlank { RoleHelper.ROLE_STUDENT }
+        val isVerified = if (first.has("verified") && !first.isNull("verified")) {
+          first.optBoolean("verified", false)
+        } else {
+          false
         }
-        val rawStatus = JsonHelper.firstStr(first, "role_status", "status")
-        val roleStatus = RoleHelper.normalizeRoleStatus(rawStatus).ifBlank { RoleHelper.STATUS_APPROVED }
-        val isVerified = when {
-          RoleHelper.isPendingApproval(roleStatus) -> false
-          RoleHelper.isRejectedStatus(roleStatus) -> false
-          first.has("verified") && !first.isNull("verified") -> first.optBoolean("verified", true)
-          else -> roleStatus == RoleHelper.STATUS_APPROVED
-        }
-        Result.success(
-          ProfileRoleInfo(
-            role = role,
-            roleStatus = roleStatus,
-            fullName = JsonHelper.str(first, "full_name"),
-            admissionNumber = JsonHelper.str(first, "admission_number"),
-            staffNumber = JsonHelper.str(first, "staff_number"),
-            department = JsonHelper.str(first, "department"),
-            isVerified = isVerified
-          )
-        )
-      } catch (e: Exception) {
-        Result.failure(Exception("Invalid profile response from server."))
+        UserRoleInfo(role = role, isVerified = isVerified)
+      } catch (_: Exception) {
+        UserRoleInfo(role = RoleHelper.ROLE_STUDENT, isVerified = false)
       }
     }
   }
@@ -101,16 +72,13 @@ class SupabaseAuthService(
     fullName: String,
     email: String,
     password: String,
-    requestedRole: String,
-    admissionNumber: String? = null,
-    staffNumber: String? = null,
-    department: String? = null
+    admissionNumber: String? = null
   ): Result<AuthResult> = withContext(Dispatchers.IO) {
     if (!SupabaseConfig.isConfigured()) {
       return@withContext Result.failure(IllegalStateException(SupabaseConfig.MISSING_CONFIG_ERROR))
     }
 
-    val metadata = buildSignUpMetadata(fullName, requestedRole, admissionNumber, staffNumber, department)
+    val metadata = buildSignUpMetadata(fullName, admissionNumber)
     val requestBody = JSONObject().apply {
       put("email", email)
       put("password", password)
@@ -139,6 +107,7 @@ class SupabaseAuthService(
         val userEmail = JsonHelper.str(userObj, "email").ifBlank { email }
         val metaObj = userObj.optJSONObject("user_metadata")
         val parsedName = JsonHelper.str(metaObj, "full_name").ifBlank { fullName }
+        val parsedAdm = JsonHelper.str(metaObj, "admission_number").ifBlank { admissionNumber.orEmpty() }
         val token = JsonHelper.str(json, "access_token")
         val hasSession = token.isNotBlank() && token != SupabaseConfig.anonKey
         val refreshToken = JsonHelper.strOrNull(json, "refresh_token")
@@ -148,6 +117,7 @@ class SupabaseAuthService(
             userId = userId,
             email = userEmail,
             fullName = parsedName,
+            admissionNumber = parsedAdm,
             accessToken = if (hasSession) token else "",
             refreshToken = refreshToken,
             hasSession = hasSession
@@ -196,6 +166,7 @@ class SupabaseAuthService(
         val userEmail = JsonHelper.str(userObj, "email").ifBlank { email }
         val userMeta = userObj?.optJSONObject("user_metadata")
         val fullName = JsonHelper.str(userMeta, "full_name")
+        val admissionNumber = JsonHelper.str(userMeta, "admission_number")
 
         if (userId.isBlank() || accessToken.isBlank()) {
           return@withContext Result.failure(Exception("Authentication response missing session token."))
@@ -206,6 +177,7 @@ class SupabaseAuthService(
             userId = userId,
             email = userEmail,
             fullName = fullName,
+            admissionNumber = admissionNumber,
             accessToken = accessToken,
             refreshToken = refreshToken,
             hasSession = true
@@ -225,10 +197,6 @@ class SupabaseAuthService(
     if (!SupabaseConfig.isConfigured() || userId.isBlank() || accessToken.isBlank()) {
       return@withContext Result.failure(IllegalStateException("Missing session for profile update"))
     }
-    val safePayload = JSONObject(payload.toString()).apply {
-      remove("role")
-      remove("role_status")
-    }
     val url = "${SupabaseConfig.url}/rest/v1/profiles?id=eq.$userId"
     val request = Request.Builder()
       .url(url)
@@ -236,7 +204,7 @@ class SupabaseAuthService(
       .addHeader("Authorization", "Bearer $accessToken")
       .addHeader("Content-Type", "application/json")
       .addHeader("Prefer", "return=minimal")
-      .patch(safePayload.toString().toRequestBody(jsonMediaType))
+      .patch(payload.toString().toRequestBody(jsonMediaType))
       .build()
 
     try {
@@ -253,10 +221,10 @@ class SupabaseAuthService(
     }
   }
 
-  suspend fun fetchProfileRoleInfo(
+  suspend fun fetchUserRole(
     userId: String,
     accessToken: String
-  ): Result<ProfileRoleInfo> = withContext(Dispatchers.IO) {
+  ): Result<UserRoleInfo> = withContext(Dispatchers.IO) {
     if (!SupabaseConfig.isConfigured()) {
       return@withContext Result.failure(IllegalStateException(SupabaseConfig.MISSING_CONFIG_ERROR))
     }
@@ -264,7 +232,7 @@ class SupabaseAuthService(
       return@withContext Result.failure(IllegalStateException("Authentication session is missing."))
     }
 
-    val url = "${SupabaseConfig.url}/rest/v1/profiles?id=eq.$userId&select=*"
+    val url = "${SupabaseConfig.url}/rest/v1/user_roles?select=role,verified&user_id=eq.$userId"
     val request = Request.Builder()
       .url(url)
       .addHeader("apikey", SupabaseConfig.anonKey)
@@ -281,10 +249,38 @@ class SupabaseAuthService(
         if (!response.isSuccessful) {
           return@withContext Result.failure(Exception(SupabaseConfig.extractErrorMessage(body, response.code)))
         }
-        parseProfileRoleInfo(body)
+        Result.success(parseUserRoleInfo(body))
       }
     } catch (e: Exception) {
-      Result.failure(Exception(SupabaseConfig.formatExceptionMessage(e, "Failed to load user profile")))
+      Result.failure(Exception(SupabaseConfig.formatExceptionMessage(e, "Failed to load user role")))
+    }
+  }
+
+  suspend fun fetchBasicProfile(
+    userId: String,
+    accessToken: String
+  ): Pair<String, String> = withContext(Dispatchers.IO) {
+    if (!SupabaseConfig.isConfigured() || userId.isBlank() || accessToken.isBlank()) {
+      return@withContext "" to ""
+    }
+    val url = "${SupabaseConfig.url}/rest/v1/profiles?id=eq.$userId&select=full_name,admission_number"
+    val request = Request.Builder()
+      .url(url)
+      .addHeader("apikey", SupabaseConfig.anonKey)
+      .addHeader("Authorization", "Bearer $accessToken")
+      .addHeader("Accept", "application/json")
+      .get()
+      .build()
+    try {
+      client.newCall(request).execute().use { response ->
+        if (!response.isSuccessful) return@withContext "" to ""
+        val arr = JSONArray(response.body?.string().orEmpty())
+        if (arr.length() == 0) return@withContext "" to ""
+        val obj = arr.getJSONObject(0)
+        JsonHelper.str(obj, "full_name") to JsonHelper.str(obj, "admission_number")
+      }
+    } catch (_: Exception) {
+      "" to ""
     }
   }
 }

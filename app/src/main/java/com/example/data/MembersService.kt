@@ -117,22 +117,11 @@ class MembersService(
     targetUserId: String,
     accessToken: String
   ): Result<Unit> {
-    val setRepPayload = JSONObject().apply {
-      put("target_user_id", targetUserId)
+    val payload = JSONObject().apply {
       put("target_class_id", classId)
-      put("is_rep", true)
+      put("target_user_id", targetUserId)
     }
-    val res = postRpcRaw("set_class_rep", setRepPayload, accessToken)
-    if (res.isSuccess) return res
-    val msg = res.exceptionOrNull()?.message.orEmpty()
-    if (msg.contains("PGRST202", ignoreCase = true) || msg.contains("Could not find the function", ignoreCase = true)) {
-      val legacyPayload = JSONObject().apply {
-        put("target_class_id", classId)
-        put("target_user_id", targetUserId)
-      }
-      return postRpcRaw("appoint_class_rep", legacyPayload, accessToken)
-    }
-    return res
+    return postRpcRaw("appoint_class_rep", payload, accessToken)
   }
 
   suspend fun removeClassRep(
@@ -140,22 +129,11 @@ class MembersService(
     targetUserId: String,
     accessToken: String
   ): Result<Unit> {
-    val setRepPayload = JSONObject().apply {
-      put("target_user_id", targetUserId)
+    val payload = JSONObject().apply {
       put("target_class_id", classId)
-      put("is_rep", false)
+      put("target_user_id", targetUserId)
     }
-    val res = postRpcRaw("set_class_rep", setRepPayload, accessToken)
-    if (res.isSuccess) return res
-    val msg = res.exceptionOrNull()?.message.orEmpty()
-    if (msg.contains("PGRST202", ignoreCase = true) || msg.contains("Could not find the function", ignoreCase = true)) {
-      val legacyPayload = JSONObject().apply {
-        put("target_class_id", classId)
-        put("target_user_id", targetUserId)
-      }
-      return postRpcRaw("remove_class_rep", legacyPayload, accessToken)
-    }
-    return res
+    return postRpcRaw("remove_class_rep", payload, accessToken)
   }
 
   suspend fun removeFromClass(

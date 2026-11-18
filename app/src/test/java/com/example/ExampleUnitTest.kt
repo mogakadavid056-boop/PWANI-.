@@ -211,11 +211,6 @@ class ExampleUnitTest {
     assertFalse(com.example.util.RoleHelper.canSignAttendance("lecturer"))
     assertFalse(com.example.util.RoleHelper.canSignAttendance("admin"))
 
-    assertTrue(com.example.util.RoleHelper.usesStaffNumber("lecturer"))
-    assertTrue(com.example.util.RoleHelper.usesStaffNumber("admin"))
-    assertFalse(com.example.util.RoleHelper.usesStaffNumber("student"))
-    assertFalse(com.example.util.RoleHelper.usesStaffNumber("class_rep"))
-
     assertEquals("Class Rep", com.example.util.RoleHelper.formatDisplayName("class_rep"))
     assertEquals("Super Admin", com.example.util.RoleHelper.formatDisplayName("admin"))
     assertEquals("Lecturer", com.example.util.RoleHelper.formatDisplayName("lecturer"))

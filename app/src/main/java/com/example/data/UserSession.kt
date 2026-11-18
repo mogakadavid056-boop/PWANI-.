@@ -8,8 +8,5 @@ data class UserSession(
   val role: String,
   val accessToken: String,
   val refreshToken: String? = null,
-  val isVerified: Boolean = false,
-  val roleStatus: String = "approved",
-  val staffNumber: String = "",
-  val department: String = ""
+  val isVerified: Boolean = false
 )

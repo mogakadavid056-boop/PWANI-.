@@ -9,7 +9,6 @@ import androidx.activity.enableEdgeToEdge
 import androidx.activity.viewModels
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.safeDrawingPadding
-import androidx.compose.material3.Surface
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -75,7 +74,7 @@ class MainActivity : ComponentActivity() {
 
   override fun onResume() {
     super.onResume()
-    authViewModel.refreshProfileStatus()
+    authViewModel.refreshUserRole()
   }
 }
 
@@ -140,14 +139,13 @@ fun ClassRepApp(
           }
           Screen.Profile -> {
             universityViewModel.loadProfile(session)
-            if (!RoleHelper.usesStaffNumber(session.role)) universityViewModel.loadSchools(session.accessToken)
+            if (!RoleHelper.isStaffRole(session.role)) universityViewModel.loadSchools(session.accessToken)
           }
           Screen.ManageMembers -> {
             val sel = noticesUiState.selectedClass
             if (sel != null) membersViewModel.loadMembers(sel.id, session)
           }
           Screen.Waiting -> classesViewModel.loadClasses(session)
-          Screen.PendingApproval -> viewModel.refreshProfileStatus()
           else -> {}
         }
       }
@@ -198,8 +196,7 @@ fun ClassRepApp(
 
   LaunchedEffect(uiState.session?.userId, uiState.currentScreen == Screen.Home) {
     val s = uiState.session
-    if (s != null && !RoleHelper.isPendingApproval(s.roleStatus) && !RoleHelper.isRejectedStatus(s.roleStatus) &&
-      noticesUiState.selectedClass == null && uiState.currentScreen == Screen.Home) {
+    if (s != null && noticesUiState.selectedClass == null && uiState.currentScreen == Screen.Home) {
       resolveDestination(s)
       noticesViewModel.loadLatestAnnouncements(s)
     }
@@ -218,7 +215,6 @@ fun ClassRepApp(
   LaunchedEffect(pendingAlarmTarget, uiState.session?.userId, classesUiState.classes, noticesUiState.selectedClass?.id) {
     val target = pendingAlarmTarget ?: return@LaunchedEffect
     val s = uiState.session ?: return@LaunchedEffect
-    if (RoleHelper.isPendingApproval(s.roleStatus) || RoleHelper.isRejectedStatus(s.roleStatus)) return@LaunchedEffect
     com.example.alarms.AlarmNavigationHelper.dismissTriggeredAlarm(context, target.notificationId)
     val cls = classesUiState.classes.find { it.id == target.classId }
       ?: noticesUiState.selectedClass?.takeIf { target.classId.isBlank() || it.id == target.classId }
@@ -235,13 +231,13 @@ fun ClassRepApp(
 
   val navigateToProfileScreen: () -> Unit = {
     universityViewModel.loadProfile(uiState.session)
-    if (!RoleHelper.usesStaffNumber(uiState.session?.role)) universityViewModel.loadSchools(uiState.session?.accessToken)
+    if (!RoleHelper.isStaffRole(uiState.session?.role)) universityViewModel.loadSchools(uiState.session?.accessToken)
     viewModel.navigateTo(Screen.Profile)
   }
 
   when (uiState.currentScreen) {
     Screen.Register, Screen.Login -> BackHandler { viewModel.navigateTo(Screen.Welcome) }
-    Screen.Welcome, Screen.Landing, Screen.Waiting, Screen.PendingApproval -> BackHandler { }
+    Screen.Welcome, Screen.Landing, Screen.Waiting -> BackHandler { }
     Screen.Profile -> BackHandler {
       if (noticesUiState.selectedClass != null) viewModel.navigateTo(Screen.ClassDetail)
       else if (classesUiState.classes.isEmpty() && !RoleHelper.isStaffRole(uiState.session?.role)) viewModel.navigateTo(Screen.Waiting)

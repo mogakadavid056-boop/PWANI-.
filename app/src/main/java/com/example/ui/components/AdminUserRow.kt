@@ -19,15 +19,12 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.AccountBalance
 import androidx.compose.material.icons.filled.Badge
 import androidx.compose.material.icons.filled.Email
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.School
 import androidx.compose.material.icons.filled.Security
 import androidx.compose.material.icons.filled.Stars
-import androidx.compose.material3.Button
-import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
@@ -44,7 +41,6 @@ import com.example.data.AdminUserItem
 import com.example.ui.theme.DarkBorder
 import com.example.ui.theme.DarkSurfaceVariant
 import com.example.ui.theme.DarkTextOnGold
-import com.example.ui.theme.ErrorRed
 import com.example.ui.theme.GoldLight
 import com.example.ui.theme.GoldPrimary
 import com.example.ui.theme.SuccessGreen
@@ -58,8 +54,6 @@ fun AdminUserRow(
   user: AdminUserItem,
   onClick: () -> Unit,
   onToggleVerification: () -> Unit = {},
-  onApproveLecturer: (Boolean) -> Unit = {},
-  onSetClassRep: (Boolean) -> Unit = {},
   modifier: Modifier = Modifier
 ) {
   val isSuperAdmin = user.isAdmin
@@ -134,11 +128,7 @@ fun AdminUserRow(
             )
           }
 
-          if (user.isPendingApproval) {
-            StatusChip(text = "Pending Approval", color = Color(0xFFFFB74D), tag = "admin_pending_badge_${user.id}")
-          } else if (user.isRejected) {
-            StatusChip(text = "Rejected", color = ErrorRed, tag = "admin_rejected_badge_${user.id}")
-          } else if (isLecturer) {
+          if (isLecturer) {
             StatusChip(
               text = if (user.isVerified) "Verified" else "Not verified",
               color = if (user.isVerified) SuccessGreen else Color(0xFFFFB74D),
@@ -157,14 +147,7 @@ fun AdminUserRow(
           }
         }
 
-        if (user.staffNumber.isNotBlank()) {
-          Spacer(modifier = Modifier.height(2.dp))
-          Row(verticalAlignment = Alignment.CenterVertically) {
-            Icon(Icons.Default.Badge, contentDescription = null, tint = TextSecondary, modifier = Modifier.size(12.dp))
-            Spacer(modifier = Modifier.width(4.dp))
-            Text(text = "Staff No: ${JsonHelper.orDash(user.staffNumber)}", fontSize = 12.sp, color = TextSecondary)
-          }
-        } else if (user.admissionNumber.isNotBlank()) {
+        if (user.admissionNumber.isNotBlank()) {
           Spacer(modifier = Modifier.height(2.dp))
           Row(verticalAlignment = Alignment.CenterVertically) {
             Icon(Icons.Default.Badge, contentDescription = null, tint = TextSecondary, modifier = Modifier.size(12.dp))
@@ -173,39 +156,9 @@ fun AdminUserRow(
           }
         }
 
-        if (user.department.isNotBlank()) {
-          Spacer(modifier = Modifier.height(2.dp))
-          Row(verticalAlignment = Alignment.CenterVertically) {
-            Icon(Icons.Default.AccountBalance, contentDescription = null, tint = TextSecondary, modifier = Modifier.size(12.dp))
-            Spacer(modifier = Modifier.width(4.dp))
-            Text(text = "Dept: ${JsonHelper.orDash(user.department)}", fontSize = 12.sp, color = TextSecondary)
-          }
-        }
-
-        Spacer(modifier = Modifier.height(8.dp))
-
-        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
-          if (user.isPendingApproval) {
-            OutlinedButton(
-              onClick = { onApproveLecturer(false) },
-              modifier = Modifier.height(32.dp).testTag("admin_reject_lecturer_btn_${user.id}"),
-              shape = RoundedCornerShape(8.dp),
-              contentPadding = PaddingValues(horizontal = 10.dp, vertical = 0.dp),
-              border = BorderStroke(1.dp, ErrorRed)
-            ) {
-              Text("Reject", fontSize = 12.sp, fontWeight = FontWeight.SemiBold, color = ErrorRed)
-            }
-            Spacer(modifier = Modifier.width(8.dp))
-            Button(
-              onClick = { onApproveLecturer(true) },
-              modifier = Modifier.height(32.dp).testTag("admin_approve_lecturer_btn_${user.id}"),
-              shape = RoundedCornerShape(8.dp),
-              contentPadding = PaddingValues(horizontal = 12.dp, vertical = 0.dp),
-              colors = ButtonDefaults.buttonColors(containerColor = GoldPrimary, contentColor = DarkTextOnGold)
-            ) {
-              Text("Approve", fontSize = 12.sp, fontWeight = FontWeight.Bold, color = DarkTextOnGold)
-            }
-          } else if (isLecturer) {
+        if (isLecturer) {
+          Spacer(modifier = Modifier.height(8.dp))
+          Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
             OutlinedButton(
               onClick = onToggleVerification,
               modifier = Modifier.height(30.dp).testTag("admin_verify_lecturer_btn_${user.id}"),
@@ -219,26 +172,6 @@ fun AdminUserRow(
                 fontWeight = FontWeight.SemiBold,
                 color = if (user.isVerified) Color(0xFFFFB74D) else GoldLight
               )
-            }
-          } else if (isClassRep) {
-            OutlinedButton(
-              onClick = { onSetClassRep(false) },
-              modifier = Modifier.height(30.dp).testTag("admin_remove_rep_btn_${user.id}"),
-              shape = RoundedCornerShape(8.dp),
-              contentPadding = PaddingValues(horizontal = 10.dp, vertical = 0.dp),
-              border = BorderStroke(1.dp, ErrorRed.copy(alpha = 0.8f))
-            ) {
-              Text("Remove Class Rep", fontSize = 12.sp, fontWeight = FontWeight.SemiBold, color = ErrorRed)
-            }
-          } else if (user.isStudent) {
-            OutlinedButton(
-              onClick = { onSetClassRep(true) },
-              modifier = Modifier.height(30.dp).testTag("admin_make_rep_btn_${user.id}"),
-              shape = RoundedCornerShape(8.dp),
-              contentPadding = PaddingValues(horizontal = 10.dp, vertical = 0.dp),
-              border = BorderStroke(1.dp, GoldPrimary)
-            ) {
-              Text("Make Class Rep", fontSize = 12.sp, fontWeight = FontWeight.SemiBold, color = GoldLight)
             }
           }
         }

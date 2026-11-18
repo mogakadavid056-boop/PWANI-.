@@ -133,65 +133,47 @@ class ExampleRobolectricTest {
   }
 
   @Test
-  fun `buildSignUpMetadata excludes admission number for lecturers`() {
-    val lecMeta = com.example.data.SupabaseAuthService.buildSignUpMetadata(
-      fullName = "Dr. Ada",
-      requestedRole = "lecturer",
-      staffNumber = "STF-104",
-      department = "Computer Science"
-    )
-    assertEquals("lecturer", lecMeta.getString("requested_role"))
-    assertEquals("STF-104", lecMeta.getString("staff_number"))
-    assertEquals("Computer Science", lecMeta.getString("department"))
-    org.junit.Assert.assertFalse(lecMeta.has("admission_number"))
-    org.junit.Assert.assertFalse(lecMeta.has("role"))
-
+  fun `buildSignUpMetadata includes full name and admission number only`() {
     val stuMeta = com.example.data.SupabaseAuthService.buildSignUpMetadata(
       fullName = "John Student",
-      requestedRole = "student",
       admissionNumber = "SCT221-0100/2024"
     )
-    assertEquals("student", stuMeta.getString("requested_role"))
+    assertEquals("John Student", stuMeta.getString("full_name"))
     assertEquals("SCT221-0100/2024", stuMeta.getString("admission_number"))
+    org.junit.Assert.assertFalse(stuMeta.has("requested_role"))
     org.junit.Assert.assertFalse(stuMeta.has("staff_number"))
     org.junit.Assert.assertFalse(stuMeta.has("role"))
   }
 
   @Test
-  fun `parseProfileRoleInfo never defaults blank role to student`() {
-    val missingRole = com.example.data.SupabaseAuthService.parseProfileRoleInfo("""[{"id":"u1","role":null,"role_status":"pending"}]""")
-    org.junit.Assert.assertTrue(missingRole.isFailure)
+  fun `parseUserRoleInfo reads user_roles and safely defaults to student`() {
+    val emptyInfo = com.example.data.SupabaseAuthService.parseUserRoleInfo("[]")
+    assertEquals("student", emptyInfo.role)
+    org.junit.Assert.assertFalse(emptyInfo.isVerified)
 
-    val pendingLecturer = com.example.data.SupabaseAuthService.parseProfileRoleInfo(
-      """[{"id":"u2","role":"lecturer","role_status":"pending","staff_number":"STF-1","department":"CS","verified":false}]"""
+    val unverifiedLec = com.example.data.SupabaseAuthService.parseUserRoleInfo(
+      """[{"role":"lecturer","verified":false}]"""
     )
-    org.junit.Assert.assertTrue(pendingLecturer.isSuccess)
-    val info = pendingLecturer.getOrThrow()
-    assertEquals("lecturer", info.role)
-    assertEquals("pending", info.roleStatus)
-    assertEquals("STF-1", info.staffNumber)
-    org.junit.Assert.assertFalse(info.isVerified)
+    assertEquals("lecturer", unverifiedLec.role)
+    org.junit.Assert.assertFalse(unverifiedLec.isVerified)
 
-    val rep = com.example.data.SupabaseAuthService.parseProfileRoleInfo(
-      """[{"id":"u3","role":"class_rep","role_status":"approved","admission_number":"ADM-9"}]"""
-    ).getOrThrow()
-    assertEquals("class_rep", rep.role)
-    assertEquals("approved", rep.roleStatus)
-    org.junit.Assert.assertTrue(rep.isVerified)
+    val verifiedLec = com.example.data.SupabaseAuthService.parseUserRoleInfo(
+      """[{"role":"lecturer","verified":true}]"""
+    )
+    assertEquals("lecturer", verifiedLec.role)
+    org.junit.Assert.assertTrue(verifiedLec.isVerified)
   }
 
   @Test
-  fun `adminUiState filters pending lecturers and class reps accurately`() {
-    val pendingLec = com.example.data.AdminUserItem("1", "Dr Pending", "p@uni.edu", "", "lecturer", isVerified = false, roleStatus = "pending", staffNumber = "S1", department = "IT")
-    val repUser = com.example.data.AdminUserItem("2", "Rep Alice", "r@uni.edu", "A1", "class_rep", isVerified = true, roleStatus = "approved")
-    val studentUser = com.example.data.AdminUserItem("3", "Stu Bob", "b@uni.edu", "A2", "student", isVerified = true, roleStatus = "approved")
+  fun `adminUserItem exposes restored role helpers`() {
+    val lec = com.example.data.AdminUserItem("1", "Dr Ada", "p@uni.edu", "", "lecturer", isVerified = false)
+    val repUser = com.example.data.AdminUserItem("2", "Rep Alice", "r@uni.edu", "A1", "class_rep", isVerified = false)
+    val studentUser = com.example.data.AdminUserItem("3", "Stu Bob", "b@uni.edu", "A2", "student", isVerified = false)
 
-    val base = com.example.ui.AdminUiState(users = listOf(pendingLec, repUser, studentUser))
-    assertEquals(1, base.pendingCount)
-    assertEquals(1, base.copy(filterTab = "pending").displayedUsers.size)
-    assertEquals(1, base.copy(filterTab = "class_rep").displayedUsers.size)
-    assertEquals("2", base.copy(filterTab = "class_rep").displayedUsers[0].id)
-    assertEquals(1, base.copy(filterTab = "student").displayedUsers.size)
+    org.junit.Assert.assertTrue(lec.isLecturer)
+    org.junit.Assert.assertFalse(lec.isVerified)
+    org.junit.Assert.assertTrue(repUser.isClassRep)
+    org.junit.Assert.assertTrue(studentUser.isStudent)
   }
 
   @Test

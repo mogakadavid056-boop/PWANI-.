@@ -7,7 +7,6 @@ sealed interface Screen {
   data object Landing : Screen
   data object Register : Screen
   data object Login : Screen
-  data object PendingApproval : Screen
   data object Home : Screen
   data object JoinClass : Screen
   data object CreateClass : Screen

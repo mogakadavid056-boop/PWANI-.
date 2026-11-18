@@ -24,4 +24,4 @@ dependencyResolutionManagement {
 
 rootProject.name = "ClassRep"
 
-include(":app")
+include(":app", ":admin")

@@ -67,7 +67,7 @@ fun HomeScreen(
   val isAdmin = RoleHelper.isAdmin(rawRole)
   val isLecturer = RoleHelper.isLecturer(rawRole)
   val isStaff = RoleHelper.isStaffRole(rawRole)
-  val isVerified = session?.isVerified == true && !RoleHelper.isPendingApproval(session?.roleStatus)
+  val isVerified = session?.isVerified == true
   val displayRole = RoleHelper.formatDisplayName(rawRole)
 
   val firstName = session?.fullName?.trim()

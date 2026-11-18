@@ -79,20 +79,6 @@ fun ClassRepNavHost(
             }
           }
         },
-        onRegisterLecturer = { name, staffNo, department, email, pass ->
-          authViewModel.registerLecturer(
-            fullName = name,
-            staffNumber = staffNo,
-            department = department,
-            email = email,
-            password = pass,
-            onActiveLecturer = { session ->
-              classesViewModel.loadClasses(session)
-              authViewModel.navigateTo(Screen.Home)
-            },
-            onPendingApproval = { _ -> }
-          )
-        },
         onNavigateToLogin = { authViewModel.navigateTo(Screen.Login) },
         onBack = { authViewModel.navigateTo(Screen.Welcome) }
       )
@@ -105,23 +91,6 @@ fun ClassRepNavHost(
         onLoginSubmit = { e, p -> authViewModel.login(e, p) { session -> resolveDestination(session) } },
         onNavigateToRegister = { universityViewModel.loadSchools(); authViewModel.navigateTo(Screen.Register) },
         onBack = { authViewModel.navigateTo(Screen.Welcome) }
-      )
-      Screen.PendingApproval -> PendingApprovalScreen(
-        session = authUiState.session,
-        isLoading = authUiState.isLoading,
-        errorMessage = authUiState.errorMessage,
-        infoMessage = authUiState.infoMessage,
-        onDismissError = { authViewModel.clearError() },
-        onRefresh = {
-          authViewModel.refreshProfileStatus(userTriggered = true) { session ->
-            resolveDestination(session)
-          }
-        },
-        onLogout = {
-          classesViewModel.clearError()
-          noticesViewModel.clearSelectedClass()
-          authViewModel.logout()
-        }
       )
       Screen.Waiting -> WaitingScreen(
         isLoading = classesUiState.isActionLoading, errorMessage = classesUiState.errorMessage ?: authUiState.errorMessage,
@@ -167,6 +136,7 @@ fun ClassRepNavHost(
           membersViewModel.loadMembers(classId, authUiState.session)
           authViewModel.navigateTo(Screen.ManageMembers)
         },
+        onBecomeLecturer = { passcode, cb -> authViewModel.becomeLecturer(passcode, cb) },
         onLogout = { classesViewModel.clearError(); noticesViewModel.clearSelectedClass(); authViewModel.logout() }
       )
       Screen.Profile -> {
@@ -180,9 +150,12 @@ fun ClassRepNavHost(
           successMessage = universityUiState.successMessage, onDismissError = { universityViewModel.clearError() },
           onDismissSuccess = { universityViewModel.clearSuccess() },
           onSchoolSelected = { s -> universityViewModel.loadProgrammesForSchool(s.id, authUiState.session?.accessToken) },
-          onSaveProfile = { name, s, prog, y, dept ->
-            authUiState.session?.let { universityViewModel.updateProfile(it.userId, it.accessToken, name, s, prog, y, dept) }
+          onSaveProfile = { name, s, prog, y ->
+            authUiState.session?.let { universityViewModel.updateProfile(it.userId, it.accessToken, name, s, prog, y) }
           },
+          onBecomeLecturer = { passcode, cb -> authViewModel.becomeLecturer(passcode, cb) },
+          onShowError = { msg -> universityViewModel.showError(msg) },
+          onShowSuccess = { msg -> universityViewModel.showSuccess(msg) },
           onLogout = { classesViewModel.clearError(); noticesViewModel.clearSelectedClass(); authViewModel.logout() },
           onBack = {
             if (noticesUiState.selectedClass != null) authViewModel.navigateTo(Screen.ClassDetail)

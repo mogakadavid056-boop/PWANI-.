@@ -34,9 +34,6 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.data.AdminUserItem
-import com.example.ui.components.AdminApprovalConfirmDialog
-import com.example.ui.components.AdminFilterChipsRow
-import com.example.ui.components.AdminSetRepConfirmDialog
 import com.example.ui.components.AdminTopBar
 import com.example.ui.components.AdminUserRow
 import com.example.ui.components.AdminVerifyLecturerConfirmDialog
@@ -58,8 +55,6 @@ import com.example.ui.theme.TextSecondary
 @Composable
 fun ManageUsersScreen(
   users: List<AdminUserItem>,
-  pendingCount: Int = 0,
-  selectedFilterTab: String = "all",
   searchQuery: String,
   isLoading: Boolean,
   isActionLoading: Boolean,
@@ -71,11 +66,6 @@ fun ManageUsersScreen(
   verificationPendingUser: AdminUserItem? = null,
   verificationTargetStatus: Boolean = false,
   showVerificationConfirmDialog: Boolean = false,
-  approvalPendingUser: AdminUserItem? = null,
-  approvalDecisionApprove: Boolean = true,
-  repTogglePendingUser: AdminUserItem? = null,
-  repTargetIsRep: Boolean = true,
-  onSelectFilterTab: (String) -> Unit = {},
   onSearchQueryChanged: (String) -> Unit,
   onRefresh: () -> Unit,
   onUserClick: (AdminUserItem) -> Unit,
@@ -87,12 +77,6 @@ fun ManageUsersScreen(
   onToggleVerification: (AdminUserItem) -> Unit = {},
   onDismissVerificationDialog: () -> Unit = {},
   onConfirmToggleVerification: () -> Unit = {},
-  onApproveLecturer: (AdminUserItem, Boolean) -> Unit = { _, _ -> },
-  onDismissApprovalDialog: () -> Unit = {},
-  onConfirmApproveLecturer: () -> Unit = {},
-  onSetClassRep: (AdminUserItem, Boolean) -> Unit = { _, _ -> },
-  onDismissRepDialog: () -> Unit = {},
-  onConfirmSetClassRep: () -> Unit = {},
   onDismissError: () -> Unit,
   onDismissSuccess: () -> Unit,
   onBack: () -> Unit
@@ -119,7 +103,7 @@ fun ManageUsersScreen(
           .fillMaxWidth()
           .testTag("admin_search_input"),
         placeholder = {
-          Text("Search name, email, adm/staff no...", color = TextSecondary, fontSize = 13.sp)
+          Text("Search by name, email, or admission no...", color = TextSecondary, fontSize = 13.sp)
         },
         leadingIcon = {
           Icon(Icons.Default.Search, contentDescription = null, tint = GoldPrimary, modifier = Modifier.size(18.dp))
@@ -143,15 +127,7 @@ fun ManageUsersScreen(
         )
       )
 
-      Spacer(modifier = Modifier.height(8.dp))
-
-      AdminFilterChipsRow(
-        selectedTab = selectedFilterTab,
-        pendingCount = pendingCount,
-        onSelectTab = onSelectFilterTab
-      )
-
-      Spacer(modifier = Modifier.height(10.dp))
+      Spacer(modifier = Modifier.height(12.dp))
 
       if (!errorMessage.isNullOrBlank()) {
         ErrorBanner(message = errorMessage, onDismiss = onDismissError)
@@ -224,7 +200,7 @@ fun ManageUsersScreen(
               Text("No users found", fontSize = 15.sp, fontWeight = FontWeight.SemiBold, color = GoldLight)
               Spacer(modifier = Modifier.height(4.dp))
               Text(
-                text = if (searchQuery.isNotBlank()) "No users match '$searchQuery'" else "No users in this category",
+                text = if (searchQuery.isNotBlank()) "No users match '$searchQuery'" else "Pull down to refresh users",
                 fontSize = 12.sp,
                 color = TextSecondary
               )
@@ -240,9 +216,7 @@ fun ManageUsersScreen(
               AdminUserRow(
                 user = user,
                 onClick = { onUserClick(user) },
-                onToggleVerification = { onToggleVerification(user) },
-                onApproveLecturer = { approve -> onApproveLecturer(user, approve) },
-                onSetClassRep = { makeRep -> onSetClassRep(user, makeRep) }
+                onToggleVerification = { onToggleVerification(user) }
               )
             }
           }
@@ -261,26 +235,6 @@ fun ManageUsersScreen(
         onDismissConfirm = onDismissConfirmRole,
         onConfirmSave = onConfirmSaveRole,
         onDismiss = onDismissRoleDialog
-      )
-    }
-
-    if (approvalPendingUser != null) {
-      AdminApprovalConfirmDialog(
-        user = approvalPendingUser,
-        approve = approvalDecisionApprove,
-        isActionLoading = isActionLoading,
-        onConfirm = onConfirmApproveLecturer,
-        onDismiss = onDismissApprovalDialog
-      )
-    }
-
-    if (repTogglePendingUser != null) {
-      AdminSetRepConfirmDialog(
-        user = repTogglePendingUser,
-        makeRep = repTargetIsRep,
-        isActionLoading = isActionLoading,
-        onConfirm = onConfirmSetClassRep,
-        onDismiss = onDismissRepDialog
       )
     }
 

@@ -16,7 +16,6 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
@@ -46,28 +45,30 @@ fun ProfileScreen(
   onDismissError: () -> Unit,
   onDismissSuccess: () -> Unit,
   onSchoolSelected: (SchoolItem) -> Unit,
-  onSaveProfile: (fullName: String, school: SchoolItem?, programme: ProgrammeItem?, yearOfStudy: Int?, department: String?) -> Unit,
+  onSaveProfile: (fullName: String, school: SchoolItem?, programme: ProgrammeItem?, yearOfStudy: Int?) -> Unit,
+  onBecomeLecturer: (passcode: String, onResult: (Result<String>) -> Unit) -> Unit = { _, cb -> cb(Result.failure(Exception("Unavailable"))) },
+  onShowError: (String) -> Unit = {},
+  onShowSuccess: (String) -> Unit = {},
   onLogout: () -> Unit,
   onBack: () -> Unit
 ) {
   var isEditing by remember { mutableStateOf(false) }
   var showLogoutConfirmDialog by remember { mutableStateOf(false) }
+  var showBecomeLecturerDialog by remember { mutableStateOf(false) }
+  var isBecomingLecturer by remember { mutableStateOf(false) }
   var editedName by remember { mutableStateOf("") }
-  var editedDepartment by remember { mutableStateOf("") }
   var selectedSchool by remember { mutableStateOf<SchoolItem?>(null) }
   var selectedProgramme by remember { mutableStateOf<ProgrammeItem?>(null) }
   var selectedYearOfStudy by remember { mutableStateOf<Int?>(null) }
 
   val effectiveRole = role.ifBlank { profile?.role.orEmpty() }
-  val usesStaffNumber = RoleHelper.usesStaffNumber(effectiveRole) || isStaff
 
   LaunchedEffect(profile) {
     if (profile != null && !isEditing) {
       editedName = profile.fullName
-      editedDepartment = profile.department
       selectedYearOfStudy = profile.yearOfStudy
       selectedSchool = schools.find { it.id == profile.schoolId || it.name == profile.schoolName }
-      if (selectedSchool != null && !usesStaffNumber) onSchoolSelected(selectedSchool!!)
+      if (selectedSchool != null && !isStaff) onSchoolSelected(selectedSchool!!)
       selectedProgramme = programmes.find { it.id == profile.programmeId || it.name == profile.programmeName }
     }
   }
@@ -110,21 +111,16 @@ fun ProfileScreen(
             ProfileFieldCard(Icons.Default.Person, "Full Name", JsonHelper.orDash(profile?.fullName))
             ProfileFieldCard(Icons.Default.Email, "Email", JsonHelper.orDash(profile?.email))
             ProfileFieldCard(Icons.Default.VerifiedUser, "Role", RoleHelper.formatDisplayName(effectiveRole))
-            if (usesStaffNumber) {
-              ProfileFieldCard(Icons.Default.Badge, "Staff Number", JsonHelper.orDash(profile?.staffNumber))
-              ProfileFieldCard(Icons.Default.AccountBalance, "Department", JsonHelper.orDash(profile?.department))
-            } else {
-              ProfileFieldCard(Icons.Default.Badge, "Admission Number", JsonHelper.orDash(profile?.admissionNumber))
-              ProfileFieldCard(
-                Icons.Default.CalendarMonth, "Year of Study",
-                profile?.yearOfStudy?.let { "Year $it" } ?: "-"
-              )
-              ProfileFieldCard(Icons.Default.AccountBalance, "School", JsonHelper.orDash(profile?.schoolName))
-              ProfileFieldCard(Icons.Default.School, "Programme", JsonHelper.orDash(profile?.programmeName))
-            }
+            ProfileFieldCard(Icons.Default.Badge, "Admission Number", JsonHelper.orDash(profile?.admissionNumber))
+            ProfileFieldCard(
+              Icons.Default.CalendarMonth, "Year of Study",
+              profile?.yearOfStudy?.let { "Year $it" } ?: "-"
+            )
+            ProfileFieldCard(Icons.Default.AccountBalance, "School", JsonHelper.orDash(profile?.schoolName))
+            ProfileFieldCard(Icons.Default.School, "Programme", JsonHelper.orDash(profile?.programmeName))
           }
 
-          if (!usesStaffNumber && isStudentInClass) {
+          if (!isStaff && isStudentInClass) {
             Spacer(modifier = Modifier.height(10.dp))
             Box(
               modifier = Modifier.fillMaxWidth().clip(RoundedCornerShape(10.dp)).background(DarkSurface)
@@ -143,15 +139,23 @@ fun ProfileScreen(
             text = "Edit Profile",
             onClick = {
               editedName = profile?.fullName.orEmpty()
-              editedDepartment = profile?.department.orEmpty()
               selectedYearOfStudy = profile?.yearOfStudy
               selectedSchool = schools.find { it.id == profile?.schoolId || it.name == profile?.schoolName }
-              if (selectedSchool != null && !usesStaffNumber) onSchoolSelected(selectedSchool!!)
+              if (selectedSchool != null && !isStaff) onSchoolSelected(selectedSchool!!)
               selectedProgramme = programmes.find { it.id == profile?.programmeId || it.name == profile?.programmeName }
               isEditing = true
             },
             testTag = "profile_edit_button"
           )
+
+          if (!isStaff) {
+            Spacer(modifier = Modifier.height(12.dp))
+            GoldOutlinedButton(
+              text = "I am a Lecturer",
+              onClick = { showBecomeLecturerDialog = true },
+              modifier = Modifier.fillMaxWidth().testTag("profile_become_lecturer_button")
+            )
+          }
         } else {
           Text("Edit Profile Details", fontSize = 16.sp, fontWeight = FontWeight.SemiBold, color = GoldLight)
           Spacer(modifier = Modifier.height(14.dp))
@@ -159,21 +163,12 @@ fun ProfileScreen(
           DarkTextField(
             value = editedName, onValueChange = { editedName = it }, label = "Full Name",
             leadingIcon = Icons.Default.Person,
-            keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.Words, imeAction = ImeAction.Next),
+            keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.Words, imeAction = ImeAction.Done),
             testTag = "profile_fullname_input"
           )
           Spacer(modifier = Modifier.height(12.dp))
 
-          if (usesStaffNumber) {
-            DarkTextField(
-              value = editedDepartment, onValueChange = { editedDepartment = it }, label = "Department",
-              leadingIcon = Icons.Default.AccountBalance,
-              keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.Words, imeAction = ImeAction.Done),
-              testTag = "profile_department_input"
-            )
-            Spacer(modifier = Modifier.height(10.dp))
-            ProfileFieldCard(Icons.Default.Badge, "Staff Number", JsonHelper.orDash(profile?.staffNumber))
-          } else if (!isStudentInClass) {
+          if (!isStaff && !isStudentInClass) {
             AppDropdownField(
               label = "School", selectedValueText = selectedSchool?.name.orEmpty(),
               items = schools, itemText = { it.name },
@@ -208,7 +203,7 @@ fun ProfileScreen(
               leadingIcon = Icons.Default.CalendarMonth, placeholder = "Select year (1 to $maxYears)",
               testTag = "profile_year_dropdown"
             )
-          } else {
+          } else if (!isStaff) {
             Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
               ProfileFieldCard(Icons.Default.AccountBalance, "School", JsonHelper.orDash(profile?.schoolName))
               ProfileFieldCard(Icons.Default.School, "Programme", JsonHelper.orDash(profile?.programmeName))
@@ -233,10 +228,9 @@ fun ProfileScreen(
               onClick = {
                 onSaveProfile(
                   editedName,
-                  if (usesStaffNumber) null else selectedSchool,
-                  if (usesStaffNumber) null else selectedProgramme,
-                  if (usesStaffNumber) null else selectedYearOfStudy,
-                  if (usesStaffNumber) editedDepartment else null
+                  if (isStaff) null else selectedSchool,
+                  if (isStaff) null else selectedProgramme,
+                  if (isStaff) null else selectedYearOfStudy
                 )
                 isEditing = false
               },
@@ -261,6 +255,29 @@ fun ProfileScreen(
       }
       Spacer(modifier = Modifier.height(24.dp))
     }
+  }
+
+  if (showBecomeLecturerDialog) {
+    BecomeLecturerDialog(
+      isLoading = isBecomingLecturer,
+      onDismiss = { if (!isBecomingLecturer) showBecomeLecturerDialog = false },
+      onSubmit = { passcode ->
+        isBecomingLecturer = true
+        onBecomeLecturer(passcode) { res ->
+          isBecomingLecturer = false
+          res.fold(
+            onSuccess = { msg ->
+              showBecomeLecturerDialog = false
+              onShowSuccess(msg)
+            },
+            onFailure = { err ->
+              showBecomeLecturerDialog = false
+              onShowError(err.message ?: "Failed to upgrade to Lecturer.")
+            }
+          )
+        }
+      }
+    )
   }
 
   if (showLogoutConfirmDialog) {
