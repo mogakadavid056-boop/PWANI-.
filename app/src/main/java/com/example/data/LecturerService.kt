@@ -55,30 +55,47 @@ class LecturerService(
 
     try {
       client.newCall(request).execute().use { response ->
-        val bodyString = response.body?.string().orEmpty().trim()
-        if (response.isSuccessful) {
-          val isSuccess = bodyString.equals("true", ignoreCase = true) ||
-            bodyString == "1" ||
-            (bodyString.startsWith("{") && JSONObject(bodyString).optBoolean("success", false))
-          if (isSuccess) {
-            BecomeLecturerResult.Success
-          } else {
-            BecomeLecturerResult.WrongPasscode
-          }
-        } else {
-          val errMsg = SupabaseConfig.extractErrorMessage(bodyString, response.code)
-          if (errMsg.contains("invalid passcode", ignoreCase = true) ||
-            errMsg.contains("wrong passcode", ignoreCase = true) ||
-            errMsg.contains("incorrect passcode", ignoreCase = true)
-          ) {
-            BecomeLecturerResult.WrongPasscode
-          } else {
-            BecomeLecturerResult.Error(errMsg)
-          }
-        }
+        val bodyString = response.body?.string().orEmpty()
+        parseBecomeLecturerResponse(response.code, bodyString)
       }
     } catch (e: Exception) {
       BecomeLecturerResult.Error(SupabaseConfig.formatExceptionMessage(e, "Connection failed"))
+    }
+  }
+
+  companion object {
+    fun parseBecomeLecturerResponse(statusCode: Int, rawBody: String): BecomeLecturerResult {
+      val trimmed = rawBody.trim()
+      if (statusCode in 200..299) {
+        val unquoted = trimmed.removeSurrounding("\"").removeSurrounding("'").trim().lowercase()
+        if (unquoted == "false" || unquoted == "0" || unquoted.contains("wrong") || unquoted.contains("invalid passcode")) {
+          return BecomeLecturerResult.WrongPasscode
+        }
+        if (trimmed.startsWith("{")) {
+          val obj = runCatching { JSONObject(trimmed) }.getOrNull()
+          if (obj != null) {
+            if (obj.has("success") && !obj.optBoolean("success", true)) return BecomeLecturerResult.WrongPasscode
+            if (obj.has("ok") && !obj.optBoolean("ok", true)) return BecomeLecturerResult.WrongPasscode
+            if (obj.optString("role").equals("student", ignoreCase = true)) return BecomeLecturerResult.WrongPasscode
+            val err = obj.optString("error").ifBlank { obj.optString("message") }
+            if (err.isNotBlank() && (err.contains("passcode", ignoreCase = true) || err.contains("wrong", ignoreCase = true))) {
+              return BecomeLecturerResult.WrongPasscode
+            }
+          }
+        }
+        return BecomeLecturerResult.Success
+      }
+      val errMsg = SupabaseConfig.extractErrorMessage(trimmed, statusCode)
+      val mentionsPasscode = errMsg.contains("passcode", ignoreCase = true)
+      val indicatesWrong = errMsg.contains("invalid", ignoreCase = true) ||
+        errMsg.contains("wrong", ignoreCase = true) ||
+        errMsg.contains("incorrect", ignoreCase = true) ||
+        statusCode == 401 || statusCode == 403
+      return if (mentionsPasscode && indicatesWrong) {
+        BecomeLecturerResult.WrongPasscode
+      } else {
+        BecomeLecturerResult.Error(errMsg)
+      }
     }
   }
 

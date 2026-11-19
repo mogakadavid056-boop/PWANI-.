@@ -182,8 +182,12 @@ fun routeAdminDeepLink(
       if (link.classId.isNotBlank()) {
         monitorVm.openClass(link.classId, MonitorTab.MEMBERS)
         extraVm.loadForClass(link.classId)
+        mainVm.selectTab(AdminTab.CLASSES)
+      } else {
+        approvalsVm.selectSubTab(ApprovalsSubTab.JOIN_REQUESTS)
+        approvalsVm.refresh()
+        mainVm.selectTab(AdminTab.APPROVALS)
       }
-      mainVm.selectTab(AdminTab.CLASSES)
     }
     "attendance_alert", "attendance_warning" -> {
       if (link.classId.isNotBlank()) riskVm.openClassRiskDirectly(link.classId, "")

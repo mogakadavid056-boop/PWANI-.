@@ -54,6 +54,15 @@ data class AdminPendingLecturerItem(
   val staffNumber: String = ""
 )
 
+data class AdminGlobalJoinRequestItem(
+  val classId: String,
+  val className: String,
+  val userId: String,
+  val fullName: String,
+  val email: String = "",
+  val staffNumber: String = ""
+)
+
 data class AdminScheduleItem(
   val id: String,
   val title: String,

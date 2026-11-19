@@ -65,32 +65,30 @@ class AdminMonitorContentRepository(
   suspend fun listClassMembers(classId: String, accessToken: String): Result<List<AdminClassMemberItem>> =
     withContext(Dispatchers.IO) {
       val body = JSONObject().apply { put("target_class_id", classId) }
-      AdminHttpHelper.postRpc(client, "list_class_members", body, accessToken).mapCatching { raw ->
-        val arr = JSONArray(raw)
-        List(arr.length()) { i ->
-          val o = arr.getJSONObject(i)
-          val rawRole = AdminJsonHelper.str(o, "role")
-          val memberRole = AdminJsonHelper.firstStr(o, "member_role", "role").ifBlank { "student" }
-          val isRep = AdminJsonHelper.bool(o, "is_rep", false) ||
-            AdminJsonHelper.bool(o, "is_representative", false) ||
-            AdminRoleHelper.isClassRep(memberRole) || AdminRoleHelper.isClassRep(rawRole)
-          AdminClassMemberItem(
-            userId = AdminJsonHelper.firstStr(o, "user_id", "id", "student_id"),
-            fullName = AdminJsonHelper.firstStr(o, "full_name", "name", "student_name").ifBlank { "Member" },
-            admissionNumber = AdminJsonHelper.firstStr(o, "admission_number", "admission_no", "reg_no").ifBlank { "-" },
-            isRep = isRep,
-            role = rawRole.ifBlank { memberRole },
-            memberRole = memberRole
-          )
-        }
+      val rpc = AdminHttpHelper.postRpc(client, "list_class_members", body, accessToken)
+      if (rpc.isSuccess) {
+        val parsed = runCatching { parseRpcMembers(rpc.getOrThrow()) }
+        if (parsed.isSuccess) return@withContext parsed
       }
+      val memRes = AdminHttpHelper.getRest(client, "class_members?class_id=eq.$classId&select=*", accessToken)
+      if (memRes.isFailure) return@withContext Result.failure(memRes.exceptionOrNull() ?: Exception("Failed to load members"))
+      val profiles = AdminHttpHelper.getRest(client, "profiles?select=*&limit=500", accessToken).getOrDefault("[]")
+      val roles = AdminHttpHelper.getRest(client, "user_roles?select=user_id,role&limit=500", accessToken).getOrDefault("[]")
+      val reps = AdminHttpHelper.getRest(client, "student_representatives?class_id=eq.$classId&active=eq.true&select=user_id", accessToken).getOrDefault("[]")
+      runCatching { mergeRestMembers(memRes.getOrThrow(), profiles, roles, reps) }
     }
 
   suspend fun setClassRep(classId: String, userId: String, appoint: Boolean, accessToken: String): Result<Unit> =
     withContext(Dispatchers.IO) {
       val rpc = if (appoint) "appoint_class_rep" else "remove_class_rep"
       val body = JSONObject().apply { put("target_class_id", classId); put("target_user_id", userId) }
-      AdminHttpHelper.postRpc(client, rpc, body, accessToken).map { }
+      val res = AdminHttpHelper.postRpc(client, rpc, body, accessToken)
+      if (res.isSuccess) return@withContext Result.success(Unit)
+      if (appoint) {
+        AdminHttpHelper.postRest(client, "student_representatives", JSONObject().apply { put("class_id", classId); put("user_id", userId); put("active", true) }, accessToken)
+      } else {
+        AdminHttpHelper.deleteRest(client, "student_representatives?class_id=eq.$classId&user_id=eq.$userId", accessToken)
+      }.map { }
     }
 
   suspend fun removeFromClass(classId: String, userId: String, accessToken: String): Result<Unit> =
@@ -101,15 +99,72 @@ class AdminMonitorContentRepository(
   suspend fun listPendingLecturers(classId: String, accessToken: String): Result<List<AdminPendingLecturerItem>> =
     withContext(Dispatchers.IO) {
       val body = JSONObject().apply { put("target_class_id", classId) }
-      AdminHttpHelper.postRpc(client, "list_pending_lecturers", body, accessToken).mapCatching { raw ->
-        val arr = JSONArray(raw)
-        List(arr.length()) { i ->
-          val o = arr.getJSONObject(i)
-          AdminPendingLecturerItem(
-            userId = AdminJsonHelper.firstStr(o, "user_id", "id"),
-            fullName = AdminJsonHelper.firstStr(o, "full_name", "name").ifBlank { "Lecturer" },
-            email = AdminJsonHelper.str(o, "email"),
-            staffNumber = AdminJsonHelper.firstStr(o, "staff_number", "admission_number", "staff_no")
+      val rpc = AdminHttpHelper.postRpc(client, "list_pending_lecturers", body, accessToken)
+      if (rpc.isSuccess) {
+        val parsed = runCatching {
+          val arr = JSONArray(rpc.getOrThrow())
+          List(arr.length()) { i ->
+            val o = arr.getJSONObject(i)
+            AdminPendingLecturerItem(
+              userId = AdminJsonHelper.firstStr(o, "user_id", "id"),
+              fullName = AdminJsonHelper.firstStr(o, "full_name", "name").ifBlank { "Lecturer" },
+              email = AdminJsonHelper.str(o, "email"),
+              staffNumber = AdminJsonHelper.firstStr(o, "staff_number", "admission_number", "staff_no")
+            )
+          }
+        }
+        if (parsed.isSuccess) return@withContext parsed
+      }
+      listGlobalPendingJoinRequests(accessToken).map { all ->
+        all.filter { it.classId == classId }.map {
+          AdminPendingLecturerItem(it.userId, it.fullName, it.email, it.staffNumber)
+        }
+      }
+    }
+
+  suspend fun listGlobalPendingJoinRequests(accessToken: String): Result<List<AdminGlobalJoinRequestItem>> =
+    withContext(Dispatchers.IO) {
+      val rpc = AdminHttpHelper.postRpc(client, "admin_list_pending_join_requests", JSONObject(), accessToken)
+      if (rpc.isSuccess) {
+        val parsed = runCatching {
+          val arr = JSONArray(rpc.getOrThrow())
+          List(arr.length()) { i ->
+            val o = arr.getJSONObject(i)
+            AdminGlobalJoinRequestItem(
+              classId = AdminJsonHelper.str(o, "class_id"),
+              className = AdminJsonHelper.str(o, "class_name").ifBlank { "Class" },
+              userId = AdminJsonHelper.firstStr(o, "user_id", "id"),
+              fullName = AdminJsonHelper.firstStr(o, "full_name", "name").ifBlank { "Lecturer" },
+              email = AdminJsonHelper.str(o, "email"),
+              staffNumber = AdminJsonHelper.firstStr(o, "staff_number", "admission_number")
+            )
+          }
+        }
+        if (parsed.isSuccess) return@withContext parsed
+      }
+      val memRes = AdminHttpHelper.getRest(client, "class_members?status=eq.pending&select=class_id,user_id,classes(name)", accessToken)
+      if (memRes.isFailure) return@withContext Result.failure(memRes.exceptionOrNull() ?: Exception("Failed to load pending requests"))
+      val profsRaw = AdminHttpHelper.getRest(client, "profiles?select=*&limit=500", accessToken).getOrDefault("[]")
+      runCatching {
+        val profMap = mutableMapOf<String, JSONObject>()
+        val pArr = JSONArray(profsRaw)
+        for (i in 0 until pArr.length()) {
+          val p = pArr.optJSONObject(i) ?: continue
+          val pid = AdminJsonHelper.str(p, "id")
+          if (pid.isNotBlank()) profMap[pid] = p
+        }
+        val mArr = JSONArray(memRes.getOrThrow())
+        List(mArr.length()) { i ->
+          val o = mArr.getJSONObject(i)
+          val uid = AdminJsonHelper.str(o, "user_id")
+          val p = profMap[uid]
+          AdminGlobalJoinRequestItem(
+            classId = AdminJsonHelper.str(o, "class_id"),
+            className = AdminJsonHelper.str(o.optJSONObject("classes"), "name").ifBlank { "Class" },
+            userId = uid,
+            fullName = AdminJsonHelper.firstStr(p, "full_name", "name").ifBlank { "Lecturer" },
+            email = AdminJsonHelper.str(p, "email"),
+            staffNumber = AdminJsonHelper.firstStr(p, "staff_number", "admission_number")
           )
         }
       }
@@ -169,4 +224,84 @@ class AdminMonitorContentRepository(
     withContext(Dispatchers.IO) {
       AdminHttpHelper.deleteRest(client, "schedules?id=eq.$scheduleId", accessToken).map { }
     }
+
+  companion object {
+    fun parseRpcMembers(raw: String): List<AdminClassMemberItem> {
+      val trimmed = raw.trim()
+      if (trimmed.isBlank() || !trimmed.startsWith("[")) return emptyList()
+      val arr = JSONArray(trimmed)
+      return buildList {
+        for (i in 0 until arr.length()) {
+          val o = arr.optJSONObject(i) ?: continue
+          val roleRaw = AdminRoleHelper.normalizeRole(AdminJsonHelper.firstStr(o, "role", "member_role")).ifBlank { "student" }
+          val memberRole = AdminRoleHelper.normalizeRole(AdminJsonHelper.firstStr(o, "member_role", "role")).ifBlank { roleRaw }
+          add(
+            AdminClassMemberItem(
+              userId = AdminJsonHelper.firstStr(o, "user_id", "id"),
+              fullName = AdminJsonHelper.firstStr(o, "full_name", "name").ifBlank { "Member" },
+              admissionNumber = AdminJsonHelper.firstStr(o, "admission_number", "staff_number"),
+              isRep = AdminJsonHelper.bool(o, "is_rep", AdminJsonHelper.bool(o, "is_prefect", false)),
+              role = roleRaw,
+              memberRole = memberRole
+            )
+          )
+        }
+      }
+    }
+
+    fun mergeRestMembers(
+      membersJson: String,
+      profilesJson: String,
+      rolesJson: String,
+      repsJson: String
+    ): List<AdminClassMemberItem> {
+      val profMap = mutableMapOf<String, JSONObject>()
+      val pArr = runCatching { JSONArray(profilesJson) }.getOrNull() ?: JSONArray()
+      for (i in 0 until pArr.length()) {
+        val p = pArr.optJSONObject(i) ?: continue
+        val pid = AdminJsonHelper.firstStr(p, "id", "user_id")
+        if (pid.isNotBlank()) profMap[pid] = p
+      }
+      val roleMap = mutableMapOf<String, String>()
+      val rArr = runCatching { JSONArray(rolesJson) }.getOrNull() ?: JSONArray()
+      for (i in 0 until rArr.length()) {
+        val r = rArr.optJSONObject(i) ?: continue
+        val uid = AdminJsonHelper.firstStr(r, "user_id", "id")
+        if (uid.isNotBlank()) roleMap[uid] = AdminRoleHelper.normalizeRole(AdminJsonHelper.str(r, "role")).ifBlank { "student" }
+      }
+      val repSet = mutableSetOf<String>()
+      val repArr = runCatching { JSONArray(repsJson) }.getOrNull() ?: JSONArray()
+      for (i in 0 until repArr.length()) {
+        val rep = repArr.optJSONObject(i) ?: continue
+        val uid = AdminJsonHelper.firstStr(rep, "user_id", "id")
+        if (uid.isNotBlank()) repSet.add(uid)
+      }
+      val mArr = runCatching { JSONArray(membersJson) }.getOrNull() ?: JSONArray()
+      val seen = mutableSetOf<String>()
+      return buildList {
+        for (i in 0 until mArr.length()) {
+          val m = mArr.optJSONObject(i) ?: continue
+          val status = AdminJsonHelper.str(m, "status").ifBlank { "active" }
+          if (!status.equals("active", ignoreCase = true)) continue
+          val uid = AdminJsonHelper.firstStr(m, "user_id", "id")
+          if (uid.isBlank() || !seen.add(uid)) continue
+          val p = profMap[uid]
+          val sysRole = roleMap[uid] ?: "student"
+          val memRole = AdminRoleHelper.normalizeRole(AdminJsonHelper.firstStr(m, "role", "member_role")).ifBlank { sysRole }
+          add(
+            AdminClassMemberItem(
+              userId = uid,
+              fullName = AdminJsonHelper.firstStr(p, "full_name", "name").ifBlank { "Member" },
+              admissionNumber = AdminJsonHelper.firstStr(p, "admission_number", "staff_number"),
+              isRep = uid in repSet,
+              role = sysRole,
+              memberRole = memRole
+            )
+          )
+        }
+      }.sortedWith(compareByDescending<AdminClassMemberItem> { it.memberRole == "lecturer" || it.role == "lecturer" }
+        .thenByDescending { it.isRep }
+        .thenBy { it.fullName.lowercase() })
+    }
+  }
 }

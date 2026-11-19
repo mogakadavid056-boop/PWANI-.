@@ -171,4 +171,36 @@ class AdminFeaturesTest {
     val unregJson = org.json.JSONObject(com.example.admin.notifications.AdminPushTokenManager.buildUnregisterPayload("adm-tok"))
     assertEquals("adm-tok", unregJson.getString("device_token"))
   }
+
+  @Test
+  fun adminUsersAndMembersParsers_handleRpcAndRestFallbacks() {
+    val rpcUsers = com.example.admin.data.AdminUsersRepository.parseRpcUsers(
+      """[{"id":"u1","full_name":"Dr. Jane","email":"jane@uni.edu","admission_number":"ST-101","role":"lecturer","verified":false}]"""
+    )
+    assertEquals(1, rpcUsers.size)
+    assertTrue(rpcUsers[0].isLecturer)
+    assertFalse(rpcUsers[0].isVerified)
+
+    val mergedUsers = com.example.admin.data.AdminUsersRepository.mergeProfilesAndRoles(
+      profilesJson = """[{"id":"u1","full_name":"Dr. Jane","email":"jane@uni.edu","staff_number":"ST-101"},{"id":"u2","full_name":"Sam Student","email":"sam@uni.edu","admission_number":"ADM-2"}]""",
+      rolesJson = """[{"user_id":"u1","role":"lecturer","verified":false},{"user_id":"u2","role":"student","verified":true}]""",
+      searchText = "jane",
+      maxRows = 50
+    )
+    assertEquals(1, mergedUsers.size)
+    assertEquals("ST-101", mergedUsers[0].admissionNumber)
+    assertTrue(mergedUsers[0].isLecturer)
+    assertFalse(mergedUsers[0].isVerified)
+
+    val restMembers = com.example.admin.data.AdminMonitorContentRepository.mergeRestMembers(
+      membersJson = """[{"user_id":"u1","status":"active","role":"lecturer"},{"user_id":"u2","status":"pending","role":"lecturer"},{"user_id":"u3","status":"active","role":"student"}]""",
+      profilesJson = """[{"id":"u1","full_name":"Dr. Jane","staff_number":"ST-1"},{"id":"u2","full_name":"Pending Lec"},{"id":"u3","full_name":"Alice","admission_number":"ADM-9"}]""",
+      rolesJson = """[{"user_id":"u1","role":"lecturer"},{"user_id":"u3","role":"student"}]""",
+      repsJson = """[{"user_id":"u3"}]"""
+    )
+    assertEquals(2, restMembers.size)
+    assertEquals("u1", restMembers[0].userId)
+    assertEquals("u3", restMembers[1].userId)
+    assertTrue(restMembers[1].isRep)
+  }
 }

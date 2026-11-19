@@ -132,11 +132,21 @@ class MainActivity : ComponentActivity() {
           )
         } else {
           val session = authState.session!!
-          val pendingCount = approvalsState.pendingUnits.size
+          val unverifiedLecturersCount = if (approvalsState.lecturers.isNotEmpty()) {
+            approvalsState.lecturers.count { !it.isVerified }
+          } else {
+            mainState.stats.unverifiedLecturers
+          }
+          val pendingCount = approvalsState.pendingUnits.size + unverifiedLecturersCount + approvalsState.joinRequests.size
+          val selectAdminTab: (AdminTab) -> Unit = { tab ->
+            showNotifications = false
+            mainViewModel.selectTab(tab)
+            if (tab == AdminTab.APPROVALS) approvalsViewModel.refresh()
+          }
           AdminShell(
             activeTab = mainState.activeTab,
             pendingApprovalsCount = pendingCount,
-            onSelectTab = { tab -> showNotifications = false; mainViewModel.selectTab(tab) }
+            onSelectTab = selectAdminTab
           ) { innerMod ->
             if (showNotifications) {
               AdminNotificationCenterScreen(
@@ -170,11 +180,14 @@ class MainActivity : ComponentActivity() {
                 when (mainState.activeTab) {
                   AdminTab.OVERVIEW -> AdminDashboardScreen(
                     session = session, stats = mainState.stats,
-                    unreadNotifications = notifState.unreadCount, pendingUnitsCount = pendingCount,
+                    unreadNotifications = notifState.unreadCount,
+                    pendingUnitsCount = approvalsState.pendingUnits.size,
+                    pendingApprovalsCount = pendingCount,
+                    unverifiedLecturersCount = unverifiedLecturersCount,
                     isLoading = mainState.isStatsLoading,
                     onRefresh = { mainViewModel.refreshAll(); manageViewModel.refreshUniversityData(); approvalsViewModel.refresh(); notifViewModel.refresh(session) },
-                    onJumpToUnverified = { approvalsViewModel.selectSubTab(ApprovalsSubTab.LECTURERS); mainViewModel.selectTab(AdminTab.APPROVALS) },
-                    onNavigateTab = mainViewModel::selectTab,
+                    onJumpToUnverified = { approvalsViewModel.selectSubTab(ApprovalsSubTab.LECTURERS); selectAdminTab(AdminTab.APPROVALS) },
+                    onNavigateTab = selectAdminTab,
                     onOpenNotifications = { showNotifications = true },
                     onOpenSettings = { showSettings = true }
                   )
@@ -199,8 +212,10 @@ class MainActivity : ComponentActivity() {
                   AdminTab.APPROVALS -> AdminApprovalsScreen(
                     state = approvalsState, unreadNotifications = notifState.unreadCount,
                     onSelectSubTab = approvalsViewModel::selectSubTab, onSearchLecturers = approvalsViewModel::onLecturerSearchChanged,
-                    onRefresh = approvalsViewModel::refresh, onReviewUnit = approvalsViewModel::reviewUnit,
+                    onRefresh = approvalsViewModel::refresh,
+                    onReviewUnit = { unit, okReview, reason -> approvalsViewModel.reviewUnit(unit, okReview, reason) },
                     onToggleVerifyLecturer = { u, v -> approvalsViewModel.toggleVerifyLecturer(u, v) { mainViewModel.refreshUsers(); mainViewModel.refreshStats() } },
+                    onReviewJoinRequest = { req, okJoin -> approvalsViewModel.reviewJoinRequest(req, okJoin) { classesViewModel.search(reset = true); mainViewModel.refreshStats() } },
                     onOpenNotifications = { showNotifications = true }
                   )
                   AdminTab.RISK -> AdminRiskScreen(
@@ -217,8 +232,10 @@ class MainActivity : ComponentActivity() {
                     users = mainState.users, searchQuery = mainState.userSearch, activeFilter = mainState.userFilter,
                     unreadNotifications = notifState.unreadCount, isLoading = mainState.isUsersLoading, isActionLoading = mainState.isActionLoading,
                     onSearchChanged = mainViewModel::onUserSearchChanged, onFilterChanged = mainViewModel::onUserFilterChanged,
-                    onRefresh = mainViewModel::refreshUsers, onAssignRole = mainViewModel::assignRole,
-                    onToggleVerify = mainViewModel::setLecturerVerified, onOpenNotifications = { showNotifications = true }
+                    onRefresh = mainViewModel::refreshUsers,
+                    onAssignRole = { u, r -> mainViewModel.assignRole(u, r) { approvalsViewModel.refresh() } },
+                    onToggleVerify = { u, v -> mainViewModel.setLecturerVerified(u, v) { approvalsViewModel.refresh() } },
+                    onOpenNotifications = { showNotifications = true }
                   )
                   AdminTab.UNIVERSITY -> AdminUniversityScreen(
                     section = manageState.universitySection, schools = manageState.schools, programmes = manageState.programmes,

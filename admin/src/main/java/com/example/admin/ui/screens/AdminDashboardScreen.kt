@@ -59,6 +59,8 @@ fun AdminDashboardScreen(
   stats: AdminDashboardStats,
   unreadNotifications: Int,
   pendingUnitsCount: Int,
+  pendingApprovalsCount: Int,
+  unverifiedLecturersCount: Int = stats.unverifiedLecturers,
   isLoading: Boolean,
   onRefresh: () -> Unit,
   onJumpToUnverified: () -> Unit,
@@ -101,7 +103,7 @@ fun AdminDashboardScreen(
       }
     }
 
-    if (stats.unverifiedLecturers > 0) {
+    if (unverifiedLecturersCount > 0) {
       item {
         AdminGlassCard(borderColor = AmberWarning.copy(alpha = 0.7f), onClick = onJumpToUnverified) {
           Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.SpaceBetween) {
@@ -109,7 +111,7 @@ fun AdminDashboardScreen(
               AdminStatusPill(text = "Action Required", color = AmberWarning)
               Spacer(modifier = Modifier.height(6.dp))
               Text(
-                text = "${stats.unverifiedLecturers} lecturer account(s) waiting verification",
+                text = "$unverifiedLecturersCount lecturer account(s) waiting verification",
                 fontSize = 15.sp,
                 fontWeight = FontWeight.SemiBold,
                 color = TextPrimary
@@ -120,7 +122,8 @@ fun AdminDashboardScreen(
             Button(
               onClick = onJumpToUnverified,
               shape = RoundedCornerShape(10.dp),
-              colors = ButtonDefaults.buttonColors(containerColor = GoldPrimary, contentColor = DarkTextOnGold)
+              colors = ButtonDefaults.buttonColors(containerColor = GoldPrimary, contentColor = DarkTextOnGold),
+              modifier = Modifier.testTag("dashboard_review_lecturers_btn")
             ) {
               Text("Review", fontWeight = FontWeight.Bold)
             }
@@ -143,9 +146,9 @@ fun AdminDashboardScreen(
         KpiBentoCard(
           title = "Lecturers",
           value = stats.totalLecturers.toString(),
-          subtitle = "${stats.unverifiedLecturers} unverified • ${stats.totalAdmins} admins",
+          subtitle = "$unverifiedLecturersCount unverified • ${stats.totalAdmins} admins",
           icon = Icons.Default.VerifiedUser,
-          accentColor = if (stats.unverifiedLecturers > 0) AmberWarning else EmeraldSuccess,
+          accentColor = if (unverifiedLecturersCount > 0) AmberWarning else EmeraldSuccess,
           modifier = Modifier.weight(1f),
           onClick = onJumpToUnverified
         )
@@ -182,16 +185,16 @@ fun AdminDashboardScreen(
         Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
           OutlinedButton(
             onClick = { onNavigateTab(AdminTab.APPROVALS) },
-            modifier = Modifier.weight(1f).height(48.dp),
+            modifier = Modifier.weight(1f).height(48.dp).testTag("dashboard_approvals_btn"),
             shape = RoundedCornerShape(10.dp)
           ) {
             Icon(Icons.Default.School, contentDescription = null, modifier = Modifier.size(18.dp), tint = GoldPrimary)
             Spacer(modifier = Modifier.width(6.dp))
-            Text("Approvals (${pendingUnitsCount + stats.unverifiedLecturers})", fontSize = 12.sp, color = TextPrimary)
+            Text("Approvals ($pendingApprovalsCount)", fontSize = 12.sp, color = TextPrimary)
           }
           OutlinedButton(
             onClick = { onNavigateTab(AdminTab.RISK) },
-            modifier = Modifier.weight(1f).height(48.dp),
+            modifier = Modifier.weight(1f).height(48.dp).testTag("dashboard_risk_btn"),
             shape = RoundedCornerShape(10.dp)
           ) {
             Icon(Icons.Default.FactCheck, contentDescription = null, modifier = Modifier.size(18.dp), tint = EmeraldSuccess)

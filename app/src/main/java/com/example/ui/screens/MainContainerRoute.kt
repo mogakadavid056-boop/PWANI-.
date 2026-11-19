@@ -51,6 +51,8 @@ fun MainContainerRoute(
   onSelectClass: (ClassItem) -> Unit,
   onOpenManageMembersForClass: (String, String) -> Unit = { _, _ -> },
   onBecomeLecturer: (String, (Result<String>) -> Unit) -> Unit = { _, cb -> cb(Result.failure(Exception("Unavailable"))) },
+  authInfoMessage: String? = null,
+  onDismissAuthInfo: () -> Unit = {},
   unreadNotificationCount: Int = 0,
   onOpenNotifications: () -> Unit = {},
   onLogout: () -> Unit
@@ -99,6 +101,8 @@ fun MainContainerRoute(
               classesError = classesUiState.errorMessage,
               classesWaitingForRep = classesUiState.classesWaitingForRep,
               isWaitingLoading = classesUiState.isWaitingLoading,
+              authInfoMessage = authInfoMessage,
+              onDismissAuthInfo = onDismissAuthInfo,
               unreadNotificationCount = unreadNotificationCount,
               onOpenNotifications = onOpenNotifications,
               onAppointPrefectClick = { waitingItem ->

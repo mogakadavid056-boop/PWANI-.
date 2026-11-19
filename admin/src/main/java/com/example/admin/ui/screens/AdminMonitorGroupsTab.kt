@@ -61,9 +61,8 @@ fun AdminMonitorGroupsTab(
   var deleteGroupTarget by remember { mutableStateOf<AdminGroupItem?>(null) }
   var deleteMsgTarget by remember { mutableStateOf<AdminGroupMessage?>(null) }
   var removeMemTarget by remember { mutableStateOf<AdminGroupMember?>(null) }
-  var showMembersSub by remember { mutableStateOf(false) }
-
   val selectedGroup = extraState.selectedGroup
+  var showMembersSub by remember(selectedGroup?.id) { mutableStateOf(false) }
   if (selectedGroup != null) {
     BackHandler(onBack = extraVm::closeGroupDetail)
     Column(modifier = Modifier.fillMaxSize()) {

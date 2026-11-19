@@ -135,6 +135,7 @@ fun ClassRepApp(
   var openTimetableSignal by remember { mutableIntStateOf(0) }
   var openTabSignal by remember { mutableStateOf<Triple<Int, ClassTab, MoreSubView>?>(null) }
   var notifReturnScreen by remember { mutableStateOf<Screen>(Screen.Home) }
+  var resolvedDestinationKey by remember { mutableStateOf<String?>(null) }
 
   LaunchedEffect(uiState.session?.userId) {
     notificationViewModel.startSessionSync(uiState.session)
@@ -162,22 +163,13 @@ fun ClassRepApp(
   }
 
   val resolveDestination: (UserSession) -> Unit = { session ->
-    val isStaff = RoleHelper.isStaffRole(session.role)
-    classesViewModel.loadClasses(session) { loaded ->
-      if (!isStaff) {
-        if (loaded.isNotEmpty()) openClassDirectly(loaded.first())
-        else classesViewModel.joinMyClass(session, onResult = { classId ->
-          if (!classId.isNullOrBlank()) classesViewModel.loadClasses(session) { refreshed ->
-            val target = refreshed.find { it.id == classId } ?: refreshed.firstOrNull()
-            if (target != null) openClassDirectly(target) else viewModel.navigateTo(Screen.Waiting)
-          } else viewModel.navigateTo(Screen.Waiting)
-        }, onError = { viewModel.navigateTo(Screen.Waiting) })
-      } else {
-        coroutineScope.launch {
-          val lastId = onGetLastClass()
-          val target = if (!lastId.isNullOrBlank()) loaded.find { it.id == lastId } else null
-          if (target != null) openClassDirectly(target) else viewModel.navigateTo(Screen.Home)
-        }
+    resolvedDestinationKey = "${session.userId}:${session.role}"
+    val clearMsg = uiState.currentScreen != Screen.Home
+    resolveStudentOrStaffDestination(session, clearMsg, classesViewModel, viewModel, openClassDirectly) { loaded ->
+      coroutineScope.launch {
+        val lastId = onGetLastClass()
+        val target = if (!lastId.isNullOrBlank()) loaded.find { it.id == lastId } else null
+        if (target != null) openClassDirectly(target) else viewModel.navigateTo(Screen.Home, clearMsg)
       }
     }
   }
@@ -203,17 +195,25 @@ fun ClassRepApp(
 
   LaunchedEffect(uiState.session?.userId, uiState.currentScreen == Screen.Home) {
     val s = uiState.session
-    if (s != null && noticesUiState.selectedClass == null && uiState.currentScreen == Screen.Home) {
-      resolveDestination(s); noticesViewModel.loadLatestAnnouncements(s)
+    if (s == null) {
+      resolvedDestinationKey = null
+    } else if (noticesUiState.selectedClass == null && uiState.currentScreen == Screen.Home) {
+      val key = "${s.userId}:${s.role}"
+      if (resolvedDestinationKey != key) {
+        if (uiState.pendingOpenClassId == null && uiState.infoMessage == null) resolveDestination(s)
+        else { resolvedDestinationKey = key; classesViewModel.loadClasses(s) }
+      }
+      noticesViewModel.loadLatestAnnouncements(s)
     }
   }
   LaunchedEffect(uiState.pendingOpenClassId, uiState.session?.userId) {
     val targetId = uiState.pendingOpenClassId ?: return@LaunchedEffect
     val s = uiState.session ?: return@LaunchedEffect
+    resolvedDestinationKey = "${s.userId}:${s.role}"
     viewModel.clearPendingOpenClass()
     classesViewModel.loadClasses(s) { list ->
       val target = list.find { it.id == targetId } ?: list.firstOrNull()
-      if (target != null) openClassDirectly(target) else viewModel.navigateTo(Screen.Home)
+      if (target != null) openClassDirectly(target) else viewModel.navigateTo(Screen.Home, clearMessages = false)
     }
   }
   LaunchedEffect(noticesUiState.selectedClass?.id, noticesUiState.isStaff, uiState.session?.role) {

@@ -45,42 +45,70 @@ class AdminUnitsMaterialsRepository(
   suspend fun listClassUnits(classId: String, accessToken: String): Result<List<AdminCourseUnit>> =
     withContext(Dispatchers.IO) {
       val body = JSONObject().apply { put("target_class_id", classId) }
-      AdminHttpHelper.postRpc(client, "list_class_units", body, accessToken).mapCatching { raw ->
-        val arr = JSONArray(raw)
-        List(arr.length()) { i ->
-          val o = arr.getJSONObject(i)
-          val idsArr = o.optJSONArray("lecturer_ids")
-          val ids = buildList {
-            if (idsArr != null) for (j in 0 until idsArr.length()) {
-              val id = idsArr.optString(j)
-              if (id.isNotBlank() && !id.equals("null", true)) add(id)
-            }
-          }
-          AdminCourseUnit(
-            courseId = AdminJsonHelper.firstStr(o, "course_id", "id"),
-            code = AdminJsonHelper.firstStr(o, "code", "course_code").uppercase(),
-            name = AdminJsonHelper.firstStr(o, "name", "course_name", "title"),
-            description = AdminJsonHelper.str(o, "description"),
-            status = AdminJsonHelper.str(o, "status").ifBlank { "approved" }.lowercase(),
-            lecturers = AdminJsonHelper.firstStr(o, "lecturers", "lecturer_name"),
-            lecturerIds = ids,
-            materialCount = AdminJsonHelper.intVal(o, "material_count", 0),
-            rejectionReason = AdminJsonHelper.str(o, "rejection_reason")
-          )
-        }.sortedBy { it.code }
+      val rpc = AdminHttpHelper.postRpc(client, "list_class_units", body, accessToken)
+      if (rpc.isSuccess) {
+        val parsed = runCatching { parseClassUnits(rpc.getOrThrow()) }
+        if (parsed.isSuccess) return@withContext parsed
       }
+      AdminHttpHelper.getRest(
+        client,
+        "courses?class_id=eq.$classId&select=id,code,name,description,status,rejection_reason&order=code.asc",
+        accessToken
+      ).mapCatching { raw -> parseClassUnits(raw) }
     }
 
   suspend fun registerUnit(classId: String, code: String, name: String, desc: String, lecturerId: String?, accessToken: String): Result<Unit> =
     withContext(Dispatchers.IO) {
+      val cleanCode = code.trim().uppercase()
+      val cleanName = name.trim()
+      val cleanDesc = desc.trim()
       val body = JSONObject().apply {
         put("target_class_id", classId)
-        put("unit_code", code.trim().uppercase())
-        put("unit_name", name.trim())
-        put("unit_description", desc.trim())
+        put("unit_code", cleanCode)
+        put("unit_name", cleanName)
+        put("unit_description", cleanDesc)
         put("target_lecturer_id", if (lecturerId.isNullOrBlank()) JSONObject.NULL else lecturerId)
       }
-      AdminHttpHelper.postRpc(client, "request_unit", body, accessToken).map { }
+      val rpc = AdminHttpHelper.postRpc(client, "request_unit", body, accessToken)
+      if (rpc.isSuccess) return@withContext Result.success(Unit)
+      val insertBody = JSONObject().apply {
+        put("class_id", classId)
+        put("code", cleanCode)
+        put("name", cleanName)
+        put("description", cleanDesc)
+        put("status", "approved")
+        if (!lecturerId.isNullOrBlank()) put("lecturer_id", lecturerId)
+      }
+      val insReq = Request.Builder()
+        .url("${SupabaseAdminConfig.url}/rest/v1/courses")
+        .addHeader("apikey", SupabaseAdminConfig.anonKey)
+        .addHeader("Authorization", "Bearer $accessToken")
+        .addHeader("Content-Type", "application/json")
+        .addHeader("Prefer", "return=representation")
+        .post(RequestBody.create(AdminHttpHelper.jsonMediaType, insertBody.toString()))
+        .build()
+      try {
+        client.newCall(insReq).execute().use { resp ->
+          val raw = resp.body?.string().orEmpty()
+          if (!resp.isSuccessful) {
+            return@withContext Result.failure(Exception(SupabaseAdminConfig.extractErrorMessage(raw, resp.code)))
+          }
+          if (!lecturerId.isNullOrBlank()) {
+            val courseId = runCatching { JSONArray(raw).optJSONObject(0)?.optString("id").orEmpty() }.getOrDefault("")
+            if (courseId.isNotBlank()) {
+              AdminHttpHelper.postRest(
+                client,
+                "course_lecturers",
+                JSONObject().apply { put("course_id", courseId); put("lecturer_id", lecturerId) },
+                accessToken
+              )
+            }
+          }
+          Result.success(Unit)
+        }
+      } catch (e: Exception) {
+        Result.failure(Exception(SupabaseAdminConfig.formatExceptionMessage(e, "Failed to register unit")))
+      }
     }
 
   suspend fun setUnitLecturer(courseId: String, lecturerId: String, assign: Boolean, accessToken: String): Result<Unit> =
@@ -90,13 +118,57 @@ class AdminUnitsMaterialsRepository(
         put("target_lecturer_id", lecturerId)
         put("assign", assign)
       }
-      AdminHttpHelper.postRpc(client, "admin_set_unit_lecturer", body, accessToken).map { }
+      val rpc = AdminHttpHelper.postRpc(client, "admin_set_unit_lecturer", body, accessToken)
+      if (rpc.isSuccess) return@withContext Result.success(Unit)
+      if (assign) {
+        AdminHttpHelper.postRest(
+          client,
+          "course_lecturers",
+          JSONObject().apply { put("course_id", courseId); put("lecturer_id", lecturerId) },
+          accessToken
+        ).map { }
+      } else {
+        AdminHttpHelper.deleteRest(
+          client,
+          "course_lecturers?course_id=eq.$courseId&lecturer_id=eq.$lecturerId",
+          accessToken
+        ).map { }
+      }
     }
 
   suspend fun listPendingUnits(accessToken: String): Result<List<AdminPendingUnitItem>> =
     withContext(Dispatchers.IO) {
-      AdminHttpHelper.postRpc(client, "list_pending_units", JSONObject(), accessToken).mapCatching { raw ->
-        parsePendingUnits(raw)
+      val rpc = AdminHttpHelper.postRpc(client, "list_pending_units", JSONObject(), accessToken)
+      if (rpc.isSuccess) {
+        val parsed = runCatching { parsePendingUnits(rpc.getOrThrow()) }
+        if (parsed.isSuccess) return@withContext parsed
+      }
+      AdminHttpHelper.getRest(
+        client,
+        "courses?status=eq.pending&select=id,class_id,code,name,description,requested_by,created_at,classes(name)&order=created_at.asc",
+        accessToken
+      ).mapCatching { raw ->
+        val profilesMap = fetchProfileNamesMap(accessToken)
+        val arr = JSONArray(raw)
+        buildList {
+          for (i in 0 until arr.length()) {
+            val o = arr.optJSONObject(i) ?: continue
+            val reqBy = AdminJsonHelper.str(o, "requested_by")
+            add(
+              AdminPendingUnitItem(
+                courseId = AdminJsonHelper.firstStr(o, "course_id", "id"),
+                classId = AdminJsonHelper.str(o, "class_id"),
+                className = AdminJsonHelper.str(o.optJSONObject("classes"), "name").ifBlank { "Class" },
+                code = AdminJsonHelper.str(o, "code").uppercase(),
+                name = AdminJsonHelper.str(o, "name"),
+                description = AdminJsonHelper.str(o, "description"),
+                requestedBy = reqBy,
+                requesterName = profilesMap[reqBy] ?: "Lecturer",
+                createdAt = AdminJsonHelper.str(o, "created_at")
+              )
+            )
+          }
+        }
       }
     }
 
@@ -107,8 +179,52 @@ class AdminUnitsMaterialsRepository(
         put("approve", approve)
         put("reason", if (reason.isNullOrBlank()) JSONObject.NULL else reason.trim())
       }
-      AdminHttpHelper.postRpc(client, "review_unit", body, accessToken).map { }
+      val rpc = AdminHttpHelper.postRpc(client, "review_unit", body, accessToken)
+      if (rpc.isSuccess) return@withContext Result.success(Unit)
+      val patch = JSONObject().apply {
+        put("status", if (approve) "approved" else "rejected")
+        put("rejection_reason", if (approve || reason.isNullOrBlank()) JSONObject.NULL else reason.trim())
+      }
+      AdminHttpHelper.patchRest(client, "courses?id=eq.$courseId", patch, accessToken).map { }
     }
+
+  private fun parseClassUnits(raw: String): List<AdminCourseUnit> {
+    val arr = JSONArray(raw)
+    return List(arr.length()) { i ->
+      val o = arr.getJSONObject(i)
+      val idsArr = o.optJSONArray("lecturer_ids")
+      val ids = buildList {
+        if (idsArr != null) for (j in 0 until idsArr.length()) {
+          val id = idsArr.optString(j)
+          if (id.isNotBlank() && !id.equals("null", true)) add(id)
+        }
+      }
+      AdminCourseUnit(
+        courseId = AdminJsonHelper.firstStr(o, "course_id", "id"),
+        code = AdminJsonHelper.firstStr(o, "code", "course_code").uppercase(),
+        name = AdminJsonHelper.firstStr(o, "name", "course_name", "title"),
+        description = AdminJsonHelper.str(o, "description"),
+        status = AdminJsonHelper.str(o, "status").ifBlank { "approved" }.lowercase(),
+        lecturers = AdminJsonHelper.firstStr(o, "lecturers", "lecturer_name"),
+        lecturerIds = ids,
+        materialCount = AdminJsonHelper.intVal(o, "material_count", 0),
+        rejectionReason = AdminJsonHelper.str(o, "rejection_reason")
+      )
+    }.sortedBy { it.code }
+  }
+
+  private fun fetchProfileNamesMap(accessToken: String): Map<String, String> {
+    val raw = AdminHttpHelper.getRest(client, "profiles?select=id,full_name&limit=500", accessToken).getOrNull() ?: return emptyMap()
+    val arr = runCatching { JSONArray(raw) }.getOrNull() ?: return emptyMap()
+    return buildMap {
+      for (i in 0 until arr.length()) {
+        val o = arr.optJSONObject(i) ?: continue
+        val id = AdminJsonHelper.str(o, "id")
+        val name = AdminJsonHelper.str(o, "full_name")
+        if (id.isNotBlank() && name.isNotBlank()) put(id, name)
+      }
+    }
+  }
 
   suspend fun fetchMaterials(classId: String, accessToken: String): Result<List<AdminMaterialItem>> =
     withContext(Dispatchers.IO) {

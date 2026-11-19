@@ -51,12 +51,122 @@ create policy "Admins manage academic_years"
   with check (public.is_admin());
 
 alter table if exists public.classes enable row level security;
+drop policy if exists "Admins manage classes" on public.classes;
 drop policy if exists "Admins read all classes" on public.classes;
-create policy "Admins read all classes"
+create policy "Admins manage classes"
   on public.classes
-  for select
+  for all
   to authenticated
-  using (public.is_admin());
+  using (public.is_admin())
+  with check (public.is_admin());
+
+alter table if exists public.profiles enable row level security;
+drop policy if exists "Admins manage profiles" on public.profiles;
+create policy "Admins manage profiles"
+  on public.profiles
+  for all
+  to authenticated
+  using (public.is_admin())
+  with check (public.is_admin());
+
+alter table if exists public.user_roles enable row level security;
+drop policy if exists "Admins manage user_roles" on public.user_roles;
+create policy "Admins manage user_roles"
+  on public.user_roles
+  for all
+  to authenticated
+  using (public.is_admin())
+  with check (public.is_admin());
+
+alter table if exists public.class_members enable row level security;
+drop policy if exists "Admins manage class_members" on public.class_members;
+create policy "Admins manage class_members"
+  on public.class_members
+  for all
+  to authenticated
+  using (public.is_admin())
+  with check (public.is_admin());
+
+alter table if exists public.student_representatives enable row level security;
+drop policy if exists "Admins manage student_representatives" on public.student_representatives;
+create policy "Admins manage student_representatives"
+  on public.student_representatives
+  for all
+  to authenticated
+  using (public.is_admin())
+  with check (public.is_admin());
+
+alter table if exists public.courses enable row level security;
+drop policy if exists "Admins manage courses" on public.courses;
+create policy "Admins manage courses"
+  on public.courses
+  for all
+  to authenticated
+  using (public.is_admin())
+  with check (public.is_admin());
+
+alter table if exists public.course_lecturers enable row level security;
+drop policy if exists "Admins manage course_lecturers" on public.course_lecturers;
+create policy "Admins manage course_lecturers"
+  on public.course_lecturers
+  for all
+  to authenticated
+  using (public.is_admin())
+  with check (public.is_admin());
+
+alter table if exists public.notices enable row level security;
+drop policy if exists "Admins manage notices" on public.notices;
+create policy "Admins manage notices"
+  on public.notices
+  for all
+  to authenticated
+  using (public.is_admin())
+  with check (public.is_admin());
+
+alter table if exists public.schedules enable row level security;
+drop policy if exists "Admins manage schedules" on public.schedules;
+create policy "Admins manage schedules"
+  on public.schedules
+  for all
+  to authenticated
+  using (public.is_admin())
+  with check (public.is_admin());
+
+alter table if exists public.materials enable row level security;
+drop policy if exists "Admins manage materials" on public.materials;
+create policy "Admins manage materials"
+  on public.materials
+  for all
+  to authenticated
+  using (public.is_admin())
+  with check (public.is_admin());
+
+alter table if exists public.attendance_sessions enable row level security;
+drop policy if exists "Admins manage attendance_sessions" on public.attendance_sessions;
+create policy "Admins manage attendance_sessions"
+  on public.attendance_sessions
+  for all
+  to authenticated
+  using (public.is_admin())
+  with check (public.is_admin());
+
+alter table if exists public.attendance_records enable row level security;
+drop policy if exists "Admins manage attendance_records" on public.attendance_records;
+create policy "Admins manage attendance_records"
+  on public.attendance_records
+  for all
+  to authenticated
+  using (public.is_admin())
+  with check (public.is_admin());
+
+alter table if exists public.polls enable row level security;
+drop policy if exists "Admins manage polls" on public.polls;
+create policy "Admins manage polls"
+  on public.polls
+  for all
+  to authenticated
+  using (public.is_admin())
+  with check (public.is_admin());
 
 -- 3. Executive Dashboard KPIs RPC
 create or replace function public.admin_dashboard_stats()
@@ -156,7 +266,7 @@ begin
     c.join_code::text,
     c.year_of_study::integer,
     pr.name::text as programme_name,
-    coalesce((select count(*) from public.class_members cm where cm.class_id = c.id), 0)::bigint as member_count,
+    coalesce((select count(*) from public.class_members cm where cm.class_id = c.id and coalesce(cm.status::text, 'active') = 'active'), 0)::bigint as member_count,
     coalesce((select count(*) from public.attendance_sessions s where s.class_id = c.id), 0)::bigint as register_count,
     c.created_at
   from public.classes c
@@ -191,6 +301,139 @@ end;
 $$;
 
 grant execute on function public.admin_set_current_academic_year(uuid) to authenticated;
+
+-- 6. Users & Lecturer Approvals RPCs
+drop function if exists public.list_users(text, integer);
+create or replace function public.list_users(
+  search_text text default '',
+  max_rows integer default 100
+)
+returns table (
+  id uuid,
+  full_name text,
+  email text,
+  admission_number text,
+  role text,
+  verified boolean
+)
+language plpgsql
+security definer
+set search_path = public, auth
+as $$
+declare
+  v_q text := trim(coalesce(search_text, ''));
+begin
+  if not public.is_admin() then
+    raise exception 'Forbidden: admin privileges required';
+  end if;
+
+  return query
+  select
+    p.id,
+    coalesce(p.full_name::text, ''),
+    coalesce(au.email::text, ''),
+    coalesce(p.admission_number::text, ''),
+    lower(coalesce(ur.role::text, 'student')),
+    coalesce(ur.verified, false)
+  from public.profiles p
+  left join auth.users au on au.id = p.id
+  left join public.user_roles ur on ur.user_id = p.id
+  where v_q = ''
+     or coalesce(p.full_name, '') ilike '%' || v_q || '%'
+     or coalesce(au.email, '') ilike '%' || v_q || '%'
+     or coalesce(p.admission_number, '') ilike '%' || v_q || '%'
+     or coalesce(ur.role::text, '') ilike '%' || v_q || '%'
+  order by lower(coalesce(p.full_name, au.email, '')) asc
+  limit greatest(1, least(coalesce(max_rows, 100), 500));
+end;
+$$;
+
+grant execute on function public.list_users(text, integer) to authenticated;
+
+create or replace function public.admin_assign_role(
+  target_user_id uuid,
+  new_role text
+)
+returns void
+language plpgsql
+security definer
+set search_path = public
+as $$
+begin
+  if not public.is_admin() then
+    raise exception 'Forbidden: admin privileges required';
+  end if;
+
+  insert into public.user_roles (user_id, role)
+  values (target_user_id, lower(trim(new_role)))
+  on conflict (user_id) do update
+    set role = lower(trim(excluded.role::text));
+end;
+$$;
+
+grant execute on function public.admin_assign_role(uuid, text) to authenticated;
+
+create or replace function public.admin_set_lecturer_verified(
+  target_user_id uuid,
+  is_verified boolean
+)
+returns void
+language plpgsql
+security definer
+set search_path = public
+as $$
+begin
+  if not public.is_admin() then
+    raise exception 'Forbidden: admin privileges required';
+  end if;
+
+  insert into public.user_roles (user_id, role, verified)
+  values (target_user_id, 'lecturer', is_verified)
+  on conflict (user_id) do update
+    set role = case when lower(coalesce(user_roles.role::text, '')) = '' then 'lecturer' else user_roles.role end,
+        verified = is_verified;
+end;
+$$;
+
+grant execute on function public.admin_set_lecturer_verified(uuid, boolean) to authenticated;
+
+drop function if exists public.admin_list_pending_join_requests();
+create or replace function public.admin_list_pending_join_requests()
+returns table (
+  class_id uuid,
+  class_name text,
+  user_id uuid,
+  full_name text,
+  email text,
+  staff_number text
+)
+language plpgsql
+security definer
+set search_path = public, auth
+as $$
+begin
+  if not public.is_admin() then
+    raise exception 'Forbidden: admin privileges required';
+  end if;
+
+  return query
+  select
+    cm.class_id,
+    coalesce(c.name::text, 'Class'),
+    cm.user_id,
+    coalesce(p.full_name::text, 'Lecturer'),
+    coalesce(au.email::text, ''),
+    coalesce(p.admission_number::text, '')
+  from public.class_members cm
+  left join public.classes c on c.id = cm.class_id
+  left join public.profiles p on p.id = cm.user_id
+  left join auth.users au on au.id = cm.user_id
+  where lower(coalesce(cm.status::text, '')) = 'pending'
+  order by c.name asc, p.full_name asc;
+end;
+$$;
+
+grant execute on function public.admin_list_pending_join_requests() to authenticated;
 
 -- ============================================================================
 -- HOW TO MAKE YOUR ACCOUNT AN ADMIN (Run once with your own email):

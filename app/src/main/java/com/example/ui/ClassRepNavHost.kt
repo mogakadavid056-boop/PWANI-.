@@ -129,12 +129,14 @@ fun ClassRepNavHost(
             } else authViewModel.setError("No matching class found for your programme and year yet.")
           })
         },
-        onNavigateToProfile = navigateToProfileScreen
+        onNavigateToProfile = navigateToProfileScreen,
+        onContinueHome = { authViewModel.navigateTo(Screen.Home) }
       )
       Screen.Home, Screen.ManageUsers -> MainContainerRoute(
         session = authUiState.session, classesUiState = classesUiState, noticesUiState = noticesUiState,
         universityUiState = universityUiState, adminUiState = adminUiState, classesViewModel = classesViewModel,
         noticesViewModel = noticesViewModel, universityViewModel = universityViewModel, adminViewModel = adminViewModel,
+        authInfoMessage = authUiState.infoMessage, onDismissAuthInfo = { authViewModel.clearInfo() },
         unreadNotificationCount = unreadCount, onOpenNotifications = onOpenNotifications,
         onNavigateToJoinClass = { classesViewModel.clearError(); authViewModel.navigateTo(Screen.JoinClass) },
         onNavigateToCreateClass = {
@@ -170,7 +172,6 @@ fun ClassRepNavHost(
           onLogout = { classesViewModel.clearError(); noticesViewModel.clearSelectedClass(); notificationViewModel.stopAndClear(); authViewModel.logout() },
           onBack = {
             if (noticesUiState.selectedClass != null) authViewModel.navigateTo(Screen.ClassDetail)
-            else if (classesUiState.classes.isEmpty() && !isStaff) authViewModel.navigateTo(Screen.Waiting)
             else authViewModel.navigateTo(Screen.Home)
           }
         )

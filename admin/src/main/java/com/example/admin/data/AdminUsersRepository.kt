@@ -108,9 +108,94 @@ class AdminUsersRepository(
       put("search_text", searchText)
       put("max_rows", maxRows)
     }
-    postRpc("list_users", payload, accessToken).mapCatching { body ->
+    val rpcRes = postRpc("list_users", payload, accessToken)
+    if (rpcRes.isSuccess) {
+      val parsed = runCatching { parseRpcUsers(rpcRes.getOrThrow()) }
+      if (parsed.isSuccess) return@withContext parsed
+    }
+    // Fallback: query profiles + user_roles directly over PostgREST
+    val profRes = AdminHttpHelper.getRest(client, "profiles?select=*&limit=500", accessToken)
+    if (profRes.isFailure) return@withContext Result.failure(profRes.exceptionOrNull() ?: Exception("Failed to load users"))
+    val rolesRes = AdminHttpHelper.getRest(client, "user_roles?select=user_id,role,verified&limit=500", accessToken)
+    runCatching {
+      mergeProfilesAndRoles(profRes.getOrThrow(), rolesRes.getOrDefault("[]"), searchText, maxRows)
+    }
+  }
+
+  suspend fun assignRole(
+    targetUserId: String,
+    newRole: String,
+    accessToken: String
+  ): Result<Unit> = withContext(Dispatchers.IO) {
+    val payload = JSONObject().apply {
+      put("target_user_id", targetUserId)
+      put("new_role", newRole)
+    }
+    val rpc = postRpc("admin_assign_role", payload, accessToken)
+    if (rpc.isSuccess) return@withContext Result.success(Unit)
+    upsertUserRoleRest(targetUserId, JSONObject().apply { put("role", newRole) }, accessToken)
+  }
+
+  suspend fun setLecturerVerified(
+    targetUserId: String,
+    isVerified: Boolean,
+    accessToken: String
+  ): Result<Unit> = withContext(Dispatchers.IO) {
+    val payload = JSONObject().apply {
+      put("target_user_id", targetUserId)
+      put("is_verified", isVerified)
+    }
+    val rpc = postRpc("admin_set_lecturer_verified", payload, accessToken)
+    if (rpc.isSuccess) return@withContext Result.success(Unit)
+    upsertUserRoleRest(
+      targetUserId,
+      JSONObject().apply { put("role", AdminRoleHelper.ROLE_LECTURER); put("verified", isVerified) },
+      accessToken
+    )
+  }
+
+  private fun upsertUserRoleRest(targetUserId: String, body: JSONObject, accessToken: String): Result<Unit> {
+    if (!SupabaseAdminConfig.isConfigured()) return Result.failure(IllegalStateException(SupabaseAdminConfig.MISSING_CONFIG_ERROR))
+    val patchReq = Request.Builder()
+      .url("${SupabaseAdminConfig.url}/rest/v1/user_roles?user_id=eq.$targetUserId")
+      .addHeader("apikey", SupabaseAdminConfig.anonKey)
+      .addHeader("Authorization", "Bearer $accessToken")
+      .addHeader("Content-Type", "application/json")
+      .addHeader("Prefer", "return=representation")
+      .patch(body.toString().toRequestBody(jsonMediaType))
+      .build()
+    try {
+      client.newCall(patchReq).execute().use { resp ->
+        val raw = resp.body?.string().orEmpty()
+        if (resp.isSuccessful && raw.trim().startsWith("[") && JSONArray(raw).length() > 0) {
+          return Result.success(Unit)
+        }
+      }
+    } catch (_: Exception) { }
+    val upsertBody = JSONObject(body.toString()).apply { put("user_id", targetUserId) }
+    val postReq = Request.Builder()
+      .url("${SupabaseAdminConfig.url}/rest/v1/user_roles?on_conflict=user_id")
+      .addHeader("apikey", SupabaseAdminConfig.anonKey)
+      .addHeader("Authorization", "Bearer $accessToken")
+      .addHeader("Content-Type", "application/json")
+      .addHeader("Prefer", "resolution=merge-duplicates,return=minimal")
+      .post(upsertBody.toString().toRequestBody(jsonMediaType))
+      .build()
+    return try {
+      client.newCall(postReq).execute().use { resp ->
+        val raw = resp.body?.string().orEmpty()
+        if (resp.isSuccessful) Result.success(Unit)
+        else Result.failure(Exception(SupabaseAdminConfig.extractErrorMessage(raw, resp.code)))
+      }
+    } catch (e: Exception) {
+      Result.failure(Exception(SupabaseAdminConfig.formatExceptionMessage(e, "Failed to update user role")))
+    }
+  }
+
+  companion object {
+    fun parseRpcUsers(body: String): List<AdminUserItem> {
       val arr = JSONArray(body)
-      buildList {
+      return buildList {
         for (i in 0 until arr.length()) {
           val obj = arr.getJSONObject(i)
           add(
@@ -127,29 +212,53 @@ class AdminUsersRepository(
         }
       }
     }
-  }
 
-  suspend fun assignRole(
-    targetUserId: String,
-    newRole: String,
-    accessToken: String
-  ): Result<Unit> = withContext(Dispatchers.IO) {
-    val payload = JSONObject().apply {
-      put("target_user_id", targetUserId)
-      put("new_role", newRole)
+    fun mergeProfilesAndRoles(
+      profilesJson: String,
+      rolesJson: String,
+      searchText: String,
+      maxRows: Int
+    ): List<AdminUserItem> {
+      val roleMap = mutableMapOf<String, Pair<String, Boolean>>()
+      val rolesArr = runCatching { JSONArray(rolesJson) }.getOrNull() ?: JSONArray()
+      for (i in 0 until rolesArr.length()) {
+        val o = rolesArr.optJSONObject(i) ?: continue
+        val uid = AdminJsonHelper.firstStr(o, "user_id", "id")
+        if (uid.isNotBlank()) {
+          val role = AdminRoleHelper.normalizeRole(AdminJsonHelper.str(o, "role")).ifBlank { AdminRoleHelper.ROLE_STUDENT }
+          val verified = AdminJsonHelper.bool(o, "verified", false)
+          roleMap[uid] = role to verified
+        }
+      }
+      val q = searchText.trim().lowercase()
+      val seen = mutableSetOf<String>()
+      val list = mutableListOf<AdminUserItem>()
+      val profArr = runCatching { JSONArray(profilesJson) }.getOrNull() ?: JSONArray()
+      for (i in 0 until profArr.length()) {
+        val o = profArr.optJSONObject(i) ?: continue
+        val uid = AdminJsonHelper.firstStr(o, "id", "user_id")
+        if (uid.isBlank() || !seen.add(uid)) continue
+        val pair = roleMap[uid]
+        val role = pair?.first ?: AdminRoleHelper.normalizeRole(AdminJsonHelper.str(o, "role")).ifBlank { AdminRoleHelper.ROLE_STUDENT }
+        val verified = pair?.second ?: AdminJsonHelper.bool(o, "verified", false)
+        list.add(
+          AdminUserItem(
+            id = uid,
+            fullName = AdminJsonHelper.firstStr(o, "full_name", "name"),
+            email = AdminJsonHelper.str(o, "email"),
+            admissionNumber = AdminJsonHelper.firstStr(o, "admission_number", "staff_number"),
+            role = role,
+            isVerified = verified
+          )
+        )
+      }
+      val filtered = if (q.isBlank()) list else list.filter {
+        it.fullName.lowercase().contains(q) ||
+          it.email.lowercase().contains(q) ||
+          it.admissionNumber.lowercase().contains(q) ||
+          it.role.lowercase().contains(q)
+      }
+      return filtered.sortedBy { it.fullName.ifBlank { it.email }.lowercase() }.take(maxRows.coerceIn(1, 500))
     }
-    postRpc("admin_assign_role", payload, accessToken).map { }
-  }
-
-  suspend fun setLecturerVerified(
-    targetUserId: String,
-    isVerified: Boolean,
-    accessToken: String
-  ): Result<Unit> = withContext(Dispatchers.IO) {
-    val payload = JSONObject().apply {
-      put("target_user_id", targetUserId)
-      put("is_verified", isVerified)
-    }
-    postRpc("admin_set_lecturer_verified", payload, accessToken).map { }
   }
 }

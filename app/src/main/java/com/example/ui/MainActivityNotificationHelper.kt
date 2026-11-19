@@ -96,11 +96,11 @@ fun ClassRepAppBackHandlers(
     Screen.Register, Screen.Login -> BackHandler { viewModel.navigateTo(Screen.Welcome) }
     Screen.CheckEmail -> BackHandler { viewModel.navigateTo(Screen.Login) }
     Screen.RegisterResult -> BackHandler { viewModel.navigateTo(Screen.Home) }
-    Screen.Welcome, Screen.Landing, Screen.Waiting -> BackHandler { }
+    Screen.Welcome, Screen.Landing -> BackHandler { }
+    Screen.Waiting -> BackHandler { viewModel.navigateTo(Screen.Home) }
     Screen.Notifications -> BackHandler { viewModel.navigateTo(notifReturnScreen) }
     Screen.Profile -> BackHandler {
       if (noticesUiState.selectedClass != null) viewModel.navigateTo(Screen.ClassDetail)
-      else if (classesUiState.classes.isEmpty() && !RoleHelper.isStaffRole(uiState.session?.role)) viewModel.navigateTo(Screen.Waiting)
       else viewModel.navigateTo(Screen.Home)
     }
     Screen.ManageUsers -> BackHandler { viewModel.navigateTo(Screen.Home) }
@@ -117,4 +117,33 @@ fun ClassRepAppBackHandlers(
     }
   }
 }
+
+fun resolveStudentOrStaffDestination(
+  session: UserSession,
+  clearMsg: Boolean,
+  classesViewModel: ClassesViewModel,
+  viewModel: AuthViewModel,
+  openClassDirectly: (ClassItem) -> Unit,
+  onLaunchLastClass: (List<ClassItem>) -> Unit
+) {
+  val isStaff = RoleHelper.isStaffRole(session.role)
+  classesViewModel.loadClasses(session) { loaded ->
+    if (!isStaff) {
+      if (loaded.isNotEmpty()) openClassDirectly(loaded.first())
+      else classesViewModel.joinMyClass(
+        session = session,
+        onResult = { classId ->
+          if (!classId.isNullOrBlank()) classesViewModel.loadClasses(session) { refreshed ->
+            val target = refreshed.find { it.id == classId } ?: refreshed.firstOrNull()
+            if (target != null) openClassDirectly(target) else viewModel.navigateTo(Screen.Home, clearMsg)
+          } else viewModel.navigateTo(Screen.Home, clearMsg)
+        },
+        onError = { classesViewModel.clearError(); viewModel.navigateTo(Screen.Home, clearMsg) }
+      )
+    } else {
+      onLaunchLastClass(loaded)
+    }
+  }
+}
+
 

@@ -69,19 +69,30 @@ class AdminManageViewModel(
     val token = session?.accessToken ?: return
     viewModelScope.launch {
       _state.update { it.copy(isUniLoading = true) }
-      val s = uniRepo.fetchSchools(token).getOrElse { emptyList() }
-      val p = uniRepo.fetchProgrammes(token).getOrElse { emptyList() }
-      val y = uniRepo.fetchAcademicYears(token).getOrElse { emptyList() }
-      _state.update { it.copy(schools = s, programmes = p, academicYears = y, isUniLoading = false) }
+      val sRes = uniRepo.fetchSchools(token)
+      val pRes = uniRepo.fetchProgrammes(token)
+      val yRes = uniRepo.fetchAcademicYears(token)
+      _state.update { cur ->
+        cur.copy(
+          schools = sRes.getOrElse { cur.schools },
+          programmes = pRes.getOrElse { cur.programmes },
+          academicYears = yRes.getOrElse { cur.academicYears },
+          isUniLoading = false,
+          errorMessage = sRes.exceptionOrNull()?.message
+            ?: pRes.exceptionOrNull()?.message
+            ?: yRes.exceptionOrNull()?.message
+        )
+      }
     }
   }
 
   fun saveSchool(id: String?, name: String) {
     val token = session?.accessToken ?: return
     if (name.isBlank()) return
+    val defaultUniId = _state.value.schools.firstOrNull { it.universityId.isNotBlank() }?.universityId.orEmpty()
     _state.update { it.copy(isActionLoading = true, errorMessage = null) }
     viewModelScope.launch {
-      uniRepo.saveSchool(id, name, token).fold(
+      uniRepo.saveSchool(id = id, name = name, universityId = defaultUniId, accessToken = token).fold(
         onSuccess = {
           _state.update { it.copy(isActionLoading = false, successMessage = if (id == null) "School added" else "School updated") }
           refreshUniversityData()

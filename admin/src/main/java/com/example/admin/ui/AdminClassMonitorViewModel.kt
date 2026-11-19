@@ -28,6 +28,7 @@ data class AdminClassMonitorState(
   val schedules: List<AdminScheduleItem> = emptyList(),
   val units: List<AdminCourseUnit> = emptyList(),
   val materials: List<AdminMaterialItem> = emptyList(),
+  val lecturers: List<AdminUserItem> = emptyList(),
   val isLoading: Boolean = false,
   val isActionLoading: Boolean = false,
   val uploadProgress: Float? = null,
@@ -38,7 +39,8 @@ data class AdminClassMonitorState(
 class AdminClassMonitorViewModel(
   private val searchRepo: AdminClassSearchRepository = AdminClassSearchRepository(),
   private val contentRepo: AdminMonitorContentRepository = AdminMonitorContentRepository(),
-  private val unitsMatRepo: AdminUnitsMaterialsRepository = AdminUnitsMaterialsRepository()
+  private val unitsMatRepo: AdminUnitsMaterialsRepository = AdminUnitsMaterialsRepository(),
+  private val usersRepo: AdminUsersRepository = AdminUsersRepository()
 ) : ViewModel() {
   private val _state = MutableStateFlow(AdminClassMonitorState())
   val state: StateFlow<AdminClassMonitorState> = _state.asStateFlow()
@@ -72,6 +74,10 @@ class AdminClassMonitorViewModel(
       val scheds = contentRepo.fetchSchedules(cid, token)
       val units = unitsMatRepo.listClassUnits(cid, token)
       val mats = unitsMatRepo.fetchMaterials(cid, token)
+      val lecsRes = usersRepo.listUsers("", 200, token)
+      val fetchedLecs = lecsRes.getOrNull()
+        ?.filter { it.isLecturer }
+        ?.sortedWith(compareByDescending<AdminUserItem> { it.isVerified }.thenBy { it.fullName.lowercase() })
       _state.update { s ->
         s.copy(
           isLoading = false,
@@ -82,6 +88,7 @@ class AdminClassMonitorViewModel(
           schedules = scheds.getOrElse { s.schedules },
           units = units.getOrElse { s.units },
           materials = mats.getOrElse { s.materials },
+          lecturers = fetchedLecs ?: s.lecturers,
           errorMessage = ov.exceptionOrNull()?.message ?: mems.exceptionOrNull()?.message ?: units.exceptionOrNull()?.message
         )
       }

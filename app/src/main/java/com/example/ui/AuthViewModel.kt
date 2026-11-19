@@ -187,8 +187,11 @@ class AuthViewModel(
     viewModelScope.launch { registrationHandler.retryStudentJoinByCode(code, session) }
   }
 
-  fun navigateTo(screen: Screen) {
-    _uiState.update { it.copy(currentScreen = screen, errorMessage = null, infoMessage = null) }
+  fun navigateTo(screen: Screen, clearMessages: Boolean = true) {
+    _uiState.update {
+      if (clearMessages) it.copy(currentScreen = screen, errorMessage = null, infoMessage = null)
+      else it.copy(currentScreen = screen)
+    }
   }
 
   fun updateMemberDetails(fullName: String, admissionNumber: String) {

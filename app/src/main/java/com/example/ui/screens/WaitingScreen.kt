@@ -65,7 +65,8 @@ fun WaitingScreen(
   onDismissError: () -> Unit,
   onJoinWithCode: (String) -> Unit,
   onTryAutoJoin: () -> Unit,
-  onNavigateToProfile: () -> Unit
+  onNavigateToProfile: () -> Unit,
+  onContinueHome: () -> Unit = {}
 ) {
   var joinCode by remember { mutableStateOf("") }
 
@@ -103,7 +104,7 @@ fun WaitingScreen(
           IconButton(
             onClick = onNavigateToProfile,
             modifier = Modifier
-              .size(44.dp)
+              .size(48.dp)
               .clip(CircleShape)
               .background(DarkSurfaceVariant)
               .border(1.dp, DarkBorder, CircleShape)
@@ -227,7 +228,24 @@ fun WaitingScreen(
         )
       }
 
-      Spacer(modifier = Modifier.height(32.dp))
+      Spacer(modifier = Modifier.height(12.dp))
+
+      androidx.compose.material3.TextButton(
+        onClick = onContinueHome,
+        modifier = Modifier
+          .fillMaxWidth()
+          .height(48.dp)
+          .testTag("waiting_continue_home_button")
+      ) {
+        Text(
+          text = "Go to Home Dashboard",
+          fontSize = 14.sp,
+          fontWeight = FontWeight.SemiBold,
+          color = GoldLight
+        )
+      }
+
+      Spacer(modifier = Modifier.height(24.dp))
     }
   }
 }

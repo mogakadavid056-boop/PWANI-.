@@ -50,6 +50,8 @@ fun HomeScreen(
   classesError: String? = null,
   classesWaitingForRep: List<ClassWaitingForPrefect> = emptyList(),
   isWaitingLoading: Boolean = false,
+  authInfoMessage: String? = null,
+  onDismissAuthInfo: () -> Unit = {},
   unreadNotificationCount: Int = 0,
   onOpenNotifications: () -> Unit = {},
   onAppointPrefectClick: (ClassWaitingForPrefect) -> Unit = {},
@@ -154,6 +156,21 @@ fun HomeScreen(
 
       if (!classesError.isNullOrBlank()) {
         FriendlyErrorSnackbar(errorMessage = classesError, onDismiss = onDismissClassesError)
+      }
+      if (!authInfoMessage.isNullOrBlank()) {
+        androidx.compose.material3.Surface(
+          color = DarkSurfaceVariant,
+          shape = RoundedCornerShape(12.dp),
+          border = androidx.compose.foundation.BorderStroke(1.dp, GoldPrimary.copy(alpha = 0.6f)),
+          modifier = Modifier.fillMaxWidth().testTag("home_auth_info_banner")
+        ) {
+          Row(modifier = Modifier.padding(12.dp), verticalAlignment = Alignment.CenterVertically) {
+            Icon(Icons.Default.Info, contentDescription = null, tint = GoldPrimary, modifier = Modifier.size(18.dp))
+            Spacer(modifier = Modifier.width(8.dp))
+            Text(authInfoMessage, fontSize = 13.sp, color = GoldLight, modifier = Modifier.weight(1f), lineHeight = 18.sp)
+            androidx.compose.material3.TextButton(onClick = onDismissAuthInfo) { Text("OK", color = GoldPrimary, fontWeight = FontWeight.Bold) }
+          }
+        }
       }
 
       // Lecturer verification banner if unverified

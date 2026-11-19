@@ -59,10 +59,10 @@ class ClassesService(
           val progName = JsonHelper.strOrNull(progObj, "name")
           val createdBy = JsonHelper.str(item, "created_by")
 
+          val membersArr = item.optJSONArray("class_members")
           if (isLecturer && userId.isNotBlank()) {
             val isCreator = createdBy.equals(userId, ignoreCase = true)
             var isApprovedMember = false
-            val membersArr = item.optJSONArray("class_members")
             if (membersArr != null) {
               for (m in 0 until membersArr.length()) {
                 val mObj = membersArr.getJSONObject(m)
@@ -74,9 +74,18 @@ class ClassesService(
                 }
               }
             }
-            if (!isCreator && !isApprovedMember) {
-              continue
+            if (!isCreator && !isApprovedMember) continue
+          } else if (userId.isNotBlank() && membersArr != null) {
+            var isRejectedOrPending = false
+            for (m in 0 until membersArr.length()) {
+              val mObj = membersArr.getJSONObject(m)
+              if (JsonHelper.str(mObj, "user_id").equals(userId, ignoreCase = true)) {
+                val mStatus = JsonHelper.str(mObj, "status").ifBlank { "active" }
+                if (!mStatus.equals("active", ignoreCase = true)) isRejectedOrPending = true
+                break
+              }
             }
+            if (isRejectedOrPending) continue
           }
 
           if (id.isNotBlank() || name.isNotBlank()) {

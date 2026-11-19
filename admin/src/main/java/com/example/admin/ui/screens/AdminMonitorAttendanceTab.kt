@@ -13,6 +13,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
@@ -121,7 +122,10 @@ fun AdminMonitorAttendanceTab(
         AdminEmptyState(Icons.Default.FactCheck, "No signatures yet", "Students who sign in will appear here.")
       } else {
         LazyColumn(verticalArrangement = Arrangement.spacedBy(8.dp), contentPadding = PaddingValues(bottom = 24.dp)) {
-          items(extraState.attendanceRecords) { rec ->
+          itemsIndexed(
+            items = extraState.attendanceRecords,
+            key = { idx, rec -> "${rec.admissionNumber}_${rec.timeSigned}_$idx" }
+          ) { _, rec ->
             AdminGlassCard {
               Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
                 Column(modifier = Modifier.weight(1f)) {

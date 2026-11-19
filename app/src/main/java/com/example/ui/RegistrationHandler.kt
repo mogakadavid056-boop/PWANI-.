@@ -182,54 +182,81 @@ class RegistrationHandler(
     } else {
       classesService.joinClass(classCode, session.accessToken)
     }
-    val classId = joinResult.getOrNull()
+    var classId = joinResult.getOrNull()
+    if (classId.isNullOrBlank()) {
+      classId = classesService.fetchClasses(session.userId, session.role, session.accessToken)
+        .getOrNull()?.firstOrNull()?.id
+    }
     if (!classId.isNullOrBlank()) {
       updateState {
         it.copy(
           isLoading = false,
+          currentScreen = Screen.Home,
+          registerResult = null,
           errorMessage = null,
+          infoMessage = "Welcome to your class!",
           pendingOpenClassId = classId
         )
       }
     } else {
-      val msg = joinResult.exceptionOrNull()?.message?.ifBlank { null }
+      val joinErr = joinResult.exceptionOrNull()?.message?.ifBlank { null }
+      val note = if (!joinErr.isNullOrBlank()) {
+        "Account created! $joinErr You can join with a class code below."
+      } else {
+        "Account created! Use Join Class when you have a class code."
+      }
       updateState {
         it.copy(
           isLoading = false,
-          currentScreen = Screen.RegisterResult,
-          registerResult = RegisterResultState.StudentNotPlaced(msg)
+          currentScreen = Screen.Home,
+          registerResult = null,
+          errorMessage = null,
+          infoMessage = note
         )
       }
     }
   }
 
   private suspend fun completeLecturerSignUp(passcode: String, session: UserSession) {
-    when (lecturerService.becomeLecturer(passcode, session.accessToken)) {
-      is BecomeLecturerResult.Success -> {
-        val roleInfo = authService.fetchUserRole(session.userId, session.accessToken)
-          .getOrElse { UserRoleInfo(role = RoleHelper.ROLE_LECTURER, isVerified = false) }
-        val newRole = roleInfo.role.ifBlank { RoleHelper.ROLE_LECTURER }
-        val updated = session.copy(role = newRole, isVerified = roleInfo.isVerified)
-        sessionManager.updateRoleAndVerification(newRole, roleInfo.isVerified)
-        updateState {
-          it.copy(
-            session = updated,
-            isLoading = false,
-            errorMessage = null,
-            currentScreen = Screen.RegisterResult,
-            registerResult = RegisterResultState.LecturerPasscodeRight(isVerified = roleInfo.isVerified)
-          )
-        }
+    val res = lecturerService.becomeLecturer(passcode, session.accessToken)
+    val roleInfo = authService.fetchUserRole(session.userId, session.accessToken).getOrNull()
+    val isLecturerRole = res is BecomeLecturerResult.Success || RoleHelper.isLecturer(roleInfo?.role)
+    if (isLecturerRole) {
+      val newRole = roleInfo?.role?.takeIf { RoleHelper.isLecturer(it) } ?: RoleHelper.ROLE_LECTURER
+      val verified = roleInfo?.isVerified == true
+      val updated = session.copy(role = newRole, isVerified = verified)
+      sessionManager.updateRoleAndVerification(newRole, verified)
+      val note = if (verified) {
+        "Lecturer account ready! Tap Find my classes to add your classes."
+      } else {
+        "Lecturer account created! An administrator will verify you shortly."
       }
-      is BecomeLecturerResult.WrongPasscode, is BecomeLecturerResult.Error -> {
-        updateState {
-          it.copy(
-            isLoading = false,
-            errorMessage = null,
-            currentScreen = Screen.RegisterResult,
-            registerResult = RegisterResultState.LecturerPasscodeWrong
-          )
-        }
+      updateState {
+        it.copy(
+          session = updated,
+          isLoading = false,
+          errorMessage = null,
+          infoMessage = note,
+          currentScreen = Screen.Home,
+          registerResult = null
+        )
+      }
+    } else {
+      val note = when (res) {
+        is BecomeLecturerResult.WrongPasscode ->
+          "Passcode did not match. Signed in as Student — open Profile and tap I am a Lecturer to retry."
+        is BecomeLecturerResult.Error ->
+          "Signed in! Could not verify lecturer passcode (${res.message}). Retry anytime from Profile."
+        else -> "Signed in! Open Profile to complete lecturer access."
+      }
+      updateState {
+        it.copy(
+          isLoading = false,
+          errorMessage = null,
+          infoMessage = note,
+          currentScreen = Screen.Home,
+          registerResult = null
+        )
       }
     }
   }

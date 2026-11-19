@@ -40,7 +40,7 @@ fun AddLinkMaterialDialog(
   onSave: (String, String, String, String, String) -> Unit,
   onDismiss: () -> Unit
 ) {
-  var unit by remember { mutableStateOf(units.first()) }
+  var unit by remember(units) { mutableStateOf(units.firstOrNull()) }
   var title by remember { mutableStateOf("") }
   var desc by remember { mutableStateOf("") }
   var type by remember { mutableStateOf("notes") }
@@ -60,7 +60,12 @@ fun AddLinkMaterialDialog(
     title = { Text("Add Material Link", fontWeight = FontWeight.Bold, color = GoldLight) },
     text = {
       Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-        OutlinedButton(onClick = { pickUnit = true }, modifier = Modifier.fillMaxWidth()) { Text("Unit: ${unit.displayLabel}", color = GoldLight) }
+        if (units.isEmpty()) {
+          Text("No units registered yet. Register a unit in the Units tab first.", fontSize = 12.sp, color = com.example.admin.ui.theme.CrimsonError)
+        }
+        OutlinedButton(onClick = { pickUnit = true }, enabled = units.isNotEmpty(), modifier = Modifier.fillMaxWidth()) {
+          Text("Unit: ${unit?.displayLabel ?: "No units available"}", color = GoldLight)
+        }
         OutlinedButton(onClick = { pickType = true }, modifier = Modifier.fillMaxWidth()) { Text("Type: ${type.uppercase()}", color = GoldLight) }
         OutlinedTextField(value = title, onValueChange = { title = it }, label = { Text("Title") }, singleLine = true, colors = fc, modifier = Modifier.fillMaxWidth())
         OutlinedTextField(value = url, onValueChange = { url = it }, label = { Text("URL (https://...)") }, singleLine = true, colors = fc, modifier = Modifier.fillMaxWidth())
@@ -68,15 +73,18 @@ fun AddLinkMaterialDialog(
       }
     },
     confirmButton = {
+      val selected = unit
       Button(
-        onClick = { onSave(unit.courseId, title, desc, type, url) },
-        enabled = !loading && title.isNotBlank() && url.isNotBlank(),
+        onClick = { if (selected != null) onSave(selected.courseId, title, desc, type, url) },
+        enabled = !loading && selected != null && title.isNotBlank() && url.isNotBlank(),
         colors = ButtonDefaults.buttonColors(containerColor = GoldPrimary, contentColor = DarkTextOnGold)
       ) { Text("Save") }
     },
     dismissButton = { TextButton(onClick = onDismiss) { Text("Cancel", color = TextSecondary) } }
   )
-  if (pickUnit) AdminOptionPickerDialog("Select Unit", units, { it.courseId == unit.courseId }, { it.displayLabel }, onSelect = { unit = it; pickUnit = false }) { pickUnit = false }
+  if (pickUnit && units.isNotEmpty()) {
+    AdminOptionPickerDialog("Select Unit", units, { it.courseId == unit?.courseId }, { it.displayLabel }, onSelect = { unit = it; pickUnit = false }) { pickUnit = false }
+  }
   if (pickType) AdminOptionPickerDialog("Material Type", listOf("notes", "slides", "past_paper", "video", "link"), { it == type }, { it.uppercase() }, onSelect = { type = it; pickType = false }) { pickType = false }
 }
 
@@ -88,7 +96,7 @@ fun UploadFileMaterialDialog(
   onUpload: (String, String, String) -> Unit,
   onDismiss: () -> Unit
 ) {
-  var unit by remember { mutableStateOf(units.first()) }
+  var unit by remember(units) { mutableStateOf(units.firstOrNull()) }
   var title by remember { mutableStateOf(fileName.substringBeforeLast('.')) }
   var desc by remember { mutableStateOf("") }
   var pickUnit by remember { mutableStateOf(false) }
@@ -106,21 +114,29 @@ fun UploadFileMaterialDialog(
     text = {
       Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
         Text("File: $fileName", fontSize = 12.sp, color = TextSecondary)
-        OutlinedButton(onClick = { pickUnit = true }, modifier = Modifier.fillMaxWidth()) { Text("Unit: ${unit.displayLabel}", color = GoldLight) }
+        if (units.isEmpty()) {
+          Text("No units registered yet. Register a unit in the Units tab first.", fontSize = 12.sp, color = com.example.admin.ui.theme.CrimsonError)
+        }
+        OutlinedButton(onClick = { pickUnit = true }, enabled = units.isNotEmpty(), modifier = Modifier.fillMaxWidth()) {
+          Text("Unit: ${unit?.displayLabel ?: "No units available"}", color = GoldLight)
+        }
         OutlinedTextField(value = title, onValueChange = { title = it }, label = { Text("Title") }, singleLine = true, colors = fc, modifier = Modifier.fillMaxWidth())
         OutlinedTextField(value = desc, onValueChange = { desc = it }, label = { Text("Description (optional)") }, maxLines = 2, colors = fc, modifier = Modifier.fillMaxWidth())
       }
     },
     confirmButton = {
+      val selected = unit
       Button(
-        onClick = { onUpload(unit.courseId, title.trim(), desc.trim()) },
-        enabled = !loading && title.isNotBlank(),
+        onClick = { if (selected != null) onUpload(selected.courseId, title.trim(), desc.trim()) },
+        enabled = !loading && selected != null && title.isNotBlank(),
         colors = ButtonDefaults.buttonColors(containerColor = GoldPrimary, contentColor = DarkTextOnGold)
       ) { Text("Upload") }
     },
     dismissButton = { TextButton(onClick = onDismiss) { Text("Cancel", color = TextSecondary) } }
   )
-  if (pickUnit) AdminOptionPickerDialog("Select Unit", units, { it.courseId == unit.courseId }, { it.displayLabel }, onSelect = { unit = it; pickUnit = false }) { pickUnit = false }
+  if (pickUnit && units.isNotEmpty()) {
+    AdminOptionPickerDialog("Select Unit", units, { it.courseId == unit?.courseId }, { it.displayLabel }, onSelect = { unit = it; pickUnit = false }) { pickUnit = false }
+  }
 }
 
 @Composable

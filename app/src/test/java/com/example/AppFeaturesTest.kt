@@ -153,4 +153,30 @@ class AppFeaturesTest {
     val unregJson = org.json.JSONObject(com.example.notifications.PushTokenManager.buildUnregisterPayload("tok-abc"))
     assertEquals("tok-abc", unregJson.getString("device_token"))
   }
+
+  @Test
+  fun lecturerService_parsesBecomeLecturerResponsesAccurately() {
+    assertEquals(
+      com.example.data.BecomeLecturerResult.Success,
+      com.example.data.LecturerService.parseBecomeLecturerResponse(204, "")
+    )
+    assertEquals(
+      com.example.data.BecomeLecturerResult.Success,
+      com.example.data.LecturerService.parseBecomeLecturerResponse(200, "ok")
+    )
+    assertEquals(
+      com.example.data.BecomeLecturerResult.Success,
+      com.example.data.LecturerService.parseBecomeLecturerResponse(200, """{"role":"lecturer","verified":true}""")
+    )
+    assertEquals(
+      com.example.data.BecomeLecturerResult.WrongPasscode,
+      com.example.data.LecturerService.parseBecomeLecturerResponse(200, """{"role":"student","verified":false}""")
+    )
+    assertEquals(
+      com.example.data.BecomeLecturerResult.WrongPasscode,
+      com.example.data.LecturerService.parseBecomeLecturerResponse(403, """{"message":"Invalid lecturer passcode"}""")
+    )
+    val err = com.example.data.LecturerService.parseBecomeLecturerResponse(500, """{"message":"Database timeout"}""")
+    assertTrue(err is com.example.data.BecomeLecturerResult.Error)
+  }
 }

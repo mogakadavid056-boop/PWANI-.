@@ -88,7 +88,9 @@ fun AdminClassMonitorScreen(
 
   val ov = monitorState.overview
   val className = ov?.className?.ifBlank { "Class Monitor" } ?: "Class Monitor"
-  val verifiedLecturers = remember(allUsers) { allUsers.filter { it.isLecturer } }
+  val verifiedLecturers = remember(monitorState.lecturers, allUsers) {
+    monitorState.lecturers.ifEmpty { allUsers.filter { it.isLecturer } }
+  }
 
   Column(modifier = Modifier.fillMaxSize().padding(horizontal = 16.dp, vertical = 12.dp).testTag("admin_class_monitor_screen")) {
     Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {

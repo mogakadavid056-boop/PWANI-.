@@ -109,7 +109,7 @@ class AdminMainViewModel(
     }
   }
 
-  fun assignRole(user: AdminUserItem, newRole: String) {
+  fun assignRole(user: AdminUserItem, newRole: String, onUpdated: () -> Unit = {}) {
     val token = session?.accessToken ?: return
     _state.update { it.copy(isActionLoading = true, errorMessage = null) }
     viewModelScope.launch {
@@ -118,13 +118,14 @@ class AdminMainViewModel(
           _state.update { it.copy(isActionLoading = false, successMessage = "Updated role for ${user.fullName.ifBlank { user.email }}") }
           fetchUsers(_state.value.userSearch)
           refreshStats()
+          onUpdated()
         },
         onFailure = { e -> _state.update { it.copy(isActionLoading = false, errorMessage = e.message) } }
       )
     }
   }
 
-  fun setLecturerVerified(user: AdminUserItem, verified: Boolean) {
+  fun setLecturerVerified(user: AdminUserItem, verified: Boolean, onUpdated: () -> Unit = {}) {
     val token = session?.accessToken ?: return
     _state.update { it.copy(isActionLoading = true, errorMessage = null) }
     viewModelScope.launch {
@@ -138,6 +139,7 @@ class AdminMainViewModel(
           }
           fetchUsers(_state.value.userSearch)
           refreshStats()
+          onUpdated()
         },
         onFailure = { e -> _state.update { it.copy(isActionLoading = false, errorMessage = e.message) } }
       )

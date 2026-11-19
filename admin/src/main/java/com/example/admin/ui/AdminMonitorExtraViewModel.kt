@@ -77,7 +77,9 @@ class AdminMonitorExtraViewModel(
           sessions = sessRes.getOrElse { s.sessions },
           polls = pollRes.getOrElse { s.polls },
           groups = grpRes.getOrElse { s.groups },
-          errorMessage = sessRes.exceptionOrNull()?.message ?: pollRes.exceptionOrNull()?.message
+          errorMessage = sessRes.exceptionOrNull()?.message
+            ?: pollRes.exceptionOrNull()?.message
+            ?: grpRes.exceptionOrNull()?.message
         )
       }
       val open = _state.value.sessions.firstOrNull { it.active || it.status.equals("open", true) }
@@ -197,12 +199,58 @@ class AdminMonitorExtraViewModel(
   }
 
   fun closeGroupDetail() = _state.update { it.copy(selectedGroup = null, groupMessages = emptyList(), groupMembers = emptyList()) }
-  fun deleteGroupMessage(msgId: String) = runSimple("Message deleted") { tok ->
-    repo.deleteGroupMessage(msgId, tok).also { if (it.isSuccess) _state.value.selectedGroup?.let(::openGroup) }
+
+  fun deleteGroupMessage(msgId: String) {
+    val token = session?.accessToken ?: return
+    val group = _state.value.selectedGroup ?: return
+    viewModelScope.launch {
+      _state.update { it.copy(isActionLoading = true, errorMessage = null) }
+      repo.deleteGroupMessage(msgId, token).fold(
+        onSuccess = {
+          val msgs = repo.getGroupMessages(group.id, token)
+          val mems = repo.listGroupMembers(group.id, token)
+          val grps = repo.listGroups(currentClassId, token)
+          _state.update { s ->
+            s.copy(
+              isActionLoading = false,
+              successMessage = "Message deleted",
+              groupMessages = msgs.getOrElse { s.groupMessages },
+              groupMembers = mems.getOrElse { s.groupMembers },
+              groups = grps.getOrElse { s.groups },
+              errorMessage = msgs.exceptionOrNull()?.message
+            )
+          }
+        },
+        onFailure = { e -> _state.update { it.copy(isActionLoading = false, errorMessage = e.message) } }
+      )
+    }
   }
-  fun removeGroupMember(groupId: String, userId: String) = runSimple("Removed from group") { tok ->
-    repo.removeGroupMember(groupId, userId, tok).also { if (it.isSuccess) _state.value.selectedGroup?.let(::openGroup) }
+
+  fun removeGroupMember(groupId: String, userId: String) {
+    val token = session?.accessToken ?: return
+    viewModelScope.launch {
+      _state.update { it.copy(isActionLoading = true, errorMessage = null) }
+      repo.removeGroupMember(groupId, userId, token).fold(
+        onSuccess = {
+          val msgs = repo.getGroupMessages(groupId, token)
+          val mems = repo.listGroupMembers(groupId, token)
+          val grps = repo.listGroups(currentClassId, token)
+          _state.update { s ->
+            s.copy(
+              isActionLoading = false,
+              successMessage = "Removed from group",
+              groupMessages = msgs.getOrElse { s.groupMessages },
+              groupMembers = mems.getOrElse { s.groupMembers },
+              groups = grps.getOrElse { s.groups },
+              errorMessage = mems.exceptionOrNull()?.message
+            )
+          }
+        },
+        onFailure = { e -> _state.update { it.copy(isActionLoading = false, errorMessage = e.message) } }
+      )
+    }
   }
+
   fun deleteGroup(groupId: String) {
     _state.update { it.copy(selectedGroup = null) }
     runSimple("Group deleted") { repo.deleteGroup(groupId, it) }

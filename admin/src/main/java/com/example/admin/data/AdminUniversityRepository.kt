@@ -50,8 +50,12 @@ class AdminUniversityRepository(
     }
   }
 
-  suspend fun saveSchool(id: String?, name: String, accessToken: String): Result<Unit> = withContext(Dispatchers.IO) {
-    val body = JSONObject().apply { put("name", name.trim()) }
+  suspend fun saveSchool(id: String?, name: String, universityId: String = "", accessToken: String): Result<Unit> = withContext(Dispatchers.IO) {
+    val resolvedUniId = if (id.isNullOrBlank() && universityId.isBlank()) fetchDefaultUniversityId(accessToken) else universityId
+    val body = JSONObject().apply {
+      put("name", name.trim())
+      if (id.isNullOrBlank() && resolvedUniId.isNotBlank()) put("university_id", resolvedUniId)
+    }
     val req = if (id.isNullOrBlank()) {
       baseRequest("${SupabaseAdminConfig.url}/rest/v1/schools", accessToken)
         .addHeader("Prefer", "return=minimal")
@@ -62,6 +66,15 @@ class AdminUniversityRepository(
         .patch(body.toString().toRequestBody(jsonMediaType)).build()
     }
     execute(req).map { }
+  }
+
+  private fun fetchDefaultUniversityId(accessToken: String): String {
+    val req = baseRequest("${SupabaseAdminConfig.url}/rest/v1/universities?select=id&limit=1", accessToken).get().build()
+    val raw = execute(req).getOrNull() ?: return ""
+    return runCatching {
+      val arr = JSONArray(raw)
+      if (arr.length() > 0) AdminJsonHelper.str(arr.getJSONObject(0), "id") else ""
+    }.getOrDefault("")
   }
 
   suspend fun deleteSchool(id: String, accessToken: String): Result<Unit> = withContext(Dispatchers.IO) {
@@ -160,7 +173,10 @@ class AdminUniversityRepository(
       .post(rpcBody.toString().toRequestBody(jsonMediaType)).build()
     val rpcRes = execute(rpcReq)
     if (rpcRes.isSuccess) return@withContext Result.success(Unit)
-    // Fallback if RPC not yet created: mark target true
+    // Fallback if RPC not yet created: unset existing current years, then mark target true
+    val unsetReq = baseRequest("${SupabaseAdminConfig.url}/rest/v1/academic_years?is_current=eq.true", accessToken)
+      .patch(JSONObject().apply { put("is_current", false) }.toString().toRequestBody(jsonMediaType)).build()
+    execute(unsetReq)
     val patchBody = JSONObject().apply { put("is_current", true) }
     val patchReq = baseRequest("${SupabaseAdminConfig.url}/rest/v1/academic_years?id=eq.$yearId", accessToken)
       .patch(patchBody.toString().toRequestBody(jsonMediaType)).build()

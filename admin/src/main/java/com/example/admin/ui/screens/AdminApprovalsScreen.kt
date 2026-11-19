@@ -1,6 +1,7 @@
 package com.example.admin.ui.screens
 
 import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
@@ -14,10 +15,12 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.GroupAdd
 import androidx.compose.material.icons.filled.MenuBook
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.VerifiedUser
@@ -41,6 +44,7 @@ import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.example.admin.data.AdminGlobalJoinRequestItem
 import com.example.admin.data.AdminPendingUnitItem
 import com.example.admin.data.AdminUserItem
 import com.example.admin.notifications.AdminNotificationTimeFormatter
@@ -72,11 +76,13 @@ fun AdminApprovalsScreen(
   onRefresh: () -> Unit,
   onReviewUnit: (AdminPendingUnitItem, Boolean, String?) -> Unit,
   onToggleVerifyLecturer: (AdminUserItem, Boolean) -> Unit,
+  onReviewJoinRequest: (AdminGlobalJoinRequestItem, Boolean) -> Unit,
   onOpenNotifications: () -> Unit
 ) {
   var approveTarget by remember { mutableStateOf<AdminPendingUnitItem?>(null) }
   var rejectTarget by remember { mutableStateOf<AdminPendingUnitItem?>(null) }
   var verifyTarget by remember { mutableStateOf<AdminUserItem?>(null) }
+  var joinReviewTarget by remember { mutableStateOf<Pair<AdminGlobalJoinRequestItem, Boolean>?>(null) }
 
   val pendingLecturersCount = remember(state.lecturers) { state.lecturers.count { !it.isVerified } }
   val filteredLecturers = remember(state.lecturers, state.lecturerSearch) {
@@ -91,26 +97,40 @@ fun AdminApprovalsScreen(
     Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
       Column(modifier = Modifier.weight(1f)) {
         Text("Approvals", fontSize = 22.sp, fontWeight = FontWeight.Bold, color = TextPrimary)
-        Text("Verify lecturers and review course unit requests", fontSize = 12.sp, color = TextSecondary)
+        Text("Verify lecturers, review units & class join requests", fontSize = 12.sp, color = TextSecondary)
       }
       Row {
-        IconButton(onClick = onRefresh) { Icon(Icons.Default.Refresh, contentDescription = "Refresh approvals", tint = GoldPrimary) }
+        IconButton(onClick = onRefresh, modifier = Modifier.testTag("approvals_refresh_btn")) {
+          Icon(Icons.Default.Refresh, contentDescription = "Refresh approvals", tint = GoldPrimary)
+        }
         AdminNotificationBellButton(unreadCount = unreadNotifications, onClick = onOpenNotifications)
       }
     }
 
     Spacer(modifier = Modifier.height(10.dp))
-    Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+    Row(
+      modifier = Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),
+      horizontalArrangement = Arrangement.spacedBy(8.dp)
+    ) {
       FilterChip(
         selected = state.subTab == ApprovalsSubTab.UNITS,
         onClick = { onSelectSubTab(ApprovalsSubTab.UNITS) },
+        modifier = Modifier.testTag("approvals_tab_units"),
         label = { Text("Pending Units (${state.pendingUnits.size})", fontSize = 12.sp) },
         colors = FilterChipDefaults.filterChipColors(selectedContainerColor = GoldPrimary, selectedLabelColor = DarkTextOnGold, containerColor = AdminSurface, labelColor = TextSecondary)
       )
       FilterChip(
         selected = state.subTab == ApprovalsSubTab.LECTURERS,
         onClick = { onSelectSubTab(ApprovalsSubTab.LECTURERS) },
+        modifier = Modifier.testTag("approvals_tab_lecturers"),
         label = { Text("Lecturers ($pendingLecturersCount pending)", fontSize = 12.sp) },
+        colors = FilterChipDefaults.filterChipColors(selectedContainerColor = GoldPrimary, selectedLabelColor = DarkTextOnGold, containerColor = AdminSurface, labelColor = TextSecondary)
+      )
+      FilterChip(
+        selected = state.subTab == ApprovalsSubTab.JOIN_REQUESTS,
+        onClick = { onSelectSubTab(ApprovalsSubTab.JOIN_REQUESTS) },
+        modifier = Modifier.testTag("approvals_tab_join_requests"),
+        label = { Text("Class Requests (${state.joinRequests.size})", fontSize = 12.sp) },
         colors = FilterChipDefaults.filterChipColors(selectedContainerColor = GoldPrimary, selectedLabelColor = DarkTextOnGold, containerColor = AdminSurface, labelColor = TextSecondary)
       )
     }
@@ -147,7 +167,8 @@ fun AdminApprovalsScreen(
                     enabled = !state.isActionLoading,
                     shape = RoundedCornerShape(8.dp),
                     border = BorderStroke(1.dp, CrimsonError),
-                    contentPadding = PaddingValues(horizontal = 12.dp, vertical = 4.dp)
+                    contentPadding = PaddingValues(horizontal = 12.dp, vertical = 4.dp),
+                    modifier = Modifier.testTag("approvals_reject_unit_${unit.courseId}")
                   ) {
                     Icon(Icons.Default.Close, contentDescription = null, tint = CrimsonError, modifier = Modifier.size(16.dp))
                     Spacer(modifier = Modifier.width(4.dp))
@@ -158,7 +179,8 @@ fun AdminApprovalsScreen(
                     enabled = !state.isActionLoading,
                     shape = RoundedCornerShape(8.dp),
                     contentPadding = PaddingValues(horizontal = 14.dp, vertical = 4.dp),
-                    colors = ButtonDefaults.buttonColors(containerColor = GoldPrimary, contentColor = DarkTextOnGold)
+                    colors = ButtonDefaults.buttonColors(containerColor = GoldPrimary, contentColor = DarkTextOnGold),
+                    modifier = Modifier.testTag("approvals_approve_unit_${unit.courseId}")
                   ) {
                     Icon(Icons.Default.Check, contentDescription = null, modifier = Modifier.size(16.dp))
                     Spacer(modifier = Modifier.width(4.dp))
@@ -194,9 +216,61 @@ fun AdminApprovalsScreen(
                     enabled = !state.isActionLoading,
                     shape = RoundedCornerShape(8.dp),
                     border = BorderStroke(1.dp, if (lec.isVerified) AmberWarning else GoldPrimary),
-                    contentPadding = PaddingValues(horizontal = 10.dp, vertical = 4.dp)
+                    contentPadding = PaddingValues(horizontal = 10.dp, vertical = 4.dp),
+                    modifier = Modifier.testTag("approvals_verify_lecturer_${lec.id}")
                   ) {
                     Text(if (lec.isVerified) "Remove" else "Verify", fontSize = 12.sp, color = if (lec.isVerified) AmberWarning else GoldLight, fontWeight = FontWeight.SemiBold)
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+
+      ApprovalsSubTab.JOIN_REQUESTS -> {
+        if (state.joinRequests.isEmpty() && !state.isLoading) {
+          AdminEmptyState(Icons.Default.GroupAdd, "No pending class requests", "Requests from lecturers joining classes appear here.")
+        } else {
+          LazyColumn(verticalArrangement = Arrangement.spacedBy(10.dp), contentPadding = PaddingValues(bottom = 24.dp)) {
+            items(state.joinRequests, key = { "${it.classId}_${it.userId}" }) { req ->
+              AdminGlassCard(borderColor = AmberWarning.copy(alpha = 0.65f)) {
+                Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
+                  Column(modifier = Modifier.weight(1f)) {
+                    Text(req.fullName.ifBlank { req.email.ifBlank { "Lecturer" } }, fontSize = 15.sp, fontWeight = FontWeight.Bold, color = TextPrimary)
+                    Text("Class: ${req.className}", fontSize = 13.sp, color = GoldLight, fontWeight = FontWeight.Medium)
+                    val meta = listOf(req.email, req.staffNumber.takeIf { it.isNotBlank() }?.let { "Staff: $it" }.orEmpty())
+                      .filter { it.isNotBlank() }
+                      .joinToString(" • ")
+                    if (meta.isNotBlank()) Text(meta, fontSize = 11.sp, color = TextMuted)
+                  }
+                  AdminStatusPill("PENDING", AmberWarning)
+                }
+                Spacer(modifier = Modifier.height(10.dp))
+                Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp, Alignment.End)) {
+                  OutlinedButton(
+                    onClick = { joinReviewTarget = req to false },
+                    enabled = !state.isActionLoading,
+                    shape = RoundedCornerShape(8.dp),
+                    border = BorderStroke(1.dp, CrimsonError),
+                    contentPadding = PaddingValues(horizontal = 12.dp, vertical = 4.dp),
+                    modifier = Modifier.testTag("approvals_reject_join_${req.userId}")
+                  ) {
+                    Icon(Icons.Default.Close, contentDescription = null, tint = CrimsonError, modifier = Modifier.size(16.dp))
+                    Spacer(modifier = Modifier.width(4.dp))
+                    Text("Reject", fontSize = 12.sp, color = CrimsonError)
+                  }
+                  Button(
+                    onClick = { joinReviewTarget = req to true },
+                    enabled = !state.isActionLoading,
+                    shape = RoundedCornerShape(8.dp),
+                    contentPadding = PaddingValues(horizontal = 14.dp, vertical = 4.dp),
+                    colors = ButtonDefaults.buttonColors(containerColor = GoldPrimary, contentColor = DarkTextOnGold),
+                    modifier = Modifier.testTag("approvals_approve_join_${req.userId}")
+                  ) {
+                    Icon(Icons.Default.Check, contentDescription = null, modifier = Modifier.size(16.dp))
+                    Spacer(modifier = Modifier.width(4.dp))
+                    Text("Approve", fontSize = 12.sp, fontWeight = FontWeight.Bold)
                   }
                 }
               }
@@ -218,5 +292,16 @@ fun AdminApprovalsScreen(
   }
   verifyTarget?.let { user ->
     AdminVerifyDialog(user = user, isActionLoading = state.isActionLoading, onConfirm = { target -> onToggleVerifyLecturer(user, target); verifyTarget = null }, onDismiss = { verifyTarget = null })
+  }
+  joinReviewTarget?.let { (req, approve) ->
+    AdminConfirmDialog(
+      title = if (approve) "Approve Class Join?" else "Reject Class Join?",
+      message = if (approve) "Allow ${req.fullName} to join ${req.className} as a lecturer?" else "Reject ${req.fullName}'s request to join ${req.className}?",
+      confirmLabel = if (approve) "Approve" else "Reject",
+      isDestructive = !approve,
+      isActionLoading = state.isActionLoading,
+      onConfirm = { onReviewJoinRequest(req, approve); joinReviewTarget = null },
+      onDismiss = { joinReviewTarget = null }
+    )
   }
 }
