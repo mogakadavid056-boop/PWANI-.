@@ -27,6 +27,7 @@ data class ClassesUiState(
 class ClassesViewModel : ViewModel() {
 
   private val classesService = ClassesService()
+  private val prefectService = com.example.data.ClassPrefectService()
   private val lecturerService = com.example.data.LecturerService()
 
   private val _uiState = MutableStateFlow(ClassesUiState())
@@ -260,6 +261,29 @@ class ClassesViewModel : ViewModel() {
         },
         onFailure = {
           _uiState.update { it.copy(isWaitingLoading = false) }
+        }
+      )
+    }
+  }
+
+  fun regenerateJoinCode(
+    classId: String,
+    session: UserSession?,
+    onSuccess: (String) -> Unit
+  ) {
+    if (session == null || session.accessToken.isBlank()) return
+    _uiState.update { it.copy(isActionLoading = true, errorMessage = null) }
+    viewModelScope.launch {
+      prefectService.regenerateJoinCode(classId, session.accessToken).fold(
+        onSuccess = { newCode ->
+          _uiState.update { state ->
+            val updated = state.classes.map { if (it.id == classId) it.copy(joinCode = newCode) else it }
+            state.copy(isActionLoading = false, classes = updated)
+          }
+          onSuccess(newCode)
+        },
+        onFailure = { err ->
+          _uiState.update { it.copy(isActionLoading = false, errorMessage = err.message ?: "Failed to change class code") }
         }
       )
     }

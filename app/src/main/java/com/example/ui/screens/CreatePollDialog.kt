@@ -23,9 +23,9 @@ import androidx.compose.material.icons.filled.ArrowDropDown
 import androidx.compose.material.icons.filled.RemoveCircleOutline
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
+import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.DropdownMenu
-import androidx.compose.material3.DropdownMenuItem
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.OutlinedButton
@@ -177,14 +177,14 @@ fun CreatePollDialog(
         Text("Duration", fontSize = 13.sp, fontWeight = FontWeight.Bold, color = TextPrimary)
         Spacer(modifier = Modifier.height(6.dp))
 
-        Box(modifier = Modifier.fillMaxWidth()) {
+        Column(modifier = Modifier.fillMaxWidth()) {
           Box(
             modifier = Modifier
               .fillMaxWidth()
               .clip(RoundedCornerShape(8.dp))
               .background(DarkSurface)
-              .border(1.dp, DarkBorder, RoundedCornerShape(8.dp))
-              .clickable { durationDropdownExpanded = true }
+              .border(1.dp, if (durationDropdownExpanded) GoldPrimary else DarkBorder, RoundedCornerShape(8.dp))
+              .clickable { durationDropdownExpanded = !durationDropdownExpanded }
               .padding(horizontal = 14.dp, vertical = 12.dp)
               .testTag("poll_duration_dropdown"),
             contentAlignment = Alignment.CenterStart
@@ -199,19 +199,31 @@ fun CreatePollDialog(
             }
           }
 
-          DropdownMenu(
-            expanded = durationDropdownExpanded,
-            onDismissRequest = { durationDropdownExpanded = false },
-            modifier = Modifier.background(DarkCard).border(1.dp, DarkBorder)
-          ) {
-            durations.forEach { d ->
-              DropdownMenuItem(
-                text = { Text(d, color = TextPrimary) },
-                onClick = {
-                  selectedDuration = d
-                  durationDropdownExpanded = false
-                }
-              )
+          AnimatedVisibility(visible = durationDropdownExpanded) {
+            Column(
+              modifier = Modifier
+                .fillMaxWidth()
+                .padding(top = 4.dp)
+                .clip(RoundedCornerShape(8.dp))
+                .background(DarkSurface)
+                .border(1.dp, DarkBorder, RoundedCornerShape(8.dp))
+            ) {
+              durations.forEachIndexed { idx, d ->
+                Text(
+                  text = d,
+                  color = if (d == selectedDuration) GoldLight else TextPrimary,
+                  fontWeight = if (d == selectedDuration) FontWeight.Bold else FontWeight.Normal,
+                  fontSize = 14.sp,
+                  modifier = Modifier
+                    .fillMaxWidth()
+                    .clickable {
+                      selectedDuration = d
+                      durationDropdownExpanded = false
+                    }
+                    .padding(horizontal = 14.dp, vertical = 10.dp)
+                )
+                if (idx < durations.lastIndex) HorizontalDivider(color = DarkBorder.copy(alpha = 0.5f))
+              }
             }
           }
         }

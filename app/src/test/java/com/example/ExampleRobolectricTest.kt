@@ -260,4 +260,33 @@ class ExampleRobolectricTest {
     com.example.alarms.AlarmScheduler.cancelAllAlarms(context)
     assertEquals(0, com.example.alarms.AlarmPreferences.getScheduledRegistry(context).size)
   }
+
+  @Test
+  fun `sessionManager saves and clears pending registration by email`() = kotlinx.coroutines.test.runTest {
+    val context = ApplicationProvider.getApplicationContext<Context>()
+    val manager = com.example.data.SessionManager(context)
+    val data = com.example.data.SessionManager.PendingRegistrationData(
+      email = "Pending@Uni.Edu",
+      isLecturer = false,
+      idNumber = "ADM-101",
+      phone = "+254700000000",
+      universityId = "uni-1",
+      schoolId = "sch-1",
+      programmeId = "prg-1",
+      yearOfStudy = 2,
+      knowsDetails = true,
+      classCode = "",
+      acceptedTermsAt = "2026-11-18T12:00:00Z",
+      termsVersion = "1.0"
+    )
+    manager.savePendingRegistration(data)
+    val loaded = manager.getPendingRegistration("pending@uni.edu")
+    org.junit.Assert.assertNotNull(loaded)
+    assertEquals("ADM-101", loaded!!.idNumber)
+    assertEquals(2, loaded.yearOfStudy)
+    org.junit.Assert.assertNull(manager.getPendingRegistration("other@uni.edu"))
+    manager.clearPendingRegistration()
+    org.junit.Assert.assertNull(manager.getPendingRegistration("pending@uni.edu"))
+  }
 }
+

@@ -21,7 +21,7 @@ class MaterialsService(
   suspend fun fetchMaterials(classId: String, accessToken: String): Result<List<MaterialItem>> = withContext(Dispatchers.IO) {
     if (!SupabaseConfig.isConfigured()) return@withContext Result.failure(IllegalStateException(SupabaseConfig.MISSING_CONFIG_ERROR))
 
-    val url = "${SupabaseConfig.url}/rest/v1/materials?class_id=eq.$classId&select=id,class_id,title,description,material_type,external_url,storage_path,file_name,file_size,mime_type,created_at&order=created_at.desc"
+    val url = "${SupabaseConfig.url}/rest/v1/materials?class_id=eq.$classId&select=id,class_id,course_id,title,description,material_type,external_url,storage_path,file_name,file_size,mime_type,created_at&order=created_at.desc"
     val req = Request.Builder().url(url)
       .addHeader("apikey", SupabaseConfig.anonKey)
       .addHeader("Authorization", "Bearer $accessToken")
@@ -38,17 +38,18 @@ class MaterialsService(
           val obj = arr.getJSONObject(i)
           list.add(
             MaterialItem(
-              id = obj.optString("id"),
-              classId = obj.optString("class_id"),
-              title = obj.optString("title"),
-              description = obj.optString("description"),
-              materialType = obj.optString("material_type", "notes"),
-              externalUrl = obj.optString("external_url"),
-              storagePath = obj.optString("storage_path"),
-              fileName = obj.optString("file_name"),
+              id = com.example.util.JsonHelper.str(obj, "id"),
+              classId = com.example.util.JsonHelper.str(obj, "class_id"),
+              courseId = com.example.util.JsonHelper.str(obj, "course_id"),
+              title = com.example.util.JsonHelper.str(obj, "title"),
+              description = com.example.util.JsonHelper.str(obj, "description"),
+              materialType = com.example.util.JsonHelper.str(obj, "material_type").ifBlank { "notes" },
+              externalUrl = com.example.util.JsonHelper.str(obj, "external_url"),
+              storagePath = com.example.util.JsonHelper.str(obj, "storage_path"),
+              fileName = com.example.util.JsonHelper.str(obj, "file_name"),
               fileSize = obj.optLong("file_size", 0L),
-              mimeType = obj.optString("mime_type"),
-              createdAt = obj.optString("created_at")
+              mimeType = com.example.util.JsonHelper.str(obj, "mime_type"),
+              createdAt = com.example.util.JsonHelper.str(obj, "created_at")
             )
           )
         }
@@ -61,6 +62,7 @@ class MaterialsService(
 
   suspend fun addLinkMaterial(
     classId: String,
+    courseId: String,
     title: String,
     description: String,
     materialType: String,
@@ -71,6 +73,7 @@ class MaterialsService(
 
     val json = JSONObject().apply {
       put("class_id", classId)
+      if (courseId.isNotBlank()) put("course_id", courseId)
       put("title", title.trim())
       put("description", description.trim())
       put("material_type", materialType.trim().lowercase())
@@ -96,6 +99,7 @@ class MaterialsService(
 
   suspend fun uploadFileAndCreateMaterial(
     classId: String,
+    courseId: String,
     title: String,
     description: String,
     storagePath: String,
@@ -120,6 +124,7 @@ class MaterialsService(
 
     val insertJson = JSONObject().apply {
       put("class_id", classId)
+      if (courseId.isNotBlank()) put("course_id", courseId)
       put("title", title.trim())
       put("description", description.trim())
       put("material_type", "notes")

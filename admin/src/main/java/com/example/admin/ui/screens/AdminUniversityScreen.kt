@@ -47,6 +47,7 @@ import com.example.admin.data.SchoolItem
 import com.example.admin.ui.UniversitySection
 import com.example.admin.ui.components.AdminEmptyState
 import com.example.admin.ui.components.AdminGlassCard
+import com.example.admin.ui.components.AdminNotificationBellButton
 import com.example.admin.ui.components.AdminStatusPill
 import com.example.admin.ui.theme.AdminSurface
 import com.example.admin.ui.theme.CrimsonError
@@ -64,6 +65,7 @@ fun AdminUniversityScreen(
   schools: List<SchoolItem>,
   programmes: List<ProgrammeItem>,
   academicYears: List<AcademicYearItem>,
+  unreadNotifications: Int,
   isLoading: Boolean,
   isActionLoading: Boolean,
   onSelectSection: (UniversitySection) -> Unit,
@@ -73,7 +75,8 @@ fun AdminUniversityScreen(
   onSaveProgramme: (String?, String, String, Int) -> Unit,
   onDeleteProgramme: (ProgrammeItem) -> Unit,
   onCreateYear: (String) -> Unit,
-  onSetCurrentYear: (AcademicYearItem) -> Unit
+  onSetCurrentYear: (AcademicYearItem) -> Unit,
+  onOpenNotifications: () -> Unit
 ) {
   var showSchoolDialog by remember { mutableStateOf(false) }
   var editSchool by remember { mutableStateOf<SchoolItem?>(null) }
@@ -83,12 +86,13 @@ fun AdminUniversityScreen(
 
   Column(modifier = Modifier.fillMaxSize().padding(horizontal = 16.dp, vertical = 14.dp).testTag("admin_university_screen")) {
     Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
-      Column {
+      Column(modifier = Modifier.weight(1f)) {
         Text("University Structure", fontSize = 22.sp, fontWeight = FontWeight.Bold, color = TextPrimary)
         Text("Shared directly with the student & lecturer app", fontSize = 12.sp, color = TextSecondary)
       }
-      Row {
+      Row(verticalAlignment = Alignment.CenterVertically) {
         IconButton(onClick = onRefresh) { Icon(Icons.Default.Refresh, contentDescription = "Refresh", tint = GoldPrimary) }
+        AdminNotificationBellButton(unreadCount = unreadNotifications, onClick = onOpenNotifications)
         Button(
           onClick = {
             when (section) {

@@ -50,6 +50,8 @@ fun HomeScreen(
   classesError: String? = null,
   classesWaitingForRep: List<ClassWaitingForPrefect> = emptyList(),
   isWaitingLoading: Boolean = false,
+  unreadNotificationCount: Int = 0,
+  onOpenNotifications: () -> Unit = {},
   onAppointPrefectClick: (ClassWaitingForPrefect) -> Unit = {},
   onDismissClassesError: () -> Unit = {},
   onRefreshClasses: () -> Unit = {},
@@ -126,21 +128,27 @@ fun HomeScreen(
           }
         }
 
-        IconButton(
-          onClick = onNavigateToProfile,
-          modifier = Modifier
-            .size(44.dp)
-            .clip(CircleShape)
-            .background(DarkSurfaceVariant)
-            .border(1.dp, DarkBorder, CircleShape)
-            .testTag("home_profile_avatar_button")
-        ) {
-          Icon(
-            Icons.Default.Person,
-            contentDescription = "Profile",
-            tint = GoldLight,
-            modifier = Modifier.size(24.dp)
+        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+          com.example.ui.components.NotificationBellButton(
+            unreadCount = unreadNotificationCount,
+            onClick = onOpenNotifications
           )
+          IconButton(
+            onClick = onNavigateToProfile,
+            modifier = Modifier
+              .size(44.dp)
+              .clip(CircleShape)
+              .background(DarkSurfaceVariant)
+              .border(1.dp, DarkBorder, CircleShape)
+              .testTag("home_profile_avatar_button")
+          ) {
+            Icon(
+              Icons.Default.Person,
+              contentDescription = "Profile",
+              tint = GoldLight,
+              modifier = Modifier.size(24.dp)
+            )
+          }
         }
       }
 

@@ -42,6 +42,10 @@ fun NoticesSection(
   canPostNotice: Boolean,
   isStaff: Boolean,
   isLoading: Boolean,
+  showMyAttendanceCard: Boolean = false,
+  myAttendanceStatus: com.example.data.MyAttendanceStatus? = null,
+  isMyAttendanceLoading: Boolean = false,
+  onOpenMyAttendance: () -> Unit = {},
   onRefreshNotices: () -> Unit,
   onNoticeClick: (NoticeItem) -> Unit,
   onNavigateToPostNotice: () -> Unit,
@@ -52,6 +56,14 @@ fun NoticesSection(
   val regularNotices = notices.filter { !it.isPinned }
 
   Column(modifier = Modifier.fillMaxWidth().testTag("notices_section")) {
+    if (showMyAttendanceCard) {
+      MyAttendanceStatusCard(
+        status = myAttendanceStatus,
+        isLoading = isMyAttendanceLoading,
+        onClick = onOpenMyAttendance
+      )
+      Spacer(modifier = Modifier.height(14.dp))
+    }
     Row(
       modifier = Modifier.fillMaxWidth(),
       verticalAlignment = Alignment.CenterVertically,

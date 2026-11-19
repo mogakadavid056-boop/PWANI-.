@@ -313,4 +313,60 @@ class ExampleUnitTest {
     assertFalse(nullTitle.contains("null", ignoreCase = true))
     assertFalse(nullBody.contains("null", ignoreCase = true))
   }
+
+  @Test
+  fun testPasswordStrengthAndRegistrationValidation() {
+    assertFalse(com.example.util.PasswordStrengthHelper.isValidName("Jo"))
+    assertTrue(com.example.util.PasswordStrengthHelper.isValidName("Joe"))
+    assertTrue(com.example.util.PasswordStrengthHelper.isValidEmail("student@uni.ac.ke"))
+    assertFalse(com.example.util.PasswordStrengthHelper.isValidEmail("bad-email"))
+    assertFalse(com.example.util.PasswordStrengthHelper.isValidPassword("short1"))
+    assertFalse(com.example.util.PasswordStrengthHelper.isValidPassword("onlyletters"))
+    assertFalse(com.example.util.PasswordStrengthHelper.isValidPassword("12345678"))
+    assertTrue(com.example.util.PasswordStrengthHelper.isValidPassword("pass1234"))
+
+    assertEquals(com.example.util.PasswordStrength.WEAK, com.example.util.PasswordStrengthHelper.evaluateStrength("12345"))
+    assertEquals(com.example.util.PasswordStrength.OK, com.example.util.PasswordStrengthHelper.evaluateStrength("pass1234"))
+    assertEquals(com.example.util.PasswordStrength.STRONG, com.example.util.PasswordStrengthHelper.evaluateStrength("MyPass!2026"))
+
+    val ts = com.example.util.PasswordStrengthHelper.currentUtcIso8601()
+    assertTrue(Regex("^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}Z$").matches(ts))
+    assertEquals(
+      "This email already has an account. Try logging in.",
+      com.example.util.PasswordStrengthHelper.formatRegistrationError("User already registered")
+    )
+  }
+
+  @Test
+  fun testRegisterWizardStateValidation() {
+    var wizard = com.example.ui.screens.register.RegisterWizardState()
+    assertFalse(wizard.isStep1Valid)
+
+    // Student flow
+    wizard = wizard.copy(role = com.example.ui.screens.register.RegisterWizardRole.STUDENT)
+    assertTrue(wizard.isStep1Valid)
+    assertFalse(wizard.isStep2Valid)
+
+    wizard = wizard.copy(
+      fullName = "Alice Student",
+      idNumber = "",
+      email = "alice@uni.ac.ke",
+      password = "Password1",
+      confirmPassword = "Password1"
+    )
+    assertFalse(wizard.isStep2Valid) // Admission required for student
+    wizard = wizard.copy(idNumber = "SCT221-001/2025")
+    assertTrue(wizard.isStep2Valid)
+
+    // Switch to lecturer: staff number is optional
+    wizard = wizard.copy(role = com.example.ui.screens.register.RegisterWizardRole.LECTURER, idNumber = "")
+    assertTrue(wizard.isStep2Valid)
+    assertFalse(wizard.isStep3Valid)
+    wizard = wizard.copy(lecturerPasscode = "SEC123")
+    assertTrue(wizard.isStep3Valid)
+    assertFalse(wizard.isStep4Valid)
+    wizard = wizard.copy(agreedToTerms = true)
+    assertTrue(wizard.isStep4Valid)
+  }
 }
+

@@ -51,6 +51,8 @@ fun MainContainerRoute(
   onSelectClass: (ClassItem) -> Unit,
   onOpenManageMembersForClass: (String, String) -> Unit = { _, _ -> },
   onBecomeLecturer: (String, (Result<String>) -> Unit) -> Unit = { _, cb -> cb(Result.failure(Exception("Unavailable"))) },
+  unreadNotificationCount: Int = 0,
+  onOpenNotifications: () -> Unit = {},
   onLogout: () -> Unit
 ) {
   var selectedTab by remember { mutableStateOf(MainTab.Home) }
@@ -97,6 +99,8 @@ fun MainContainerRoute(
               classesError = classesUiState.errorMessage,
               classesWaitingForRep = classesUiState.classesWaitingForRep,
               isWaitingLoading = classesUiState.isWaitingLoading,
+              unreadNotificationCount = unreadNotificationCount,
+              onOpenNotifications = onOpenNotifications,
               onAppointPrefectClick = { waitingItem ->
                 onOpenManageMembersForClass(waitingItem.classId, waitingItem.className)
               },
@@ -130,6 +134,8 @@ fun MainContainerRoute(
                 FindClassesScreen(
                   session = session,
                   isAdmin = true,
+                  unreadNotificationCount = unreadNotificationCount,
+                  onOpenNotifications = onOpenNotifications,
                   onBack = null,
                   onOpenClass = onSelectClass
                 )
@@ -142,6 +148,8 @@ fun MainContainerRoute(
                   isVerifiedLecturer = session?.isVerified == true,
                   isLoading = classesUiState.isLoading,
                   errorMessage = classesUiState.errorMessage,
+                  unreadNotificationCount = unreadNotificationCount,
+                  onOpenNotifications = onOpenNotifications,
                   onDismissError = { classesViewModel.clearError() },
                   onRefresh = { classesViewModel.loadClasses(session) },
                   onSelectClass = onSelectClass,
@@ -172,6 +180,8 @@ fun MainContainerRoute(
               onBecomeLecturer = onBecomeLecturer,
               onShowError = { msg -> universityViewModel.showError(msg) },
               onShowSuccess = { msg -> universityViewModel.showSuccess(msg) },
+              unreadNotificationCount = unreadNotificationCount,
+              onOpenNotifications = onOpenNotifications,
               onLogout = onLogout,
               onBack = { selectedTab = MainTab.Home }
             )

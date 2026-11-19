@@ -30,6 +30,8 @@ import com.example.ui.theme.*
 fun ClassTopAppBar(
   classItem: ClassItem,
   isStaff: Boolean,
+  unreadNotificationCount: Int = 0,
+  onOpenNotifications: () -> Unit = {},
   onBack: () -> Unit,
   onEditClassNameClick: () -> Unit = {},
   onOpenClassSwitcher: (() -> Unit)? = null,
@@ -98,7 +100,7 @@ fun ClassTopAppBar(
       }
     }
 
-    Row(verticalAlignment = Alignment.CenterVertically) {
+    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
       if (isStaff) {
         IconButton(
           onClick = onEditClassNameClick,
@@ -112,6 +114,11 @@ fun ClassTopAppBar(
           )
         }
       }
+
+      NotificationBellButton(
+        unreadCount = unreadNotificationCount,
+        onClick = onOpenNotifications
+      )
 
       // Avatar button on top right to reach Profile
       IconButton(

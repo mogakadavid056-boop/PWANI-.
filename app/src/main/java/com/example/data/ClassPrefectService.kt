@@ -98,4 +98,37 @@ class ClassPrefectService(
       Result.failure(Exception(e.localizedMessage ?: "Failed to load classes waiting for prefect"))
     }
   }
+
+  suspend fun regenerateJoinCode(
+    classId: String,
+    accessToken: String
+  ): Result<String> = withContext(Dispatchers.IO) {
+    if (!SupabaseConfig.isConfigured()) {
+      return@withContext Result.failure(IllegalStateException(SupabaseConfig.MISSING_CONFIG_ERROR))
+    }
+    val payload = JSONObject().apply { put("target_class_id", classId) }
+    val request = Request.Builder()
+      .url("${SupabaseConfig.url}/rest/v1/rpc/regenerate_join_code")
+      .addHeader("apikey", SupabaseConfig.anonKey)
+      .addHeader("Authorization", "Bearer $accessToken")
+      .addHeader("Content-Type", "application/json")
+      .post(payload.toString().toRequestBody(jsonMediaType))
+      .build()
+    try {
+      client.newCall(request).execute().use { response ->
+        val raw = response.body?.string().orEmpty().trim()
+        if (!response.isSuccessful) {
+          return@withContext Result.failure(Exception(SupabaseConfig.extractErrorMessage(raw, response.code)))
+        }
+        val clean = raw.removeSurrounding("\"").removeSurrounding("'").trim()
+        if (clean.isBlank() || clean.equals("null", true)) {
+          Result.failure(Exception("Server returned an empty join code"))
+        } else {
+          Result.success(clean)
+        }
+      }
+    } catch (e: Exception) {
+      Result.failure(Exception(SupabaseConfig.formatExceptionMessage(e, "Failed to change class code")))
+    }
+  }
 }

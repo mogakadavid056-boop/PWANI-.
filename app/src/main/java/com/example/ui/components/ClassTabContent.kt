@@ -32,12 +32,14 @@ fun ClassTabContent(
   selectedTab: ClassTab,
   moreSubView: MoreSubView,
   isStaff: Boolean,
+  isLecturer: Boolean = false,
   session: UserSession? = null,
   notices: List<NoticeItem>,
   readNoticeIds: Set<String>,
   canPostNotice: Boolean,
   isLoading: Boolean,
   attendanceUiState: AttendanceUiState,
+  trackerUiState: com.example.ui.AttendanceTrackerUiState = com.example.ui.AttendanceTrackerUiState(),
   groupsUiState: GroupsUiState,
   timetableUiState: TimetableUiState,
   materialsUiState: MaterialsUiState,
@@ -53,6 +55,7 @@ fun ClassTabContent(
   onOpenSignAttendance: (String) -> Unit,
   onOpenAttendanceSummary: () -> Unit = {},
   onOpenMyAttendance: () -> Unit = {},
+  onOpenAttendanceTracker: () -> Unit = {},
   onOpenRegister: (String) -> Unit = {},
   onCloseSession: (String) -> Unit = {},
   onSignOutSession: (String) -> Unit = {},
@@ -71,7 +74,8 @@ fun ClassTabContent(
   onStatusScheduleClick: (ScheduleItem) -> Unit = {},
   onRefreshMaterials: () -> Unit,
   onMaterialsSearchChange: (String) -> Unit,
-  onMaterialsSelectTypeFilter: (String) -> Unit,
+  onMaterialsSelectUnitFilter: (String?) -> Unit = {},
+  onRegisterUnitClick: () -> Unit = {},
   onAddMaterialClick: () -> Unit,
   onOpenFileMaterial: (MaterialItem) -> Unit = {},
   onDownloadMaterial: (MaterialItem) -> Unit = {},
@@ -92,11 +96,16 @@ fun ClassTabContent(
   when (selectedTab) {
     ClassTab.Notices -> NoticesSection(
       notices = notices, readNoticeIds = readNoticeIds, canPostNotice = canPostNotice, isStaff = isStaff, isLoading = isLoading,
+      showMyAttendanceCard = !isStaff && !isLecturer,
+      myAttendanceStatus = trackerUiState.myStatus,
+      isMyAttendanceLoading = trackerUiState.isMyStatusLoading,
+      onOpenMyAttendance = onOpenMyAttendance,
       onRefreshNotices = onRefreshNotices, onNoticeClick = onNoticeClick, onNavigateToPostNotice = onNavigateToPostNotice,
       onEditNotice = onEditNoticeClick, onDeleteNotice = onDeleteNoticeClick
     )
     ClassTab.Attendance -> AttendanceSection(
       isStaff = isStaff,
+      isLecturer = isLecturer,
       canSignAttendance = attendanceUiState.canSignAttendance,
       isLoading = attendanceUiState.isLoading, staffSessions = attendanceUiState.staffSessions, openSessions = attendanceUiState.openSessions,
       registers = attendanceUiState.registers,
@@ -104,7 +113,8 @@ fun ClassTabContent(
       canManageActiveSession = attendanceUiState.canManageActiveSession,
       onStartAttendanceClick = onStartAttendanceClick, onRefreshSessions = onRefreshAttendance, onOpenViewAttendance = onOpenViewAttendance,
       onOpenSignAttendance = onOpenSignAttendance, onOpenAttendanceSummary = onOpenAttendanceSummary,
-      onOpenMyAttendance = onOpenMyAttendance, onOpenRegister = onOpenRegister, onCloseSession = onCloseSession,
+      onOpenMyAttendance = onOpenMyAttendance, onOpenAttendanceTracker = onOpenAttendanceTracker,
+      onOpenRegister = onOpenRegister, onCloseSession = onCloseSession,
       onSignOutSession = onSignOutSession, onVoidSessionPrompt = onDeleteSession, onDeleteRegisterPrompt = onDeleteRegisterPrompt, onShowActiveCode = onShowActiveCode
     )
     ClassTab.Timetable -> TimetableSection(
@@ -149,16 +159,28 @@ fun ClassTabContent(
           Text("Course Materials", style = SectionHeadingStyle, color = GoldLight)
         }
         MaterialsSection(
-          materials = materialsUiState.filteredMaterials, searchQuery = materialsUiState.searchQuery, selectedTypeFilter = materialsUiState.selectedTypeFilter,
-          isStaff = isStaff, isLoading = materialsUiState.isLoading,
+          units = materialsUiState.units,
+          groupedMaterials = materialsUiState.groupedMaterials,
+          materialsCount = materialsUiState.filteredMaterials.size,
+          searchQuery = materialsUiState.searchQuery,
+          selectedUnitFilterId = materialsUiState.selectedUnitFilterId,
+          isStaff = isStaff,
+          isLecturer = isLecturer,
+          isLoading = materialsUiState.isLoading,
+          isUnitsLoading = materialsUiState.isUnitsLoading,
+          successMessage = materialsUiState.successMessage,
           downloadingMaterialId = materialsUiState.downloadingMaterialId,
           downloadProgress = materialsUiState.downloadProgress,
-          onSearchChange = onMaterialsSearchChange, onSelectTypeFilter = onMaterialsSelectTypeFilter,
-          onRefresh = onRefreshMaterials, onAddMaterialClick = onAddMaterialClick,
+          onSearchChange = onMaterialsSearchChange,
+          onSelectUnitFilter = onMaterialsSelectUnitFilter,
+          onRegisterUnitClick = onRegisterUnitClick,
+          onRefresh = onRefreshMaterials,
+          onAddMaterialClick = onAddMaterialClick,
           onOpenFileMaterial = onOpenFileMaterial,
           onDownloadMaterial = onDownloadMaterial,
           onRemoveDownloadMaterial = onRemoveDownloadMaterial,
-          onEditMaterial = onEditMaterialClick, onDeleteMaterial = onDeleteMaterialClick
+          onEditMaterial = onEditMaterialClick,
+          onDeleteMaterial = onDeleteMaterialClick
         )
       }
       MoreSubView.Polls -> {

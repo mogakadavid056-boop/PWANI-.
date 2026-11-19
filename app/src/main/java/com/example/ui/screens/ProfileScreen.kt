@@ -49,6 +49,8 @@ fun ProfileScreen(
   onBecomeLecturer: (passcode: String, onResult: (Result<String>) -> Unit) -> Unit = { _, cb -> cb(Result.failure(Exception("Unavailable"))) },
   onShowError: (String) -> Unit = {},
   onShowSuccess: (String) -> Unit = {},
+  unreadNotificationCount: Int = 0,
+  onOpenNotifications: () -> Unit = {},
   onLogout: () -> Unit,
   onBack: () -> Unit
 ) {
@@ -77,12 +79,15 @@ fun ProfileScreen(
     Column(
       modifier = Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(horizontal = 24.dp, vertical = 20.dp)
     ) {
-      Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth()) {
-        IconButton(onClick = onBack, modifier = Modifier.size(40.dp)) {
-          Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back", tint = GoldLight)
+      Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.SpaceBetween, modifier = Modifier.fillMaxWidth()) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+          IconButton(onClick = onBack, modifier = Modifier.size(40.dp)) {
+            Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back", tint = GoldLight)
+          }
+          Spacer(modifier = Modifier.width(8.dp))
+          Text("Profile", fontSize = 22.sp, fontWeight = FontWeight.Bold, color = GoldLight)
         }
-        Spacer(modifier = Modifier.width(8.dp))
-        Text("Profile", fontSize = 22.sp, fontWeight = FontWeight.Bold, color = GoldLight)
+        NotificationBellButton(unreadCount = unreadNotificationCount, onClick = onOpenNotifications)
       }
 
       Spacer(modifier = Modifier.height(16.dp))
@@ -265,16 +270,8 @@ fun ProfileScreen(
         isBecomingLecturer = true
         onBecomeLecturer(passcode) { res ->
           isBecomingLecturer = false
-          res.fold(
-            onSuccess = { msg ->
-              showBecomeLecturerDialog = false
-              onShowSuccess(msg)
-            },
-            onFailure = { err ->
-              showBecomeLecturerDialog = false
-              onShowError(err.message ?: "Failed to upgrade to Lecturer.")
-            }
-          )
+          showBecomeLecturerDialog = false
+          res.fold(onSuccess = onShowSuccess, onFailure = { err -> onShowError(err.message ?: "Failed to upgrade to Lecturer.") })
         }
       }
     )
@@ -282,15 +279,9 @@ fun ProfileScreen(
 
   if (showLogoutConfirmDialog) {
     ConfirmActionDialog(
-      title = "Confirm Logout",
-      message = "Are you sure you want to log out of ClassRep?",
-      confirmButtonText = "Log Out",
-      confirmButtonColor = ErrorRed,
-      onConfirm = {
-        showLogoutConfirmDialog = false
-        onLogout()
-      },
-      onDismiss = { showLogoutConfirmDialog = false }
+      title = "Confirm Logout", message = "Are you sure you want to log out of ClassRep?",
+      confirmButtonText = "Log Out", confirmButtonColor = ErrorRed,
+      onConfirm = { showLogoutConfirmDialog = false; onLogout() }, onDismiss = { showLogoutConfirmDialog = false }
     )
   }
 }

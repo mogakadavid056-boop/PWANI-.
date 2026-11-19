@@ -60,6 +60,8 @@ import com.example.ui.theme.TextSecondary
 fun WaitingScreen(
   isLoading: Boolean,
   errorMessage: String?,
+  unreadNotificationCount: Int = 0,
+  onOpenNotifications: () -> Unit = {},
   onDismissError: () -> Unit,
   onJoinWithCode: (String) -> Unit,
   onTryAutoJoin: () -> Unit,
@@ -93,21 +95,27 @@ fun WaitingScreen(
           color = GoldLight
         )
 
-        IconButton(
-          onClick = onNavigateToProfile,
-          modifier = Modifier
-            .size(44.dp)
-            .clip(CircleShape)
-            .background(DarkSurfaceVariant)
-            .border(1.dp, DarkBorder, CircleShape)
-            .testTag("waiting_profile_avatar_button")
-        ) {
-          Icon(
-            Icons.Default.Person,
-            contentDescription = "Profile & Logout",
-            tint = GoldLight,
-            modifier = Modifier.size(24.dp)
+        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+          com.example.ui.components.NotificationBellButton(
+            unreadCount = unreadNotificationCount,
+            onClick = onOpenNotifications
           )
+          IconButton(
+            onClick = onNavigateToProfile,
+            modifier = Modifier
+              .size(44.dp)
+              .clip(CircleShape)
+              .background(DarkSurfaceVariant)
+              .border(1.dp, DarkBorder, CircleShape)
+              .testTag("waiting_profile_avatar_button")
+          ) {
+            Icon(
+              Icons.Default.Person,
+              contentDescription = "Profile & Logout",
+              tint = GoldLight,
+              modifier = Modifier.size(24.dp)
+            )
+          }
         }
       }
 

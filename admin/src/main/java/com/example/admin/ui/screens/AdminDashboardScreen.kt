@@ -40,6 +40,7 @@ import com.example.admin.data.AdminDashboardStats
 import com.example.admin.data.AdminSession
 import com.example.admin.ui.AdminTab
 import com.example.admin.ui.components.AdminGlassCard
+import com.example.admin.ui.components.AdminNotificationBellButton
 import com.example.admin.ui.components.AdminStatusPill
 import com.example.admin.ui.components.KpiBentoCard
 import com.example.admin.ui.theme.AmberWarning
@@ -56,10 +57,13 @@ import com.example.admin.ui.theme.TextSecondary
 fun AdminDashboardScreen(
   session: AdminSession,
   stats: AdminDashboardStats,
+  unreadNotifications: Int,
+  pendingUnitsCount: Int,
   isLoading: Boolean,
   onRefresh: () -> Unit,
   onJumpToUnverified: () -> Unit,
   onNavigateTab: (AdminTab) -> Unit,
+  onOpenNotifications: () -> Unit,
   onOpenSettings: () -> Unit
 ) {
   LazyColumn(
@@ -85,6 +89,7 @@ fun AdminDashboardScreen(
           IconButton(onClick = onRefresh, modifier = Modifier.testTag("dashboard_refresh_btn")) {
             Icon(Icons.Default.Refresh, contentDescription = "Refresh dashboard", tint = GoldPrimary)
           }
+          AdminNotificationBellButton(unreadCount = unreadNotifications, onClick = onOpenNotifications)
           IconButton(onClick = onOpenSettings, modifier = Modifier.testTag("dashboard_settings_btn")) {
             Icon(Icons.Default.Settings, contentDescription = "Account & Setup", tint = GoldLight)
           }
@@ -161,11 +166,11 @@ fun AdminDashboardScreen(
         KpiBentoCard(
           title = "Classes",
           value = stats.totalClasses.toString(),
-          subtitle = if (stats.rpcSqlInstalled) "${stats.openRegisters} open registers" else "Tap to audit",
+          subtitle = if (pendingUnitsCount > 0) "$pendingUnitsCount pending unit(s)" else if (stats.rpcSqlInstalled) "${stats.openRegisters} open registers" else "Tap to monitor",
           icon = Icons.Default.AssignmentTurnedIn,
           accentColor = EmeraldSuccess,
           modifier = Modifier.weight(1f),
-          onClick = { onNavigateTab(AdminTab.OVERSIGHT) }
+          onClick = { onNavigateTab(AdminTab.CLASSES) }
         )
       }
     }
@@ -176,22 +181,22 @@ fun AdminDashboardScreen(
         Spacer(modifier = Modifier.height(10.dp))
         Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
           OutlinedButton(
-            onClick = { onNavigateTab(AdminTab.USERS) },
+            onClick = { onNavigateTab(AdminTab.APPROVALS) },
             modifier = Modifier.weight(1f).height(48.dp),
             shape = RoundedCornerShape(10.dp)
           ) {
             Icon(Icons.Default.School, contentDescription = null, modifier = Modifier.size(18.dp), tint = GoldPrimary)
             Spacer(modifier = Modifier.width(6.dp))
-            Text("Manage Roles", fontSize = 13.sp, color = TextPrimary)
+            Text("Approvals (${pendingUnitsCount + stats.unverifiedLecturers})", fontSize = 12.sp, color = TextPrimary)
           }
           OutlinedButton(
-            onClick = { onNavigateTab(AdminTab.OVERSIGHT) },
+            onClick = { onNavigateTab(AdminTab.RISK) },
             modifier = Modifier.weight(1f).height(48.dp),
             shape = RoundedCornerShape(10.dp)
           ) {
             Icon(Icons.Default.FactCheck, contentDescription = null, modifier = Modifier.size(18.dp), tint = EmeraldSuccess)
             Spacer(modifier = Modifier.width(6.dp))
-            Text("Audit Registers", fontSize = 13.sp, color = TextPrimary)
+            Text("Attendance Risk", fontSize = 12.sp, color = TextPrimary)
           }
         }
       }

@@ -10,6 +10,7 @@ import com.example.ui.PollsUiState
 fun HandleClassSubScreenOverlay(
   attendanceUiState: AttendanceUiState,
   pollsUiState: PollsUiState,
+  trackerUiState: com.example.ui.AttendanceTrackerUiState = com.example.ui.AttendanceTrackerUiState(),
   isStaff: Boolean,
   session: UserSession? = null,
   className: String = "",
@@ -17,6 +18,15 @@ fun HandleClassSubScreenOverlay(
   onOpenViewAttendance: (String) -> Unit,
   onCloseAttendanceSubScreen: () -> Unit,
   onDismissAttendanceSuccess: () -> Unit,
+  onRefreshTracker: () -> Unit = {},
+  onSelectTrackerLevel: (com.example.data.RiskLevel) -> Unit = {},
+  onTrackerSearchChange: (String) -> Unit = {},
+  onOpenTrackerStudent: (com.example.data.StudentRiskItem) -> Unit = {},
+  onCloseTrackerStudent: () -> Unit = {},
+  onExcuseTrackerSession: (String, String) -> Unit = { _, _ -> },
+  onRemoveTrackerExcuse: (String) -> Unit = {},
+  onDismissTrackerError: () -> Unit = {},
+  onDismissTrackerSuccess: () -> Unit = {},
   onUpdateMyDetails: (fullName: String, admissionNo: String, phone: String, onSaved: () -> Unit) -> Unit = { _, _, _, cb -> cb() },
   onSignAttendanceSubmit: (code: String, signatureBase64: String, memberFullName: String, memberAdmissionNo: String) -> Unit,
   onCloseRegisterSession: () -> Unit = {},
@@ -98,6 +108,28 @@ fun HandleClassSubScreenOverlay(
     MyAttendanceScreen(
       classId = attendanceUiState.classId,
       session = session,
+      onBack = onCloseAttendanceSubScreen
+    )
+    return true
+  }
+
+  if (attendanceUiState.currentSubScreen == AttendanceSubScreen.AttendanceTracker &&
+    com.example.util.RoleHelper.isStaffRole(session?.role)
+  ) {
+    AttendanceTrackerScreen(
+      classId = attendanceUiState.classId,
+      className = className,
+      session = session,
+      uiState = trackerUiState,
+      onRefresh = onRefreshTracker,
+      onSelectLevel = onSelectTrackerLevel,
+      onSearchChange = onTrackerSearchChange,
+      onStudentClick = onOpenTrackerStudent,
+      onCloseStudentDetail = onCloseTrackerStudent,
+      onExcuseSession = onExcuseTrackerSession,
+      onRemoveExcuse = onRemoveTrackerExcuse,
+      onDismissError = onDismissTrackerError,
+      onDismissSuccess = onDismissTrackerSuccess,
       onBack = onCloseAttendanceSubScreen
     )
     return true

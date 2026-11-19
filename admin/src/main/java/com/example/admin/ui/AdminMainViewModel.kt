@@ -17,7 +17,7 @@ import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 
-enum class AdminTab { OVERVIEW, USERS, UNIVERSITY, OVERSIGHT }
+enum class AdminTab { OVERVIEW, CLASSES, APPROVALS, RISK, USERS, UNIVERSITY }
 enum class UserFilterChip(val label: String) {
   ALL("All"), UNVERIFIED("Unverified"), LECTURERS("Lecturers"),
   CLASS_REPS("Class Reps"), STUDENTS("Students"), ADMINS("Admins")

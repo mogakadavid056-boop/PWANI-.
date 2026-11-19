@@ -6,6 +6,7 @@ import androidx.lifecycle.viewModelScope
 import com.example.admin.data.AdminAuthService
 import com.example.admin.data.AdminSession
 import com.example.admin.data.AdminSessionManager
+import com.example.admin.notifications.AdminPushTokenManager
 import com.example.admin.util.AdminRoleHelper
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -66,6 +67,7 @@ class AdminAuthViewModel(application: Application) : AndroidViewModel(applicatio
     } else null
 
     if (resolvedRole != null && !AdminRoleHelper.isAdmin(resolvedRole)) {
+      AdminPushTokenManager.unregisterOnLogout(getApplication(), active.accessToken)
       sessionManager.clearSession()
       _state.update {
         it.copy(
@@ -80,6 +82,7 @@ class AdminAuthViewModel(application: Application) : AndroidViewModel(applicatio
     val updated = if (resolvedRole != null) active.copy(role = resolvedRole) else active
     sessionManager.saveSession(updated)
     _state.update { it.copy(isInitializing = false, session = updated) }
+    AdminPushTokenManager.syncCurrentToken(getApplication(), updated.accessToken)
   }
 
   fun login(email: String, password: String) {
@@ -117,6 +120,7 @@ class AdminAuthViewModel(application: Application) : AndroidViewModel(applicatio
                 )
                 sessionManager.saveSession(session)
                 _state.update { it.copy(isLoading = false, session = session, errorMessage = null) }
+                AdminPushTokenManager.syncCurrentToken(getApplication(), session.accessToken)
               }
             },
             onFailure = { err ->
@@ -136,6 +140,8 @@ class AdminAuthViewModel(application: Application) : AndroidViewModel(applicatio
   }
 
   fun logout() {
+    val token = _state.value.session?.accessToken.orEmpty()
+    AdminPushTokenManager.unregisterOnLogout(getApplication(), token)
     viewModelScope.launch {
       sessionManager.clearSession()
       _state.update { AdminAuthState(isInitializing = false, session = null) }

@@ -55,6 +55,7 @@ import com.example.admin.data.AdminUserItem
 import com.example.admin.ui.UserFilterChip
 import com.example.admin.ui.components.AdminEmptyState
 import com.example.admin.ui.components.AdminGlassCard
+import com.example.admin.ui.components.AdminNotificationBellButton
 import com.example.admin.ui.components.AdminSearchField
 import com.example.admin.ui.components.AdminStatusPill
 import com.example.admin.ui.theme.AdminBorder
@@ -74,13 +75,15 @@ fun AdminUsersScreen(
   users: List<AdminUserItem>,
   searchQuery: String,
   activeFilter: UserFilterChip,
+  unreadNotifications: Int,
   isLoading: Boolean,
   isActionLoading: Boolean,
   onSearchChanged: (String) -> Unit,
   onFilterChanged: (UserFilterChip) -> Unit,
   onRefresh: () -> Unit,
   onAssignRole: (AdminUserItem, String) -> Unit,
-  onToggleVerify: (AdminUserItem, Boolean) -> Unit
+  onToggleVerify: (AdminUserItem, Boolean) -> Unit,
+  onOpenNotifications: () -> Unit
 ) {
   var roleTarget by remember { mutableStateOf<AdminUserItem?>(null) }
   var verifyTarget by remember { mutableStateOf<AdminUserItem?>(null) }
@@ -98,12 +101,13 @@ fun AdminUsersScreen(
 
   Column(modifier = Modifier.fillMaxSize().padding(horizontal = 16.dp, vertical = 14.dp).testTag("admin_users_screen")) {
     Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
-      Column {
+      Column(modifier = Modifier.weight(1f)) {
         Text("Users & Roles", fontSize = 22.sp, fontWeight = FontWeight.Bold, color = TextPrimary)
         Text("${filtered.size} shown • Tap user to change role", fontSize = 12.sp, color = TextSecondary)
       }
-      IconButton(onClick = onRefresh) {
-        Icon(Icons.Default.Refresh, contentDescription = "Refresh users", tint = GoldPrimary)
+      Row {
+        IconButton(onClick = onRefresh) { Icon(Icons.Default.Refresh, contentDescription = "Refresh users", tint = GoldPrimary) }
+        AdminNotificationBellButton(unreadCount = unreadNotifications, onClick = onOpenNotifications)
       }
     }
 

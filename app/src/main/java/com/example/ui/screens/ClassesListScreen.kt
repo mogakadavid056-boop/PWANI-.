@@ -53,6 +53,8 @@ fun ClassesListScreen(
   isVerifiedLecturer: Boolean = false,
   isLoading: Boolean,
   errorMessage: String?,
+  unreadNotificationCount: Int = 0,
+  onOpenNotifications: () -> Unit = {},
   onDismissError: () -> Unit,
   onRefresh: () -> Unit,
   onSelectClass: (ClassItem) -> Unit,
@@ -95,11 +97,17 @@ fun ClassesListScreen(
           )
         }
 
-        IconButton(
-          onClick = onRefresh,
-          modifier = Modifier.size(40.dp).testTag("classes_refresh_button")
-        ) {
-          Icon(Icons.Default.Refresh, contentDescription = "Refresh", tint = GoldLight, modifier = Modifier.size(22.dp))
+        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+          com.example.ui.components.NotificationBellButton(
+            unreadCount = unreadNotificationCount,
+            onClick = onOpenNotifications
+          )
+          IconButton(
+            onClick = onRefresh,
+            modifier = Modifier.size(40.dp).testTag("classes_refresh_button")
+          ) {
+            Icon(Icons.Default.Refresh, contentDescription = "Refresh", tint = GoldLight, modifier = Modifier.size(22.dp))
+          }
         }
       }
 

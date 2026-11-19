@@ -24,8 +24,8 @@ import androidx.compose.material.icons.filled.CalendarMonth
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.DropdownMenu
-import androidx.compose.material3.DropdownMenuItem
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.OutlinedButton
@@ -122,10 +122,11 @@ fun AddEditScheduleDialog(
       Spacer(modifier = Modifier.height(12.dp))
       Text("Day of the Week", fontSize = 12.sp, color = TextSecondary)
       Spacer(modifier = Modifier.height(4.dp))
-      Box(modifier = Modifier.fillMaxWidth()) {
+      Column(modifier = Modifier.fillMaxWidth()) {
         Box(
           modifier = Modifier.fillMaxWidth().clip(RoundedCornerShape(8.dp)).background(DarkSurfaceVariant)
-            .border(1.dp, DarkBorder, RoundedCornerShape(8.dp)).clickable { dayDropdownExpanded = true }
+            .border(1.dp, if (dayDropdownExpanded) GoldPrimary else DarkBorder, RoundedCornerShape(8.dp))
+            .clickable { dayDropdownExpanded = !dayDropdownExpanded }
             .padding(horizontal = 14.dp, vertical = 12.dp).testTag("schedule_day_dropdown"),
           contentAlignment = Alignment.CenterStart
         ) {
@@ -134,13 +135,22 @@ fun AddEditScheduleDialog(
             Icon(Icons.Default.ArrowDropDown, contentDescription = "Select Day", tint = GoldLight)
           }
         }
-        DropdownMenu(expanded = dayDropdownExpanded, onDismissRequest = { dayDropdownExpanded = false }, modifier = Modifier.background(DarkSurface).border(1.dp, DarkBorder)) {
-          days.forEach { (d, label) ->
-            DropdownMenuItem(
-              text = { Text(label, color = if (d == dayOfWeek) GoldPrimary else TextPrimary, fontWeight = if (d == dayOfWeek) FontWeight.Bold else FontWeight.Normal) },
-              onClick = { dayOfWeek = d; dayDropdownExpanded = false },
-              modifier = Modifier.testTag("day_option_$d")
-            )
+        AnimatedVisibility(visible = dayDropdownExpanded) {
+          Column(
+            modifier = Modifier.fillMaxWidth().padding(top = 4.dp).clip(RoundedCornerShape(8.dp))
+              .background(DarkSurface).border(1.dp, DarkBorder, RoundedCornerShape(8.dp))
+          ) {
+            days.forEachIndexed { idx, (d, label) ->
+              Text(
+                text = label,
+                color = if (d == dayOfWeek) GoldPrimary else TextPrimary,
+                fontWeight = if (d == dayOfWeek) FontWeight.Bold else FontWeight.Normal,
+                fontSize = 14.sp,
+                modifier = Modifier.fillMaxWidth().clickable { dayOfWeek = d; dayDropdownExpanded = false }
+                  .padding(horizontal = 14.dp, vertical = 10.dp).testTag("day_option_$d")
+              )
+              if (idx < days.lastIndex) HorizontalDivider(color = DarkBorder.copy(alpha = 0.5f))
+            }
           }
         }
       }

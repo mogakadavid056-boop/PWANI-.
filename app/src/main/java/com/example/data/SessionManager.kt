@@ -30,7 +30,23 @@ class SessionManager(private val context: Context) {
     private val KEY_REFRESH_TOKEN = stringPreferencesKey("refresh_token")
     private val KEY_LAST_CLASS_ID = stringPreferencesKey("last_class_id")
     private val KEY_IS_VERIFIED = booleanPreferencesKey("is_verified")
+    private val KEY_PENDING_REG_JSON = stringPreferencesKey("pending_reg_json")
   }
+
+  data class PendingRegistrationData(
+    val email: String,
+    val isLecturer: Boolean,
+    val idNumber: String,
+    val phone: String,
+    val universityId: String,
+    val schoolId: String,
+    val programmeId: String,
+    val yearOfStudy: Int?,
+    val knowsDetails: Boolean,
+    val classCode: String,
+    val acceptedTermsAt: String,
+    val termsVersion: String
+  )
 
   val sessionFlow: Flow<UserSession?> = context.dataStore.data
     .catch { _ -> emit(emptyPreferences()) }
@@ -78,6 +94,54 @@ class SessionManager(private val context: Context) {
     } catch (_: Throwable) {}
   }
 
+  suspend fun savePendingRegistration(data: PendingRegistrationData) = withContext(Dispatchers.IO) {
+    try {
+      val json = org.json.JSONObject().apply {
+        put("email", data.email.trim().lowercase())
+        put("is_lecturer", data.isLecturer)
+        put("id_number", data.idNumber)
+        put("phone", data.phone)
+        put("university_id", data.universityId)
+        put("school_id", data.schoolId)
+        put("programme_id", data.programmeId)
+        if (data.yearOfStudy != null) put("year_of_study", data.yearOfStudy)
+        put("knows_details", data.knowsDetails)
+        put("class_code", data.classCode)
+        put("accepted_terms_at", data.acceptedTermsAt)
+        put("terms_version", data.termsVersion)
+      }
+      context.dataStore.edit { prefs -> prefs[KEY_PENDING_REG_JSON] = json.toString() }
+    } catch (_: Throwable) {}
+  }
+
+  suspend fun getPendingRegistration(email: String): PendingRegistrationData? = withContext(Dispatchers.IO) {
+    try {
+      val raw = context.dataStore.data.map { it[KEY_PENDING_REG_JSON] }.firstOrNull() ?: return@withContext null
+      val o = org.json.JSONObject(raw)
+      if (!o.optString("email").equals(email.trim(), ignoreCase = true)) return@withContext null
+      PendingRegistrationData(
+        email = o.optString("email"),
+        isLecturer = o.optBoolean("is_lecturer", false),
+        idNumber = o.optString("id_number"),
+        phone = o.optString("phone"),
+        universityId = o.optString("university_id"),
+        schoolId = o.optString("school_id"),
+        programmeId = o.optString("programme_id"),
+        yearOfStudy = if (o.has("year_of_study") && !o.isNull("year_of_study")) o.optInt("year_of_study") else null,
+        knowsDetails = o.optBoolean("knows_details", true),
+        classCode = o.optString("class_code"),
+        acceptedTermsAt = o.optString("accepted_terms_at"),
+        termsVersion = o.optString("terms_version", "1.0")
+      )
+    } catch (_: Throwable) { null }
+  }
+
+  suspend fun clearPendingRegistration() = withContext(Dispatchers.IO) {
+    try {
+      context.dataStore.edit { prefs -> prefs.remove(KEY_PENDING_REG_JSON) }
+    } catch (_: Throwable) {}
+  }
+
   suspend fun updateRole(newRole: String) = withContext(Dispatchers.IO) {
     try {
       context.dataStore.edit { prefs -> prefs[KEY_ROLE] = newRole }
@@ -94,9 +158,7 @@ class SessionManager(private val context: Context) {
   }
 
   suspend fun updateAdmissionNumber(admissionNumber: String) = withContext(Dispatchers.IO) {
-    try {
-      context.dataStore.edit { prefs -> prefs[KEY_ADMISSION_NUMBER] = admissionNumber }
-    } catch (_: Throwable) {}
+    try { context.dataStore.edit { prefs -> prefs[KEY_ADMISSION_NUMBER] = admissionNumber } } catch (_: Throwable) {}
   }
 
   suspend fun updateMemberDetails(fullName: String, admissionNumber: String) = withContext(Dispatchers.IO) {
@@ -109,22 +171,14 @@ class SessionManager(private val context: Context) {
   }
 
   suspend fun saveLastClassId(classId: String) = withContext(Dispatchers.IO) {
-    try {
-      context.dataStore.edit { prefs -> prefs[KEY_LAST_CLASS_ID] = classId }
-    } catch (_: Throwable) {}
+    try { context.dataStore.edit { prefs -> prefs[KEY_LAST_CLASS_ID] = classId } } catch (_: Throwable) {}
   }
 
   suspend fun getLastClassId(): String? = withContext(Dispatchers.IO) {
-    try {
-      context.dataStore.data.map { prefs -> prefs[KEY_LAST_CLASS_ID] }.firstOrNull()
-    } catch (_: Throwable) {
-      null
-    }
+    try { context.dataStore.data.map { prefs -> prefs[KEY_LAST_CLASS_ID] }.firstOrNull() } catch (_: Throwable) { null }
   }
 
   suspend fun clearSession() = withContext(Dispatchers.IO) {
-    try {
-      context.dataStore.edit { prefs -> prefs.clear() }
-    } catch (_: Throwable) {}
+    try { context.dataStore.edit { prefs -> prefs.clear() } } catch (_: Throwable) {}
   }
 }

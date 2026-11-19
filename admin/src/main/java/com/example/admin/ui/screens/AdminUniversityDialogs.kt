@@ -9,10 +9,7 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
-import androidx.compose.material3.DropdownMenuItem
-import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.ExposedDropdownMenuBox
-import androidx.compose.material3.ExposedDropdownMenuDefaults
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Text
@@ -28,6 +25,7 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import com.example.admin.data.ProgrammeItem
 import com.example.admin.data.SchoolItem
+import com.example.admin.ui.components.AdminOptionPickerDialog
 import com.example.admin.ui.theme.AdminBorder
 import com.example.admin.ui.theme.AdminCardElevated
 import com.example.admin.ui.theme.AdminSurface
@@ -77,7 +75,6 @@ fun SchoolFormDialog(
   )
 }
 
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ProgrammeFormDialog(
   existing: ProgrammeItem?,
@@ -91,7 +88,7 @@ fun ProgrammeFormDialog(
   var selectedSchool by remember(existing?.id, schools) {
     mutableStateOf(schools.firstOrNull { it.id == existing?.schoolId } ?: schools.firstOrNull())
   }
-  var expanded by remember { mutableStateOf(false) }
+  var showSchoolPicker by remember { mutableStateOf(false) }
 
   AlertDialog(
     onDismissRequest = { if (!isActionLoading) onDismiss() },
@@ -113,28 +110,12 @@ fun ProgrammeFormDialog(
           )
         )
         Spacer(modifier = Modifier.height(10.dp))
-        ExposedDropdownMenuBox(expanded = expanded, onExpandedChange = { expanded = !expanded }) {
-          OutlinedTextField(
-            value = selectedSchool?.name ?: "Select School",
-            onValueChange = {},
-            readOnly = true,
-            label = { Text("School") },
-            trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expanded) },
-            modifier = Modifier.fillMaxWidth().menuAnchor(),
-            colors = OutlinedTextFieldDefaults.colors(
-              focusedContainerColor = AdminSurface, unfocusedContainerColor = AdminSurface,
-              focusedBorderColor = GoldPrimary, unfocusedBorderColor = AdminBorder,
-              focusedTextColor = TextPrimary, unfocusedTextColor = TextPrimary
-            )
-          )
-          ExposedDropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
-            schools.forEach { school ->
-              DropdownMenuItem(
-                text = { Text(school.name) },
-                onClick = { selectedSchool = school; expanded = false }
-              )
-            }
-          }
+        OutlinedButton(
+          onClick = { showSchoolPicker = true },
+          modifier = Modifier.fillMaxWidth(),
+          shape = RoundedCornerShape(10.dp)
+        ) {
+          Text("School: ${selectedSchool?.name ?: "Select School"}", color = GoldLight)
         }
         Spacer(modifier = Modifier.height(10.dp))
         OutlinedTextField(
@@ -166,6 +147,17 @@ fun ProgrammeFormDialog(
       TextButton(onClick = onDismiss, enabled = !isActionLoading) { Text("Cancel", color = TextSecondary) }
     }
   )
+
+  if (showSchoolPicker) {
+    AdminOptionPickerDialog(
+      title = "Select School",
+      options = schools,
+      selectedPredicate = { it.id == selectedSchool?.id },
+      labelProvider = { it.name },
+      onSelect = { selectedSchool = it; showSchoolPicker = false },
+      onDismiss = { showSchoolPicker = false }
+    )
+  }
 }
 
 @Composable

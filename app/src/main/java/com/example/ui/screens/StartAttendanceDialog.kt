@@ -80,14 +80,14 @@ fun StartAttendanceDialog(
 
         Text("Unit", fontSize = 13.sp, fontWeight = FontWeight.SemiBold, color = TextPrimary, modifier = Modifier.align(Alignment.Start))
         Spacer(modifier = Modifier.height(4.dp))
-        Box(modifier = Modifier.fillMaxWidth()) {
+        Column(modifier = Modifier.fillMaxWidth()) {
           Row(
             modifier = Modifier
               .fillMaxWidth()
               .clip(RoundedCornerShape(10.dp))
               .background(DarkSurfaceVariant)
-              .border(1.dp, DarkBorder, RoundedCornerShape(10.dp))
-              .clickable(enabled = !isLoading) { unitMenuExpanded = true }
+              .border(1.dp, if (unitMenuExpanded) GoldPrimary else DarkBorder, RoundedCornerShape(10.dp))
+              .clickable(enabled = !isLoading) { unitMenuExpanded = !unitMenuExpanded }
               .padding(horizontal = 12.dp, vertical = 12.dp)
               .testTag("unit_dropdown_trigger"),
             verticalAlignment = Alignment.CenterVertically,
@@ -99,39 +99,46 @@ fun StartAttendanceDialog(
             )
             Icon(Icons.Default.ArrowDropDown, contentDescription = "Select Unit", tint = GoldPrimary)
           }
-          DropdownMenu(
-            expanded = unitMenuExpanded,
-            onDismissRequest = { unitMenuExpanded = false },
-            modifier = Modifier.background(DarkSurfaceElevated)
-          ) {
-            units.forEach { u ->
-              val label = listOfNotNull(
-                u.courseCode.takeIf { it.isNotBlank() },
-                u.courseName.takeIf { it.isNotBlank() }
-              ).joinToString(" - ")
-              DropdownMenuItem(
-                text = { Text(label, color = TextPrimary, fontSize = 14.sp) },
-                onClick = {
-                  selectedUnit = u
-                  isManual = false
-                  courseTitle = u.courseName
-                  courseCode = u.courseCode
-                  lecturerName = u.lecturerName
+          androidx.compose.animation.AnimatedVisibility(visible = unitMenuExpanded) {
+            Column(
+              modifier = Modifier.fillMaxWidth().padding(top = 4.dp).clip(RoundedCornerShape(10.dp))
+                .background(DarkSurfaceElevated).border(1.dp, DarkBorder, RoundedCornerShape(10.dp))
+            ) {
+              units.forEach { u ->
+                val label = listOfNotNull(
+                  u.courseCode.takeIf { it.isNotBlank() },
+                  u.courseName.takeIf { it.isNotBlank() }
+                ).joinToString(" - ")
+                Text(
+                  text = label,
+                  color = TextPrimary,
+                  fontSize = 14.sp,
+                  modifier = Modifier.fillMaxWidth().clickable {
+                    selectedUnit = u
+                    isManual = false
+                    courseTitle = u.courseName
+                    courseCode = u.courseCode
+                    lecturerName = u.lecturerName
+                    unitMenuExpanded = false
+                  }.padding(horizontal = 12.dp, vertical = 10.dp)
+                )
+                HorizontalDivider(color = DarkBorder.copy(alpha = 0.5f))
+              }
+              Text(
+                text = "Other (type manually)",
+                color = GoldLight,
+                fontSize = 14.sp,
+                fontWeight = FontWeight.SemiBold,
+                modifier = Modifier.fillMaxWidth().clickable {
+                  selectedUnit = null
+                  isManual = true
+                  courseTitle = ""
+                  courseCode = ""
+                  lecturerName = ""
                   unitMenuExpanded = false
-                }
+                }.padding(horizontal = 12.dp, vertical = 10.dp)
               )
             }
-            DropdownMenuItem(
-              text = { Text("Other (type manually)", color = GoldLight, fontSize = 14.sp, fontWeight = FontWeight.SemiBold) },
-              onClick = {
-                selectedUnit = null
-                isManual = true
-                courseTitle = ""
-                courseCode = ""
-                lecturerName = ""
-                unitMenuExpanded = false
-              }
-            )
           }
         }
 

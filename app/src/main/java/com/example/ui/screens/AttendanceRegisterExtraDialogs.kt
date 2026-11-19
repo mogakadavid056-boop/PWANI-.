@@ -59,28 +59,39 @@ fun EditRegisterDetailsDialog(
         Spacer(modifier = Modifier.height(12.dp))
 
         if (units.isNotEmpty()) {
-          Box(modifier = Modifier.fillMaxWidth()) {
+          Column(modifier = Modifier.fillMaxWidth()) {
             Row(
               modifier = Modifier.fillMaxWidth().clip(RoundedCornerShape(10.dp)).background(DarkSurfaceVariant)
-                .border(1.dp, DarkBorder, RoundedCornerShape(10.dp))
-                .clickable(enabled = !isLoading) { unitMenuExpanded = true }
+                .border(1.dp, if (unitMenuExpanded) GoldPrimary else DarkBorder, RoundedCornerShape(10.dp))
+                .clickable(enabled = !isLoading) { unitMenuExpanded = !unitMenuExpanded }
                 .padding(horizontal = 12.dp, vertical = 12.dp),
               verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.SpaceBetween
             ) {
               Text("Pick a unit to prefill", fontSize = 13.5.sp, color = TextSecondary, maxLines = 1)
               Icon(Icons.Default.ArrowDropDown, contentDescription = null, tint = GoldPrimary)
             }
-            DropdownMenu(expanded = unitMenuExpanded, onDismissRequest = { unitMenuExpanded = false }, modifier = Modifier.background(DarkSurfaceElevated)) {
-              units.forEach { u ->
-                DropdownMenuItem(
-                  text = { Text("${u.courseCode} - ${u.courseName}".trim(' ', '-'), color = TextPrimary, fontSize = 14.sp) },
-                  onClick = { courseTitle = u.courseName; courseCode = u.courseCode; lecturerName = u.lecturerName; unitMenuExpanded = false }
+            androidx.compose.animation.AnimatedVisibility(visible = unitMenuExpanded) {
+              Column(
+                modifier = Modifier.fillMaxWidth().padding(top = 4.dp).clip(RoundedCornerShape(10.dp))
+                  .background(DarkSurfaceElevated).border(1.dp, DarkBorder, RoundedCornerShape(10.dp))
+              ) {
+                units.forEach { u ->
+                  Text(
+                    text = "${u.courseCode} - ${u.courseName}".trim(' ', '-'),
+                    color = TextPrimary, fontSize = 14.sp,
+                    modifier = Modifier.fillMaxWidth().clickable {
+                      courseTitle = u.courseName; courseCode = u.courseCode; lecturerName = u.lecturerName; unitMenuExpanded = false
+                    }.padding(horizontal = 12.dp, vertical = 10.dp)
+                  )
+                  HorizontalDivider(color = DarkBorder.copy(alpha = 0.5f))
+                }
+                Text(
+                  text = "Other (type manually)", color = GoldLight, fontSize = 14.sp, fontWeight = FontWeight.SemiBold,
+                  modifier = Modifier.fillMaxWidth().clickable {
+                    courseTitle = ""; courseCode = ""; lecturerName = ""; unitMenuExpanded = false
+                  }.padding(horizontal = 12.dp, vertical = 10.dp)
                 )
               }
-              DropdownMenuItem(
-                text = { Text("Other (type manually)", color = GoldLight, fontSize = 14.sp) },
-                onClick = { courseTitle = ""; courseCode = ""; lecturerName = ""; unitMenuExpanded = false }
-              )
             }
           }
           Spacer(modifier = Modifier.height(8.dp))

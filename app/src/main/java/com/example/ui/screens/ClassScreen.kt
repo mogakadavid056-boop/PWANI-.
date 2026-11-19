@@ -10,7 +10,6 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material3.SnackbarDuration
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -48,6 +47,8 @@ fun ClassScreen(
   onUpdateClassName: (newName: String) -> Unit, onNavigateToManageMembers: () -> Unit,
   attendanceUiState: AttendanceUiState,
   attendanceCallbacks: ClassAttendanceCallbacks,
+  trackerUiState: AttendanceTrackerUiState = AttendanceTrackerUiState(),
+  trackerCallbacks: ClassTrackerCallbacks = ClassTrackerCallbacks(),
   groupsUiState: GroupsUiState, onRefreshGroups: () -> Unit,
   onCreateGroup: (name: String, desc: String, size: Int) -> Unit, onOpenChat: (DiscussionGroupItem) -> Unit,
   onJoinGroup: (DiscussionGroupItem) -> Unit, onDismissGroupsError: () -> Unit,
@@ -60,13 +61,15 @@ fun ClassScreen(
   onDismissScheduleStatus: () -> Unit = {}, onSaveScheduleStatus: (String, String, String) -> Unit = { _, _, _ -> },
   onDismissTimetableError: () -> Unit,
   materialsUiState: MaterialsUiState, onRefreshMaterials: () -> Unit,
-  onMaterialsSearchChange: (String) -> Unit, onMaterialsSelectTypeFilter: (String) -> Unit,
+  onMaterialsSearchChange: (String) -> Unit, onMaterialsSelectUnitFilter: (String?) -> Unit = {},
+  onRegisterUnitClick: () -> Unit = {}, onDismissRegisterUnit: () -> Unit = {},
+  onSubmitRegisterUnit: (String, String, String) -> Unit = { _, _, _ -> },
   onAddMaterialClick: () -> Unit, onOpenFileMaterial: (MaterialItem) -> Unit = {},
   onDownloadMaterial: (MaterialItem) -> Unit = {}, onRemoveDownloadMaterial: (MaterialItem) -> Unit = {},
   onEditMaterialClick: (MaterialItem) -> Unit, onDeleteMaterialClick: (MaterialItem) -> Unit,
   onDismissAddEditMaterial: () -> Unit,
-  onSaveAddMaterial: (title: String, desc: String, type: String, url: String) -> Unit,
-  onSaveUploadMaterial: (title: String, desc: String, fileName: String, fileSize: Long, mimeType: String, inputStreamProvider: () -> java.io.InputStream) -> Unit = { _, _, _, _, _, _ -> },
+  onSaveAddMaterial: (courseId: String, title: String, desc: String, type: String, url: String) -> Unit,
+  onSaveUploadMaterial: (courseId: String, title: String, desc: String, fileName: String, fileSize: Long, mimeType: String, inputStreamProvider: () -> java.io.InputStream) -> Unit = { _, _, _, _, _, _, _ -> },
   onSaveEditMaterial: (id: String, title: String, desc: String) -> Unit,
   onDismissPromptDeleteMaterial: () -> Unit, onConfirmDeleteMaterial: () -> Unit, onDismissMaterialsError: () -> Unit,
   pollsUiState: PollsUiState, onRefreshPolls: () -> Unit, onCreatePollClick: () -> Unit, onPollClick: (PollItem) -> Unit,
@@ -75,48 +78,49 @@ fun ClassScreen(
   onPromptDeletePoll: () -> Unit, onDismissDeletePoll: () -> Unit, onConfirmDeletePoll: () -> Unit,
   onDismissPollsError: () -> Unit, onClosePollDetail: () -> Unit, onDismissCreatePoll: () -> Unit,
   onCreatePollSubmit: (String, List<String>, String) -> Unit,
-  allClasses: List<ClassItem> = emptyList(), isAdmin: Boolean = false, isLecturer: Boolean = false, openTimetableSignal: Int = 0,
+  onRegenerateJoinCode: () -> Unit = {},
+  unreadNotificationCount: Int = 0, onOpenNotifications: () -> Unit = {},
+  allClasses: List<ClassItem> = emptyList(), isAdmin: Boolean = false, isLecturer: Boolean = false,
+  openTimetableSignal: Int = 0, openTabSignal: Triple<Int, ClassTab, MoreSubView>? = null,
   onSwitchClass: (ClassItem) -> Unit = {}, onJoinWithCode: () -> Unit = {}, onNavigateToCreateClass: () -> Unit = {},
   onFindMoreClasses: () -> Unit = {}, onNavigateToProfile: () -> Unit = {}, onBack: () -> Unit
 ) {
   var selectedTab by remember { mutableStateOf(ClassTab.Notices) }
   var moreSubView by remember { mutableStateOf(MoreSubView.None) }
-  LaunchedEffect(openTimetableSignal) { if (openTimetableSignal > 0) { selectedTab = ClassTab.Timetable; moreSubView = MoreSubView.None } }
+  LaunchedEffect(openTimetableSignal) {
+    if (openTimetableSignal > 0) { selectedTab = ClassTab.Timetable; moreSubView = MoreSubView.None }
+  }
+  LaunchedEffect(openTabSignal?.first) {
+    val sig = openTabSignal ?: return@LaunchedEffect
+    if (sig.first > 0) { selectedTab = sig.second; moreSubView = sig.third }
+  }
   var showStartAttendanceDialog by remember { mutableStateOf(false) }
   var showEditClassNameDialog by remember { mutableStateOf(false) }
   var showCreateGroupDialog by remember { mutableStateOf(false) }
   var showClassSwitcherSheet by remember { mutableStateOf(false) }
 
   val isOverlayActive = HandleClassSubScreenOverlay(
-    attendanceUiState = attendanceUiState,
-    pollsUiState = pollsUiState,
-    isStaff = isStaff,
-    session = session,
-    className = classItem.name,
+    attendanceUiState = attendanceUiState, pollsUiState = pollsUiState, trackerUiState = trackerUiState,
+    isStaff = isStaff, session = session, className = classItem.name,
     onDismissAttendanceError = attendanceCallbacks.onDismissAttendanceError,
     onOpenViewAttendance = attendanceCallbacks.onOpenViewAttendance,
     onCloseAttendanceSubScreen = attendanceCallbacks.onCloseAttendanceSubScreen,
     onDismissAttendanceSuccess = attendanceCallbacks.onDismissAttendanceSuccess,
-    onUpdateMyDetails = attendanceCallbacks.onUpdateMyDetails,
-    onSignAttendanceSubmit = attendanceCallbacks.onSignAttendanceSubmit,
+    onRefreshTracker = trackerCallbacks.onRefreshTracker, onSelectTrackerLevel = trackerCallbacks.onSelectTrackerLevel,
+    onTrackerSearchChange = trackerCallbacks.onTrackerSearchChange, onOpenTrackerStudent = trackerCallbacks.onOpenTrackerStudent,
+    onCloseTrackerStudent = trackerCallbacks.onCloseTrackerStudent, onExcuseTrackerSession = trackerCallbacks.onExcuseTrackerSession,
+    onRemoveTrackerExcuse = trackerCallbacks.onRemoveTrackerExcuse, onDismissTrackerError = trackerCallbacks.onDismissTrackerError,
+    onDismissTrackerSuccess = trackerCallbacks.onDismissTrackerSuccess,
+    onUpdateMyDetails = attendanceCallbacks.onUpdateMyDetails, onSignAttendanceSubmit = attendanceCallbacks.onSignAttendanceSubmit,
     onCloseRegisterSession = { attendanceUiState.selectedSessionId?.let(attendanceCallbacks.onCloseSession) },
-    onVoidRegisterSession = attendanceCallbacks.onVoidRegisterSession,
-    onDeleteRegisterSession = attendanceCallbacks.onDeleteRegisterSession,
+    onVoidRegisterSession = attendanceCallbacks.onVoidRegisterSession, onDeleteRegisterSession = attendanceCallbacks.onDeleteRegisterSession,
     onSignOutRegisterSession = { attendanceUiState.selectedSessionId?.let(attendanceCallbacks.onSignOutSession) },
-    onSignRegister = attendanceCallbacks.onSignRegister,
-    onCorrectRegisterTime = attendanceCallbacks.onCorrectRegisterTime,
-    onMarkPresent = attendanceCallbacks.onMarkPresent,
-    onUpdateRegisterDetails = attendanceCallbacks.onUpdateRegisterDetails,
-    onSelectPollOption = onSelectPollOption,
-    onCastVote = onCastVote,
-    onPromptClosePoll = onPromptClosePoll,
-    onDismissClosePoll = onDismissClosePoll,
-    onConfirmClosePoll = onConfirmClosePoll,
-    onPromptDeletePoll = onPromptDeletePoll,
-    onDismissDeletePoll = onDismissDeletePoll,
-    onConfirmDeletePoll = onConfirmDeletePoll,
-    onDismissPollsError = onDismissPollsError,
-    onClosePollDetail = onClosePollDetail
+    onSignRegister = attendanceCallbacks.onSignRegister, onCorrectRegisterTime = attendanceCallbacks.onCorrectRegisterTime,
+    onMarkPresent = attendanceCallbacks.onMarkPresent, onUpdateRegisterDetails = attendanceCallbacks.onUpdateRegisterDetails,
+    onSelectPollOption = onSelectPollOption, onCastVote = onCastVote, onPromptClosePoll = onPromptClosePoll,
+    onDismissClosePoll = onDismissClosePoll, onConfirmClosePoll = onConfirmClosePoll, onPromptDeletePoll = onPromptDeletePoll,
+    onDismissDeletePoll = onDismissDeletePoll, onConfirmDeletePoll = onConfirmDeletePoll,
+    onDismissPollsError = onDismissPollsError, onClosePollDetail = onClosePollDetail
   )
   if (isOverlayActive) return
 
@@ -128,22 +132,12 @@ fun ClassScreen(
 
   val attendanceSnackbarHostState = remember { SnackbarHostState() }
   var attendanceSnackbarIsError by remember { mutableStateOf(true) }
-  LaunchedEffect(attendanceUiState.errorMessage, selectedTab) {
-    val err = attendanceUiState.errorMessage
-    if (selectedTab == ClassTab.Attendance && !err.isNullOrBlank()) {
-      attendanceSnackbarIsError = true
-      attendanceSnackbarHostState.showSnackbar(err, actionLabel = "Dismiss", duration = SnackbarDuration.Long)
-      attendanceCallbacks.onDismissAttendanceError()
-    }
-  }
-  LaunchedEffect(attendanceUiState.successMessage, selectedTab) {
-    val msg = attendanceUiState.successMessage
-    if (selectedTab == ClassTab.Attendance && !msg.isNullOrBlank()) {
-      attendanceSnackbarIsError = false
-      attendanceSnackbarHostState.showSnackbar(msg, actionLabel = "OK", duration = SnackbarDuration.Short)
-      attendanceCallbacks.onDismissAttendanceSuccess()
-    }
-  }
+  AttendanceSnackbarEffect(
+    selectedTab = selectedTab, attendanceUiState = attendanceUiState, hostState = attendanceSnackbarHostState,
+    onSetIsError = { attendanceSnackbarIsError = it },
+    onDismissError = attendanceCallbacks.onDismissAttendanceError,
+    onDismissSuccess = attendanceCallbacks.onDismissAttendanceSuccess
+  )
 
   val isTabRefreshing = when (selectedTab) {
     ClassTab.Notices -> isLoading
@@ -165,36 +159,28 @@ fun ClassScreen(
 
   Box(modifier = Modifier.fillMaxSize().background(DarkBackground).testTag("class_screen")) {
     Column(modifier = Modifier.fillMaxSize()) {
-      val showSwitcher = isStaff && !isPrefect
       ClassTopAppBar(
-        classItem = classItem, isStaff = isStaff,
+        classItem = classItem, isStaff = isStaff, unreadNotificationCount = unreadNotificationCount,
+        onOpenNotifications = onOpenNotifications,
         onBack = { if (selectedTab == ClassTab.More && moreSubView != MoreSubView.None) moreSubView = MoreSubView.None else onBack() },
         onEditClassNameClick = { showEditClassNameDialog = true },
-        onOpenClassSwitcher = if (showSwitcher) { { showClassSwitcherSheet = true } } else null,
+        onOpenClassSwitcher = if (isStaff && !isPrefect) { { showClassSwitcherSheet = true } } else null,
         onNavigateToProfile = onNavigateToProfile
       )
-
       ClassRepPullToRefresh(isRefreshing = isTabRefreshing, onRefresh = onTabRefresh, modifier = Modifier.weight(1f)) {
         Column(
           modifier = Modifier.fillMaxSize().verticalScroll(rememberScrollState())
             .padding(start = ScreenPadding, end = ScreenPadding, top = 20.dp, bottom = ScreenPadding),
           verticalArrangement = Arrangement.spacedBy(ItemSpacing)
         ) {
+          ClassCodeHeaderChip(classItem.name, classItem.joinCode, isLecturer, onRegenerateCode = onRegenerateJoinCode)
           ClassPrefectBanner(prefects = prefects)
-          val activeTabErr = when (selectedTab) {
-            ClassTab.Notices -> errorMessage
-            ClassTab.Attendance -> null
-            ClassTab.Groups -> groupsUiState.errorMessage
-            ClassTab.Timetable -> timetableUiState.errorMessage
-            ClassTab.More -> if (moreSubView == MoreSubView.Materials) materialsUiState.errorMessage else if (moreSubView == MoreSubView.Polls) pollsUiState.errorMessage else null
-          }
-          val onDismissTabErr = when (selectedTab) {
-            ClassTab.Notices -> onDismissError
-            ClassTab.Attendance -> attendanceCallbacks.onDismissAttendanceError
-            ClassTab.Groups -> onDismissGroupsError
-            ClassTab.Timetable -> onDismissTimetableError
-            ClassTab.More -> if (moreSubView == MoreSubView.Materials) onDismissMaterialsError else if (moreSubView == MoreSubView.Polls) onDismissPollsError else onDismissError
-          }
+          val (activeTabErr, onDismissTabErr) = activeClassTabError(
+            selectedTab, moreSubView, errorMessage, groupsUiState.errorMessage,
+            timetableUiState.errorMessage, materialsUiState.errorMessage, pollsUiState.errorMessage,
+            onDismissError, attendanceCallbacks.onDismissAttendanceError, onDismissGroupsError,
+            onDismissTimetableError, onDismissMaterialsError, onDismissPollsError
+          )
           if (!activeTabErr.isNullOrBlank()) FriendlyErrorSnackbar(errorMessage = activeTabErr, onDismiss = onDismissTabErr)
 
           AnimatedContent(
@@ -203,30 +189,29 @@ fun ClassScreen(
             label = "class_tab_content_transition"
           ) { (curTab, curMore) ->
             ClassTabContent(
-              selectedTab = curTab, moreSubView = curMore, isStaff = isStaff, session = session, notices = notices,
+              selectedTab = curTab, moreSubView = curMore, isStaff = isStaff, isLecturer = isLecturer, session = session, notices = notices,
               readNoticeIds = readNoticeIds, canPostNotice = canPostNotice, isLoading = isLoading,
-              attendanceUiState = attendanceUiState, groupsUiState = groupsUiState, timetableUiState = timetableUiState,
-              materialsUiState = materialsUiState, pollsUiState = pollsUiState, onRefreshNotices = onRefreshNotices,
-              onNoticeClick = onNoticeClick, onNavigateToPostNotice = onNavigateToPostNotice, onEditNoticeClick = onEditNoticeClick,
-              onDeleteNoticeClick = onDeleteNoticeClick, onStartAttendanceClick = { showStartAttendanceDialog = true },
-              onRefreshAttendance = attendanceCallbacks.onRefreshAttendance,
-              onOpenViewAttendance = attendanceCallbacks.onOpenViewAttendance,
-              onOpenSignAttendance = attendanceCallbacks.onOpenSignAttendance,
-              onOpenAttendanceSummary = attendanceCallbacks.onOpenAttendanceSummary,
-              onOpenMyAttendance = attendanceCallbacks.onOpenMyAttendance,
-              onOpenRegister = attendanceCallbacks.onOpenRegister,
-              onCloseSession = attendanceCallbacks.onCloseSession,
-              onSignOutSession = attendanceCallbacks.onSignOutSession,
-              onShowActiveCode = attendanceCallbacks.onShowActiveCode,
-              onDeleteSession = attendanceCallbacks.onPromptVoidSession,
-              onDeleteRegisterPrompt = attendanceCallbacks.onPromptDeleteRegister,
+              attendanceUiState = attendanceUiState, trackerUiState = trackerUiState, groupsUiState = groupsUiState,
+              timetableUiState = timetableUiState, materialsUiState = materialsUiState, pollsUiState = pollsUiState,
+              onRefreshNotices = onRefreshNotices, onNoticeClick = onNoticeClick, onNavigateToPostNotice = onNavigateToPostNotice,
+              onEditNoticeClick = onEditNoticeClick, onDeleteNoticeClick = onDeleteNoticeClick,
+              onStartAttendanceClick = { showStartAttendanceDialog = true }, onRefreshAttendance = attendanceCallbacks.onRefreshAttendance,
+              onOpenViewAttendance = attendanceCallbacks.onOpenViewAttendance, onOpenSignAttendance = attendanceCallbacks.onOpenSignAttendance,
+              onOpenAttendanceSummary = attendanceCallbacks.onOpenAttendanceSummary, onOpenMyAttendance = attendanceCallbacks.onOpenMyAttendance,
+              onOpenAttendanceTracker = attendanceCallbacks.onOpenAttendanceTracker,
+              onOpenRegister = attendanceCallbacks.onOpenRegister, onCloseSession = attendanceCallbacks.onCloseSession,
+              onSignOutSession = attendanceCallbacks.onSignOutSession, onShowActiveCode = attendanceCallbacks.onShowActiveCode,
+              onDeleteSession = attendanceCallbacks.onPromptVoidSession, onDeleteRegisterPrompt = attendanceCallbacks.onPromptDeleteRegister,
               onRefreshGroups = onRefreshGroups, onCreateGroupClick = { showCreateGroupDialog = true },
               onOpenChat = onOpenChat, onJoinGroup = onJoinGroup, onRefreshTimetable = onRefreshTimetable,
-              onSelectTimetableDay = onSelectTimetableDay, onAddScheduleClick = onAddScheduleClick, onEditScheduleClick = onEditScheduleClick,
-              onDeleteScheduleClick = onDeleteScheduleClick, onStatusScheduleClick = onStatusScheduleClick, onRefreshMaterials = onRefreshMaterials, onMaterialsSearchChange = onMaterialsSearchChange,
-              onMaterialsSelectTypeFilter = onMaterialsSelectTypeFilter, onAddMaterialClick = onAddMaterialClick,
-              onOpenFileMaterial = onOpenFileMaterial, onDownloadMaterial = onDownloadMaterial, onRemoveDownloadMaterial = onRemoveDownloadMaterial,
-              onEditMaterialClick = onEditMaterialClick, onDeleteMaterialClick = onDeleteMaterialClick, onRefreshPolls = onRefreshPolls,
+              onSelectTimetableDay = onSelectTimetableDay, onAddScheduleClick = onAddScheduleClick,
+              onEditScheduleClick = onEditScheduleClick, onDeleteScheduleClick = onDeleteScheduleClick,
+              onStatusScheduleClick = onStatusScheduleClick, onRefreshMaterials = onRefreshMaterials,
+              onMaterialsSearchChange = onMaterialsSearchChange, onMaterialsSelectUnitFilter = onMaterialsSelectUnitFilter,
+              onRegisterUnitClick = onRegisterUnitClick, onAddMaterialClick = onAddMaterialClick,
+              onOpenFileMaterial = onOpenFileMaterial, onDownloadMaterial = onDownloadMaterial,
+              onRemoveDownloadMaterial = onRemoveDownloadMaterial, onEditMaterialClick = onEditMaterialClick,
+              onDeleteMaterialClick = onDeleteMaterialClick, onRefreshPolls = onRefreshPolls,
               onCreatePollClick = onCreatePollClick, onPollClick = onPollClick,
               onOpenMaterials = { moreSubView = MoreSubView.Materials }, onOpenPolls = { moreSubView = MoreSubView.Polls },
               onOpenAlarmSettings = { moreSubView = MoreSubView.AlarmSettings },
@@ -236,11 +221,7 @@ fun ClassScreen(
           Spacer(modifier = Modifier.height(64.dp))
         }
       }
-
-      ClassBottomNavigationBar(
-        selectedTab = selectedTab,
-        onSelectTab = { tab -> selectedTab = tab; if (tab != ClassTab.More) moreSubView = MoreSubView.None }
-      )
+      ClassBottomNavigationBar(selectedTab = selectedTab, onSelectTab = { tab -> selectedTab = tab; if (tab != ClassTab.More) moreSubView = MoreSubView.None })
     }
 
     ClassScreenFab(
@@ -250,14 +231,11 @@ fun ClassScreen(
       onAddScheduleClick = onAddScheduleClick, onCreateGroupClick = { showCreateGroupDialog = true },
       onAddMaterialClick = onAddMaterialClick, onCreatePollClick = onCreatePollClick
     )
-
     ClassDialogs(
       activeNoticeDetail = activeNoticeDetail, onCloseNoticeDetail = onCloseNoticeDetail,
-      showStartAttendanceDialog = showStartAttendanceDialog,
-      classUnits = attendanceUiState.classUnits, isUnitsLoading = attendanceUiState.isUnitsLoading,
-      onDismissStartAttendance = { showStartAttendanceDialog = false },
-      onStartAttendance = attendanceCallbacks.onStartAttendance,
-      isAttendanceActionLoading = attendanceUiState.isActionLoading,
+      showStartAttendanceDialog = showStartAttendanceDialog, classUnits = attendanceUiState.classUnits,
+      isUnitsLoading = attendanceUiState.isUnitsLoading, onDismissStartAttendance = { showStartAttendanceDialog = false },
+      onStartAttendance = attendanceCallbacks.onStartAttendance, isAttendanceActionLoading = attendanceUiState.isActionLoading,
       showEditClassNameDialog = showEditClassNameDialog, currentClassName = classItem.name,
       onDismissEditClassName = { showEditClassNameDialog = false }, onSaveClassName = onUpdateClassName,
       showCreateGroupDialog = showCreateGroupDialog, isGroupActionLoading = groupsUiState.isActionLoading,
@@ -276,11 +254,11 @@ fun ClassScreen(
       onDismissScheduleStatus = onDismissScheduleStatus, onSaveScheduleStatus = onSaveScheduleStatus,
       materialsUiState = materialsUiState, onDismissAddEditMaterial = onDismissAddEditMaterial,
       onSaveAddLinkMaterial = onSaveAddMaterial, onSaveUploadMaterial = onSaveUploadMaterial, onSaveEditMaterial = onSaveEditMaterial,
+      onDismissRegisterUnit = onDismissRegisterUnit, onSubmitRegisterUnit = onSubmitRegisterUnit,
       onDismissPromptDeleteMaterial = onDismissPromptDeleteMaterial, onConfirmDeleteMaterial = onConfirmDeleteMaterial,
       showCreatePollDialog = pollsUiState.showCreateDialog, isPollActionLoading = pollsUiState.isActionLoading,
       onDismissCreatePollDialog = onDismissCreatePoll, onCreatePoll = onCreatePollSubmit
     )
-
     if (showClassSwitcherSheet) ClassSwitcherBottomSheet(
       classes = allClasses, currentClassId = classItem.id, isAdmin = isAdmin, isLecturer = isLecturer,
       onSelectClass = onSwitchClass, onJoinWithCode = onJoinWithCode, onCreateClass = onNavigateToCreateClass,

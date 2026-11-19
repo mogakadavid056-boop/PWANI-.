@@ -9,8 +9,6 @@ import com.example.data.LecturerService
 import com.example.data.NetworkMonitor
 import com.example.data.OfflineCache
 import com.example.data.OfflineMaterialsManager
-import com.example.data.ProgrammeItem
-import com.example.data.SchoolItem
 import com.example.data.SessionManager
 import com.example.data.SupabaseAuthService
 import com.example.data.UserRoleInfo
@@ -37,7 +35,9 @@ class AuthViewModel(
   private val registrationHandler = RegistrationHandler(
     authService = authService,
     classesService = classesService,
+    lecturerService = lecturerService,
     sessionManager = sessionManager,
+    onSessionReady = { session -> triggerAlarmSync(session) },
     updateState = { transform -> _uiState.update(transform) }
   )
 
@@ -79,7 +79,10 @@ class AuthViewModel(
   }
 
   private fun triggerAlarmSync(session: UserSession) {
-    viewModelScope.launch { com.example.alarms.TimetableAlarmSync.onAuthenticated(getApplication(), session) }
+    viewModelScope.launch {
+      com.example.alarms.TimetableAlarmSync.onAuthenticated(getApplication(), session)
+      com.example.notifications.PushTokenManager.syncCurrentToken(getApplication(), session.accessToken)
+    }
   }
 
   fun login(email: String, password: String, onLoginSuccess: (UserSession) -> Unit) {
@@ -111,7 +114,8 @@ class AuthViewModel(
           OfflineCache.currentUserId = session.userId
           _uiState.update { it.copy(session = session, isLoading = false, errorMessage = null) }
           triggerAlarmSync(session)
-          onLoginSuccess(session)
+          val handledPending = registrationHandler.completePendingOnLogin(session)
+          if (!handledPending) onLoginSuccess(session)
         },
         onFailure = { error ->
           _uiState.update { it.copy(isLoading = false, errorMessage = error.message ?: "Authentication failed.") }
@@ -147,7 +151,11 @@ class AuthViewModel(
 
   fun logout() {
     val uid = _uiState.value.session?.userId.orEmpty()
+    val accessToken = _uiState.value.session?.accessToken.orEmpty()
+    com.example.notifications.PushTokenManager.unregisterOnLogout(getApplication(), accessToken)
     com.example.alarms.TimetableAlarmSync.onLoggedOut(getApplication())
+    com.example.notifications.NotificationSyncWorker.cancel(getApplication())
+    com.example.notifications.NotificationPreferences.clearOnLogout(getApplication())
     viewModelScope.launch {
       if (uid.isNotBlank()) {
         OfflineCache.clearUserCache(getApplication(), uid)
@@ -160,18 +168,23 @@ class AuthViewModel(
     }
   }
 
-  fun registerWithKnown(
-    fullName: String, admissionNumber: String, email: String, password: String,
-    school: SchoolItem?, programme: ProgrammeItem?, yearOfStudy: Int?, onClassResolved: (String?) -> Unit
-  ) = viewModelScope.launch {
-    registrationHandler.registerWithKnown(fullName, admissionNumber, email, password, school, programme, yearOfStudy, onClassResolved)
+  fun submitRegistrationWizard(wizard: com.example.ui.screens.register.RegisterWizardState) = viewModelScope.launch {
+    registrationHandler.submitWizard(wizard)
   }
 
-  fun registerWithCode(
-    fullName: String, admissionNumber: String, email: String, password: String,
-    classCode: String, onClassResolved: (String?) -> Unit
-  ) = viewModelScope.launch {
-    registrationHandler.registerWithCode(fullName, admissionNumber, email, password, classCode, onClassResolved)
+  fun resendConfirmationEmail() {
+    val email = _uiState.value.pendingConfirmationEmail.orEmpty()
+    viewModelScope.launch { registrationHandler.resendConfirmationEmail(email) }
+  }
+
+  fun retryStudentAutoJoin() {
+    val session = _uiState.value.session ?: return
+    viewModelScope.launch { registrationHandler.retryStudentAutoJoin(session) }
+  }
+
+  fun retryStudentJoinByCode(code: String) {
+    val session = _uiState.value.session ?: return
+    viewModelScope.launch { registrationHandler.retryStudentJoinByCode(code, session) }
   }
 
   fun navigateTo(screen: Screen) {
@@ -193,4 +206,5 @@ class AuthViewModel(
   fun clearError() { _uiState.update { it.copy(errorMessage = null) } }
   fun clearInfo() { _uiState.update { it.copy(infoMessage = null) } }
   fun setError(message: String) { _uiState.update { it.copy(errorMessage = message) } }
+  fun clearPendingOpenClass() { _uiState.update { it.copy(pendingOpenClassId = null) } }
 }

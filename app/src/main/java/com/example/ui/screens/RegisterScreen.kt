@@ -1,32 +1,63 @@
 package com.example.ui.screens
 
+import androidx.activity.compose.BackHandler
+import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.slideInHorizontally
+import androidx.compose.animation.slideOutHorizontally
+import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.background
-import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.imePadding
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material.icons.filled.*
-import androidx.compose.material3.*
-import androidx.compose.runtime.*
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.LinearProgressIndicator
+import androidx.compose.material3.Text
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.input.ImeAction
-import androidx.compose.ui.text.input.KeyboardCapitalization
-import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.data.ProgrammeItem
 import com.example.data.SchoolItem
-import com.example.ui.components.*
-import com.example.ui.theme.*
+import com.example.ui.components.ErrorBanner
+import com.example.ui.components.GoldButton
+import com.example.ui.screens.register.RegisterStep1Role
+import com.example.ui.screens.register.RegisterStep2Details
+import com.example.ui.screens.register.RegisterStep3ClassOrLecturer
+import com.example.ui.screens.register.RegisterStep4Review
+import com.example.ui.screens.register.RegisterWizardState
+import com.example.ui.theme.DarkBackground
+import com.example.ui.theme.DarkSurface
+import com.example.ui.theme.GoldLight
+import com.example.ui.theme.GoldPrimary
+import com.example.ui.theme.TextSecondary
 
 @Composable
 fun RegisterScreen(
@@ -36,187 +67,163 @@ fun RegisterScreen(
   programmes: List<ProgrammeItem>,
   onSchoolSelected: (SchoolItem) -> Unit,
   onDismissError: () -> Unit,
-  onRegisterWithKnown: (String, String, String, String, SchoolItem?, ProgrammeItem?, Int?) -> Unit,
-  onRegisterWithCode: (String, String, String, String, String) -> Unit,
+  onSubmitWizard: (RegisterWizardState) -> Unit,
   onNavigateToLogin: () -> Unit,
   onBack: () -> Unit
 ) {
-  var fullName by remember { mutableStateOf("") }
-  var admissionNumber by remember { mutableStateOf("") }
-  var email by remember { mutableStateOf("") }
-  var password by remember { mutableStateOf("") }
-  var knowsDetails by remember { mutableStateOf(true) }
-  var classCode by remember { mutableStateOf("") }
-  var selectedSchool by remember { mutableStateOf<SchoolItem?>(null) }
-  var selectedProgramme by remember { mutableStateOf<ProgrammeItem?>(null) }
-  var selectedYearOfStudy by remember { mutableStateOf<Int?>(null) }
-  var localValidationMessage by remember { mutableStateOf<String?>(null) }
+  var wizard by remember { mutableStateOf(RegisterWizardState()) }
+  val animatedProgress by animateFloatAsState(
+    targetValue = wizard.step / 4f,
+    animationSpec = tween(260),
+    label = "register_progress"
+  )
 
-  Box(modifier = Modifier.fillMaxSize().background(DarkBackground).testTag("register_screen")) {
-    Column(
-      modifier = Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(horizontal = 24.dp, vertical = 20.dp)
-    ) {
-      Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth()) {
-        IconButton(onClick = onBack, modifier = Modifier.size(40.dp)) {
-          Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back", tint = GoldLight)
-        }
-        Spacer(modifier = Modifier.width(8.dp))
-        Text("Create Account", fontSize = 22.sp, fontWeight = FontWeight.Bold, color = GoldLight)
+  val goBackStep: () -> Unit = {
+    if (!isLoading) {
+      if (wizard.step > 1) {
+        onDismissError()
+        wizard = wizard.copy(step = wizard.step - 1, slideDirection = -1)
+      } else {
+        onBack()
       }
+    }
+  }
+
+  BackHandler(enabled = !isLoading, onBack = goBackStep)
+
+  Box(
+    modifier = Modifier
+      .fillMaxSize()
+      .background(DarkBackground)
+      .imePadding()
+      .testTag("register_screen")
+  ) {
+    Column(
+      modifier = Modifier
+        .fillMaxSize()
+        .padding(horizontal = 24.dp, vertical = 16.dp)
+    ) {
+      Row(
+        modifier = Modifier.fillMaxWidth(),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.SpaceBetween
+      ) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+          IconButton(
+            onClick = goBackStep,
+            enabled = !isLoading,
+            modifier = Modifier.size(48.dp).testTag("register_back_button")
+          ) {
+            Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back", tint = GoldLight)
+          }
+          Spacer(modifier = Modifier.width(4.dp))
+          Text("Create Account", fontSize = 20.sp, fontWeight = FontWeight.Bold, color = GoldLight)
+        }
+        Text(
+          text = "Step ${wizard.step} of 4",
+          fontSize = 13.sp,
+          fontWeight = FontWeight.SemiBold,
+          color = GoldPrimary,
+          modifier = Modifier.testTag("register_step_label")
+        )
+      }
+
+      Spacer(modifier = Modifier.height(8.dp))
+      LinearProgressIndicator(
+        progress = { animatedProgress },
+        color = GoldPrimary,
+        trackColor = DarkSurface,
+        modifier = Modifier
+          .fillMaxWidth()
+          .height(6.dp)
+          .clip(RoundedCornerShape(3.dp))
+          .testTag("register_progress_bar")
+      )
 
       Spacer(modifier = Modifier.height(14.dp))
-      Text("Join your class in ClassRep", fontSize = 14.sp, color = TextSecondary)
-      Spacer(modifier = Modifier.height(18.dp))
 
-      val activeError = errorMessage ?: localValidationMessage
-      if (!activeError.isNullOrBlank()) {
-        ErrorBanner(message = activeError, onDismiss = { localValidationMessage = null; onDismissError() })
-        Spacer(modifier = Modifier.height(14.dp))
+      if (!errorMessage.isNullOrBlank()) {
+        ErrorBanner(message = errorMessage, onDismiss = onDismissError)
+        Spacer(modifier = Modifier.height(12.dp))
       }
 
-      DarkTextField(
-        value = fullName, onValueChange = { fullName = it }, label = "Full Name *",
-        leadingIcon = Icons.Default.Person, keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Text, imeAction = ImeAction.Next),
-        testTag = "register_fullname_input"
-      )
-      Spacer(modifier = Modifier.height(12.dp))
-
-      DarkTextField(
-        value = admissionNumber, onValueChange = { admissionNumber = it }, label = "Admission Number *",
-        leadingIcon = Icons.Default.Badge, keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Text, imeAction = ImeAction.Next),
-        testTag = "register_admission_input"
-      )
-      Spacer(modifier = Modifier.height(12.dp))
-
-      DarkTextField(
-        value = email, onValueChange = { email = it }, label = "University Email *",
-        leadingIcon = Icons.Default.Email, keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Email, imeAction = ImeAction.Next),
-        testTag = "register_email_input"
-      )
-      Spacer(modifier = Modifier.height(12.dp))
-
-      PasswordTextField(
-        value = password, onValueChange = { password = it }, label = "Password *",
-        leadingIcon = Icons.Default.Lock, keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password, imeAction = ImeAction.Done),
-        testTag = "register_password_input"
-      )
-      Spacer(modifier = Modifier.height(16.dp))
-
-      Box(
-        modifier = Modifier.fillMaxWidth().clip(RoundedCornerShape(12.dp)).background(DarkCard)
-          .border(1.dp, DarkBorder, RoundedCornerShape(12.dp)).padding(14.dp)
+      Column(
+        modifier = Modifier
+          .weight(1f)
+          .fillMaxWidth()
+          .verticalScroll(rememberScrollState())
       ) {
-        Row(
-          modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically,
-          horizontalArrangement = Arrangement.SpaceBetween
-        ) {
-          Column(modifier = Modifier.weight(1f).padding(end = 10.dp)) {
-            Text(
-              text = if (knowsDetails) "I know my school, programme and year" else "I'm not sure, I'll use a class code",
-              fontSize = 13.sp, fontWeight = FontWeight.SemiBold, color = TextPrimary
+        AnimatedContent(
+          targetState = wizard.step,
+          transitionSpec = {
+            val dir = if (targetState >= initialState) 1 else -1
+            (fadeIn(tween(240)) + slideInHorizontally(tween(240)) { dir * it / 2 }) togetherWith
+              (fadeOut(tween(180)) + slideOutHorizontally(tween(180)) { -dir * it / 2 })
+          },
+          label = "register_step_transition"
+        ) { currentStep ->
+          when (currentStep) {
+            1 -> RegisterStep1Role(
+              selectedRole = wizard.role,
+              onSelectRole = { r -> wizard = wizard.copy(role = r) }
             )
-            Spacer(modifier = Modifier.height(2.dp))
-            Text(
-              text = if (knowsDetails) "Tap switch to use class code instead" else "Tap switch to choose programme & year",
-              fontSize = 11.sp, color = TextSecondary
+            2 -> RegisterStep2Details(
+              state = wizard,
+              onUpdate = { transform -> wizard = transform(wizard) }
+            )
+            3 -> RegisterStep3ClassOrLecturer(
+              state = wizard,
+              schools = schools,
+              programmes = programmes,
+              onSchoolSelected = onSchoolSelected,
+              onUpdate = { transform -> wizard = transform(wizard) }
+            )
+            else -> RegisterStep4Review(
+              state = wizard,
+              onToggleTerms = { checked -> wizard = wizard.copy(agreedToTerms = checked) }
             )
           }
-
-          Switch(
-            checked = knowsDetails,
-            onCheckedChange = { knowsDetails = it },
-            colors = SwitchDefaults.colors(
-              checkedThumbColor = GoldPrimary, checkedTrackColor = GoldPrimary.copy(alpha = 0.3f),
-              uncheckedThumbColor = TextSecondary, uncheckedTrackColor = DarkSurface
-            ),
-            modifier = Modifier.testTag("register_mode_switch")
-          )
         }
-      }
-      Spacer(modifier = Modifier.height(16.dp))
-
-      if (knowsDetails) {
-        AppDropdownField(
-          label = "School *", selectedValueText = selectedSchool?.name.orEmpty(),
-          items = schools, itemText = { it.name },
-          onItemSelected = { selectedSchool = it; selectedProgramme = null; onSchoolSelected(it) },
-          leadingIcon = Icons.Default.AccountBalance, placeholder = "Select your school",
-          testTag = "register_school_dropdown"
-        )
-        Spacer(modifier = Modifier.height(12.dp))
-
-        AppDropdownField(
-          label = "Programme *", selectedValueText = selectedProgramme?.name.orEmpty(),
-          items = programmes, itemText = { it.name },
-          onItemSelected = { prog ->
-            selectedProgramme = prog
-            val maxYears = prog.durationYears ?: 4
-            if (selectedYearOfStudy != null && selectedYearOfStudy!! > maxYears) {
-              selectedYearOfStudy = null
-            }
-          },
-          leadingIcon = Icons.Default.School, placeholder = if (selectedSchool == null) "Select school first" else "Select your programme",
-          testTag = "register_programme_dropdown"
-        )
-        Spacer(modifier = Modifier.height(12.dp))
-
-        val maxYears = selectedProgramme?.durationYears ?: 4
-        val availableYears = (1..maxYears).toList()
-        AppDropdownField(
-          label = "Year of Study *", selectedValueText = selectedYearOfStudy?.let { "Year $it" }.orEmpty(),
-          items = availableYears, itemText = { "Year $it" }, onItemSelected = { selectedYearOfStudy = it },
-          leadingIcon = Icons.Default.CalendarMonth, placeholder = "Select year (1 to $maxYears)",
-          testTag = "register_year_dropdown"
-        )
-      } else {
-        DarkTextField(
-          value = classCode, onValueChange = { classCode = it.uppercase() }, label = "Class Join Code *",
-          leadingIcon = Icons.Default.Key, keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.Characters, imeAction = ImeAction.Done),
-          testTag = "register_class_code_input"
-        )
+        Spacer(modifier = Modifier.height(16.dp))
       }
 
-      Spacer(modifier = Modifier.height(24.dp))
+      Spacer(modifier = Modifier.height(10.dp))
 
       GoldButton(
-        text = "Register",
+        text = if (wizard.step < 4) "Next" else "Create Account",
         onClick = {
-          localValidationMessage = null
-          if (fullName.isBlank() || admissionNumber.isBlank() || email.isBlank() || password.isBlank()) {
-            localValidationMessage = "Please fill in all registration fields."
-            return@GoldButton
-          }
-          if (knowsDetails) {
-            if (selectedSchool == null || selectedProgramme == null || selectedYearOfStudy == null) {
-              localValidationMessage = "Please select your School, Programme, and Year of Study."
-              return@GoldButton
-            }
-            onRegisterWithKnown(fullName, admissionNumber, email, password, selectedSchool, selectedProgramme, selectedYearOfStudy)
+          if (isLoading) return@GoldButton
+          onDismissError()
+          if (wizard.step < 4) {
+            wizard = wizard.copy(step = wizard.step + 1, slideDirection = 1)
           } else {
-            if (classCode.isBlank()) {
-              localValidationMessage = "Please enter your class code."
-              return@GoldButton
-            }
-            onRegisterWithCode(fullName, admissionNumber, email, password, classCode)
+            onSubmitWizard(wizard)
           }
         },
+        enabled = wizard.isCurrentStepValid && !isLoading,
         isLoading = isLoading,
-        testTag = "register_submit_button"
+        testTag = if (wizard.step < 4) "register_next_button" else "register_submit_button"
       )
 
-      Spacer(modifier = Modifier.height(20.dp))
+      Spacer(modifier = Modifier.height(12.dp))
 
       Row(
-        modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.Center,
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.Center,
         verticalAlignment = Alignment.CenterVertically
       ) {
         Text("Already have an account? ", fontSize = 14.sp, color = TextSecondary)
         Text(
-          text = "Sign In", fontSize = 14.sp, fontWeight = FontWeight.Bold, color = GoldPrimary,
-          modifier = Modifier.clickable { onNavigateToLogin() }.testTag("register_to_login_link")
+          text = "Sign In",
+          fontSize = 14.sp,
+          fontWeight = FontWeight.Bold,
+          color = GoldPrimary,
+          modifier = Modifier
+            .clickable(enabled = !isLoading) { onNavigateToLogin() }
+            .padding(vertical = 4.dp)
+            .testTag("register_to_login_link")
         )
       }
-      Spacer(modifier = Modifier.height(20.dp))
     }
   }
 }

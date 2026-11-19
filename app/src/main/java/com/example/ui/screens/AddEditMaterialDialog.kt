@@ -11,22 +11,28 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Description
+import androidx.compose.material.icons.filled.Info
+import androidx.compose.material.icons.filled.MenuBook
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
+import com.example.data.CourseUnit
 import com.example.data.MaterialFileValidator
 import com.example.data.MaterialItem
+import com.example.ui.components.AppDropdownField
 import com.example.ui.components.MaterialFilePickerBox
 import com.example.ui.components.MaterialModeSelector
+import com.example.ui.components.OfflineToastHelper
 import com.example.ui.components.queryFileInfo
 import com.example.ui.theme.*
 import java.io.InputStream
@@ -34,17 +40,19 @@ import java.io.InputStream
 @Composable
 fun AddEditMaterialDialog(
   initialMaterial: MaterialItem? = null,
+  approvedUnits: List<CourseUnit> = emptyList(),
   isLoading: Boolean = false,
   uploadProgress: Float? = null,
   onDismiss: () -> Unit,
-  onSaveLink: (title: String, description: String, materialType: String, externalUrl: String) -> Unit,
-  onSaveUpload: (title: String, description: String, fileName: String, fileSize: Long, mimeType: String, inputStreamProvider: () -> InputStream) -> Unit,
+  onSaveLink: (courseId: String, title: String, description: String, materialType: String, externalUrl: String) -> Unit,
+  onSaveUpload: (courseId: String, title: String, description: String, fileName: String, fileSize: Long, mimeType: String, inputStreamProvider: () -> InputStream) -> Unit,
   onSaveEdit: (materialId: String, title: String, description: String) -> Unit
 ) {
   val context = LocalContext.current
   val isEditing = initialMaterial != null
 
   var isFileUploadMode by remember { mutableStateOf(false) }
+  var selectedUnit by remember { mutableStateOf(approvedUnits.firstOrNull()) }
   var title by remember { mutableStateOf(initialMaterial?.title.orEmpty()) }
   var description by remember { mutableStateOf(initialMaterial?.description.orEmpty()) }
   var materialType by remember { mutableStateOf(initialMaterial?.materialType?.lowercase() ?: "notes") }
@@ -58,17 +66,13 @@ fun AddEditMaterialDialog(
 
   val allowedMimes = remember {
     arrayOf(
-      "application/pdf",
-      "application/msword",
+      "application/pdf", "application/msword",
       "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
       "application/vnd.ms-powerpoint",
       "application/vnd.openxmlformats-officedocument.presentationml.presentation",
       "application/vnd.ms-excel",
       "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-      "text/plain",
-      "image/jpeg",
-      "image/png",
-      "image/webp"
+      "text/plain", "image/jpeg", "image/png", "image/webp"
     )
   }
 
@@ -86,9 +90,7 @@ fun AddEditMaterialDialog(
         selectedFileSize = size
         selectedMimeType = mime
         validationError = null
-        if (title.isBlank()) {
-          title = name.substringBeforeLast('.')
-        }
+        if (title.isBlank()) title = name.substringBeforeLast('.')
       }
     }
   }
@@ -114,23 +116,51 @@ fun AddEditMaterialDialog(
       Row(verticalAlignment = Alignment.CenterVertically) {
         Icon(Icons.Default.Description, contentDescription = null, tint = GoldPrimary, modifier = Modifier.size(22.dp))
         Spacer(modifier = Modifier.width(8.dp))
-        Text(
-          text = if (isEditing) "Edit Material" else "Add Material",
-          fontSize = 18.sp,
-          fontWeight = FontWeight.Bold,
-          color = TextPrimary
-        )
+        Text(if (isEditing) "Edit Material" else "Add Material", fontSize = 18.sp, fontWeight = FontWeight.Bold, color = TextPrimary)
       }
-
       Spacer(modifier = Modifier.height(14.dp))
 
       if (!isEditing) {
-        MaterialModeSelector(
-          isFileUploadMode = isFileUploadMode,
-          onSelectLink = { isFileUploadMode = false; validationError = null },
-          onSelectUpload = { isFileUploadMode = true; validationError = null }
-        )
-        Spacer(modifier = Modifier.height(14.dp))
+        if (approvedUnits.isEmpty()) {
+          Box(
+            modifier = Modifier
+              .fillMaxWidth()
+              .clip(RoundedCornerShape(12.dp))
+              .background(Color(0xFF332005))
+              .border(1.dp, Color(0xFFFFB300), RoundedCornerShape(12.dp))
+              .padding(12.dp)
+          ) {
+            Row(verticalAlignment = Alignment.Top) {
+              Icon(Icons.Default.Info, contentDescription = null, tint = Color(0xFFFFB300), modifier = Modifier.size(18.dp))
+              Spacer(modifier = Modifier.width(8.dp))
+              Text(
+                text = "No approved units yet. A lecturer must register a unit and the admin must approve it.",
+                fontSize = 12.sp,
+                color = Color(0xFFFFE082),
+                lineHeight = 18.sp
+              )
+            }
+          }
+          Spacer(modifier = Modifier.height(14.dp))
+        } else {
+          AppDropdownField(
+            label = "Unit *",
+            selectedValueText = selectedUnit?.displayLabel.orEmpty(),
+            items = approvedUnits,
+            itemText = { it.displayLabel },
+            onItemSelected = { selectedUnit = it; validationError = null },
+            leadingIcon = Icons.Default.MenuBook,
+            placeholder = "Select approved unit",
+            testTag = "material_unit_dropdown"
+          )
+          Spacer(modifier = Modifier.height(12.dp))
+          MaterialModeSelector(
+            isFileUploadMode = isFileUploadMode,
+            onSelectLink = { isFileUploadMode = false; validationError = null },
+            onSelectUpload = { isFileUploadMode = true; validationError = null }
+          )
+          Spacer(modifier = Modifier.height(14.dp))
+        }
       }
 
       OutlinedTextField(
@@ -169,8 +199,7 @@ fun AddEditMaterialDialog(
         LinearProgressIndicator(
           progress = { uploadProgress },
           modifier = Modifier.fillMaxWidth().height(6.dp).clip(RoundedCornerShape(3.dp)),
-          color = GoldPrimary,
-          trackColor = DarkSurfaceVariant
+          color = GoldPrimary, trackColor = DarkSurfaceVariant
         )
       }
 
@@ -180,55 +209,41 @@ fun AddEditMaterialDialog(
       }
 
       Spacer(modifier = Modifier.height(18.dp))
-
+      val canSubmit = isEditing || approvedUnits.isNotEmpty()
       Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
-        OutlinedButton(
-          onClick = onDismiss, enabled = !isLoading,
-          shape = RoundedCornerShape(10.dp), modifier = Modifier.testTag("cancel_material_btn")
-        ) {
+        OutlinedButton(onClick = onDismiss, enabled = !isLoading, shape = RoundedCornerShape(10.dp), modifier = Modifier.testTag("cancel_material_btn")) {
           Text("Cancel", color = TextSecondary)
         }
         Spacer(modifier = Modifier.width(10.dp))
         val isOnline by com.example.data.NetworkMonitor.isOnline.collectAsState()
         Button(
           onClick = {
-            if (!isOnline) {
-              com.example.ui.components.OfflineToastHelper.show(context)
-              return@Button
-            }
-            if (title.isBlank()) {
-              validationError = "Please enter a title"
-              return@Button
-            }
+            if (!isOnline) { OfflineToastHelper.show(context); return@Button }
+            if (title.isBlank()) { validationError = "Please enter a title"; return@Button }
             if (isEditing) {
               onSaveEdit(initialMaterial.id, title, description)
-            } else if (isFileUploadMode) {
+              return@Button
+            }
+            val unitId = selectedUnit?.courseId.orEmpty()
+            if (unitId.isBlank()) { validationError = "Please select an approved unit"; return@Button }
+            if (isFileUploadMode) {
               val uri = selectedUri
-              if (uri == null) {
-                validationError = "Please choose a file to upload"
-                return@Button
-              }
-              onSaveUpload(title, description, selectedFileName, selectedFileSize, selectedMimeType) {
+              if (uri == null) { validationError = "Please choose a file to upload"; return@Button }
+              onSaveUpload(unitId, title, description, selectedFileName, selectedFileSize, selectedMimeType) {
                 context.contentResolver.openInputStream(uri)!!
               }
             } else {
-              if (externalUrl.isBlank()) {
-                validationError = "Please enter an external URL"
-                return@Button
-              }
-              onSaveLink(title, description, materialType, externalUrl)
+              if (externalUrl.isBlank()) { validationError = "Please enter an external URL"; return@Button }
+              onSaveLink(unitId, title, description, materialType, externalUrl)
             }
           },
-          enabled = !isLoading,
+          enabled = !isLoading && canSubmit,
           colors = ButtonDefaults.buttonColors(containerColor = GoldPrimary, contentColor = DarkTextOnGold),
           shape = RoundedCornerShape(10.dp),
           modifier = Modifier.alpha(if (!isOnline) 0.5f else 1f).testTag("submit_material_btn")
         ) {
-          if (isLoading) {
-            CircularProgressIndicator(color = DarkTextOnGold, modifier = Modifier.size(16.dp), strokeWidth = 2.dp)
-          } else {
-            Text(if (isEditing) "Save" else "Upload", fontWeight = FontWeight.Bold)
-          }
+          if (isLoading) CircularProgressIndicator(color = DarkTextOnGold, modifier = Modifier.size(16.dp), strokeWidth = 2.dp)
+          else Text(if (isEditing) "Save" else "Upload", fontWeight = FontWeight.Bold)
         }
       }
     }

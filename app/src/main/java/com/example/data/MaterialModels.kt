@@ -3,6 +3,7 @@ package com.example.data
 data class MaterialItem(
   val id: String,
   val classId: String = "",
+  val courseId: String = "",
   val title: String,
   val description: String,
   val materialType: String,

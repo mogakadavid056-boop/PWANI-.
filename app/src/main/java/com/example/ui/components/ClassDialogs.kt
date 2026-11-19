@@ -53,9 +53,11 @@ fun ClassDialogs(
   onSaveScheduleStatus: (String, String, String) -> Unit = { _, _, _ -> },
   materialsUiState: MaterialsUiState,
   onDismissAddEditMaterial: () -> Unit,
-  onSaveAddLinkMaterial: (String, String, String, String) -> Unit,
-  onSaveUploadMaterial: (title: String, description: String, fileName: String, fileSize: Long, mimeType: String, inputStreamProvider: () -> java.io.InputStream) -> Unit = { _, _, _, _, _, _ -> },
+  onSaveAddLinkMaterial: (String, String, String, String, String) -> Unit,
+  onSaveUploadMaterial: (courseId: String, title: String, description: String, fileName: String, fileSize: Long, mimeType: String, inputStreamProvider: () -> java.io.InputStream) -> Unit = { _, _, _, _, _, _, _ -> },
   onSaveEditMaterial: (materialId: String, title: String, description: String) -> Unit,
+  onDismissRegisterUnit: () -> Unit = {},
+  onSubmitRegisterUnit: (String, String, String) -> Unit = { _, _, _ -> },
   onDismissPromptDeleteMaterial: () -> Unit,
   onConfirmDeleteMaterial: () -> Unit,
   showCreatePollDialog: Boolean = false,
@@ -186,6 +188,7 @@ fun ClassDialogs(
   if (materialsUiState.showAddDialog) {
     AddEditMaterialDialog(
       initialMaterial = null,
+      approvedUnits = materialsUiState.approvedUnits,
       isLoading = materialsUiState.isActionLoading,
       uploadProgress = materialsUiState.uploadProgress,
       onDismiss = onDismissAddEditMaterial,
@@ -195,13 +198,23 @@ fun ClassDialogs(
     )
   }
 
+  if (materialsUiState.showRegisterUnitDialog) {
+    com.example.ui.screens.RegisterUnitDialog(
+      isLoading = materialsUiState.isActionLoading,
+      errorMessage = materialsUiState.unitDialogError,
+      onDismiss = onDismissRegisterUnit,
+      onSubmit = onSubmitRegisterUnit
+    )
+  }
+
   materialsUiState.materialPendingEdit?.let { material ->
     AddEditMaterialDialog(
       initialMaterial = material,
+      approvedUnits = materialsUiState.approvedUnits,
       isLoading = materialsUiState.isActionLoading,
       onDismiss = onDismissAddEditMaterial,
-      onSaveLink = { _, _, _, _ -> },
-      onSaveUpload = { _, _, _, _, _, _ -> },
+      onSaveLink = { _, _, _, _, _ -> },
+      onSaveUpload = { _, _, _, _, _, _, _ -> },
       onSaveEdit = onSaveEditMaterial
     )
   }

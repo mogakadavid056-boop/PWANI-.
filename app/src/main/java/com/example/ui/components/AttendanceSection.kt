@@ -29,6 +29,7 @@ import com.example.ui.theme.*
 @Composable
 fun AttendanceSection(
   isStaff: Boolean,
+  isLecturer: Boolean = false,
   canSignAttendance: Boolean = !isStaff,
   isLoading: Boolean,
   staffSessions: List<AttendanceSessionItem>,
@@ -44,6 +45,7 @@ fun AttendanceSection(
   onOpenSignAttendance: (sessionId: String) -> Unit,
   onOpenAttendanceSummary: () -> Unit = {},
   onOpenMyAttendance: () -> Unit = {},
+  onOpenAttendanceTracker: () -> Unit = {},
   onOpenRegister: (sessionId: String) -> Unit = {},
   onCloseSession: (sessionId: String) -> Unit = {},
   onVoidSessionPrompt: (AttendanceSessionItem) -> Unit = {},
@@ -133,6 +135,23 @@ fun AttendanceSection(
         }
       }
       Spacer(modifier = Modifier.height(14.dp))
+    }
+
+    if (isLecturer) {
+      ClassRepCard(modifier = Modifier.fillMaxWidth().testTag("lecturer_attendance_tracker_card"), onClick = onOpenAttendanceTracker) {
+        Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+          Box(modifier = Modifier.size(38.dp).clip(RoundedCornerShape(8.dp)).background(DarkSurfaceVariant), contentAlignment = Alignment.Center) {
+            Icon(Icons.Default.Assessment, contentDescription = null, tint = GoldPrimary, modifier = Modifier.size(20.dp))
+          }
+          Spacer(modifier = Modifier.width(12.dp))
+          Column(modifier = Modifier.weight(1f)) {
+            Text("Attendance Tracker", fontSize = 14.sp, fontWeight = FontWeight.Bold, color = GoldLight)
+            Text("Monitor attendance risk, streaks & excuse absences", fontSize = 12.sp, color = TextSecondary)
+          }
+          Icon(Icons.AutoMirrored.Filled.ArrowForward, contentDescription = null, tint = GoldLight, modifier = Modifier.size(16.dp))
+        }
+      }
+      Spacer(modifier = Modifier.height(16.dp))
     }
 
     if (canSignAttendance) {

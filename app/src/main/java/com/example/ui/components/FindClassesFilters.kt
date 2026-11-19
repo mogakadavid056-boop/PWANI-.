@@ -66,55 +66,45 @@ fun FindClassesSchoolDropdown(
 ) {
   var expanded by remember { mutableStateOf(false) }
 
-  Box(modifier = Modifier.fillMaxWidth()) {
-    OutlinedCard(
-      onClick = { expanded = true },
-      colors = CardDefaults.outlinedCardColors(containerColor = DarkSurface),
-      border = androidx.compose.foundation.BorderStroke(1.dp, DarkBorder),
-      shape = RoundedCornerShape(10.dp),
-      modifier = Modifier.fillMaxWidth().testTag("find_classes_school_dropdown")
+  OutlinedCard(
+    onClick = { expanded = true },
+    colors = CardDefaults.outlinedCardColors(containerColor = DarkSurface),
+    border = androidx.compose.foundation.BorderStroke(1.dp, DarkBorder),
+    shape = RoundedCornerShape(10.dp),
+    modifier = Modifier.fillMaxWidth().testTag("find_classes_school_dropdown")
+  ) {
+    Row(
+      modifier = Modifier.fillMaxWidth().padding(horizontal = 14.dp, vertical = 12.dp),
+      verticalAlignment = Alignment.CenterVertically,
+      horizontalArrangement = Arrangement.SpaceBetween
     ) {
-      Row(
-        modifier = Modifier.fillMaxWidth().padding(horizontal = 14.dp, vertical = 12.dp),
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.SpaceBetween
-      ) {
-        Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.weight(1f)) {
-          Icon(Icons.Default.AccountBalance, contentDescription = null, tint = GoldLight, modifier = Modifier.size(16.dp))
-          Spacer(modifier = Modifier.width(8.dp))
-          Text(
-            text = selectedSchool?.name ?: "All Schools",
-            fontSize = 13.sp,
-            color = if (selectedSchool != null) TextPrimary else TextSecondary,
-            maxLines = 1
-          )
-        }
-        Text("▼", fontSize = 10.sp, color = TextSecondary)
-      }
-    }
-
-    DropdownMenu(
-      expanded = expanded,
-      onDismissRequest = { expanded = false },
-      modifier = Modifier.background(DarkCard).border(1.dp, DarkBorder)
-    ) {
-      DropdownMenuItem(
-        text = { Text("All Schools", color = GoldLight, fontWeight = FontWeight.SemiBold) },
-        onClick = {
-          onSchoolSelected(null)
-          expanded = false
-        }
-      )
-      schools.forEach { school ->
-        DropdownMenuItem(
-          text = { Text(school.name, color = TextPrimary) },
-          onClick = {
-            onSchoolSelected(school)
-            expanded = false
-          }
+      Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.weight(1f)) {
+        Icon(Icons.Default.AccountBalance, contentDescription = null, tint = GoldLight, modifier = Modifier.size(16.dp))
+        Spacer(modifier = Modifier.width(8.dp))
+        Text(
+          text = selectedSchool?.name ?: "All Schools",
+          fontSize = 13.sp,
+          color = if (selectedSchool != null) TextPrimary else TextSecondary,
+          maxLines = 1
         )
       }
+      Text("▼", fontSize = 10.sp, color = TextSecondary)
     }
+  }
+
+  if (expanded) {
+    val allOptions: List<SchoolItem?> = listOf(null) + schools
+    AppOptionPickerDialog(
+      title = "Filter by School",
+      items = allOptions,
+      itemText = { it?.name ?: "All Schools" },
+      selectedText = selectedSchool?.name ?: "All Schools",
+      onItemSelected = { school ->
+        onSchoolSelected(school)
+        expanded = false
+      },
+      onDismiss = { expanded = false }
+    )
   }
 }
 

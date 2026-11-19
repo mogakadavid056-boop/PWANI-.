@@ -32,7 +32,8 @@ enum class AttendanceSubScreen {
   SignAttendance,
   AttendanceSummary,
   MyAttendance,
-  AttendanceRegister
+  AttendanceRegister,
+  AttendanceTracker
 }
 
 data class StudentAttendanceSummaryItem(

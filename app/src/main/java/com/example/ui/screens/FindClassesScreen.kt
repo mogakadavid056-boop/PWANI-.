@@ -32,6 +32,8 @@ import com.example.ui.theme.*
 fun FindClassesScreen(
   session: UserSession?,
   isAdmin: Boolean,
+  unreadNotificationCount: Int = 0,
+  onOpenNotifications: () -> Unit = {},
   onBack: (() -> Unit)? = null,
   onOpenClass: (ClassItem) -> Unit,
   viewModel: ClassSearchViewModel = viewModel()
@@ -44,6 +46,8 @@ fun FindClassesScreen(
   FindClassesContent(
     uiState = uiState,
     isAdmin = isAdmin,
+    unreadNotificationCount = unreadNotificationCount,
+    onOpenNotifications = onOpenNotifications,
     onSearchQueryChanged = { viewModel.onSearchQueryChanged(it) },
     onSchoolFilterChanged = { viewModel.onSchoolFilterChanged(it) },
     onYearFilterChanged = { viewModel.onYearFilterChanged(it) },
@@ -61,6 +65,8 @@ fun FindClassesScreen(
 fun FindClassesContent(
   uiState: ClassSearchUiState,
   isAdmin: Boolean,
+  unreadNotificationCount: Int = 0,
+  onOpenNotifications: () -> Unit = {},
   onSearchQueryChanged: (String) -> Unit,
   onSchoolFilterChanged: (SchoolItem?) -> Unit,
   onYearFilterChanged: (Int?) -> Unit,
@@ -102,8 +108,11 @@ fun FindClassesContent(
           )
         }
 
-        IconButton(onClick = onRefresh, modifier = Modifier.size(40.dp).testTag("find_classes_refresh_btn")) {
-          Icon(Icons.Default.Refresh, contentDescription = "Refresh", tint = GoldLight, modifier = Modifier.size(22.dp))
+        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+          NotificationBellButton(unreadCount = unreadNotificationCount, onClick = onOpenNotifications)
+          IconButton(onClick = onRefresh, modifier = Modifier.size(40.dp).testTag("find_classes_refresh_btn")) {
+            Icon(Icons.Default.Refresh, contentDescription = "Refresh", tint = GoldLight, modifier = Modifier.size(22.dp))
+          }
         }
       }
 

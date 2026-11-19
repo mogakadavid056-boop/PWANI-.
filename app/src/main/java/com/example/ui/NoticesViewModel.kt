@@ -70,6 +70,13 @@ class NoticesViewModel : ViewModel() {
     }
   }
 
+  fun updateSelectedClassJoinCode(newJoinCode: String) {
+    _uiState.update { state ->
+      val current = state.selectedClass ?: return@update state
+      state.copy(selectedClass = current.copy(joinCode = newJoinCode))
+    }
+  }
+
   fun refreshNotices(session: UserSession?) {
     val currentClass = _uiState.value.selectedClass ?: return
     loadNoticesAndRepStatus(currentClass.id, session)

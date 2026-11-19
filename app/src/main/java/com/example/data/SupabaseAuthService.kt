@@ -188,7 +188,6 @@ class SupabaseAuthService(
       Result.failure(Exception(SupabaseConfig.formatExceptionMessage(e, "Network connection failed")))
     }
   }
-
   suspend fun patchProfile(
     userId: String,
     accessToken: String,
@@ -220,7 +219,6 @@ class SupabaseAuthService(
       Result.failure(Exception(SupabaseConfig.formatExceptionMessage(e, "Failed to save profile")))
     }
   }
-
   suspend fun fetchUserRole(
     userId: String,
     accessToken: String
@@ -231,7 +229,6 @@ class SupabaseAuthService(
     if (userId.isBlank() || accessToken.isBlank()) {
       return@withContext Result.failure(IllegalStateException("Authentication session is missing."))
     }
-
     val url = "${SupabaseConfig.url}/rest/v1/user_roles?select=role,verified&user_id=eq.$userId"
     val request = Request.Builder()
       .url(url)
@@ -255,32 +252,47 @@ class SupabaseAuthService(
       Result.failure(Exception(SupabaseConfig.formatExceptionMessage(e, "Failed to load user role")))
     }
   }
-
-  suspend fun fetchBasicProfile(
-    userId: String,
-    accessToken: String
-  ): Pair<String, String> = withContext(Dispatchers.IO) {
-    if (!SupabaseConfig.isConfigured() || userId.isBlank() || accessToken.isBlank()) {
-      return@withContext "" to ""
+  suspend fun resendSignUpEmail(email: String): Result<Unit> = withContext(Dispatchers.IO) {
+    if (!SupabaseConfig.isConfigured()) {
+      return@withContext Result.failure(IllegalStateException(SupabaseConfig.MISSING_CONFIG_ERROR))
     }
-    val url = "${SupabaseConfig.url}/rest/v1/profiles?id=eq.$userId&select=full_name,admission_number"
-    val request = Request.Builder()
-      .url(url)
+    val payload = JSONObject().apply {
+      put("type", "signup")
+      put("email", email.trim().lowercase())
+    }
+    val req = Request.Builder()
+      .url("${SupabaseConfig.url}/auth/v1/resend")
+      .addHeader("apikey", SupabaseConfig.anonKey)
+      .addHeader("Authorization", "Bearer ${SupabaseConfig.anonKey}")
+      .addHeader("Content-Type", "application/json")
+      .post(payload.toString().toRequestBody(jsonMediaType))
+      .build()
+    try {
+      client.newCall(req).execute().use { resp ->
+        if (resp.isSuccessful) Result.success(Unit)
+        else Result.failure(Exception(SupabaseConfig.extractErrorMessage(resp.body?.string().orEmpty(), resp.code)))
+      }
+    } catch (e: Exception) {
+      Result.failure(Exception(SupabaseConfig.formatExceptionMessage(e, "Failed to resend confirmation email")))
+    }
+  }
+
+  suspend fun fetchBasicProfile(userId: String, accessToken: String): Pair<String, String> = withContext(Dispatchers.IO) {
+    if (!SupabaseConfig.isConfigured() || userId.isBlank() || accessToken.isBlank()) return@withContext "" to ""
+    val req = Request.Builder()
+      .url("${SupabaseConfig.url}/rest/v1/profiles?id=eq.$userId&select=full_name,admission_number")
       .addHeader("apikey", SupabaseConfig.anonKey)
       .addHeader("Authorization", "Bearer $accessToken")
       .addHeader("Accept", "application/json")
-      .get()
-      .build()
+      .get().build()
     try {
-      client.newCall(request).execute().use { response ->
+      client.newCall(req).execute().use { response ->
         if (!response.isSuccessful) return@withContext "" to ""
         val arr = JSONArray(response.body?.string().orEmpty())
         if (arr.length() == 0) return@withContext "" to ""
         val obj = arr.getJSONObject(0)
         JsonHelper.str(obj, "full_name") to JsonHelper.str(obj, "admission_number")
       }
-    } catch (_: Exception) {
-      "" to ""
-    }
+    } catch (_: Exception) { "" to "" }
   }
 }

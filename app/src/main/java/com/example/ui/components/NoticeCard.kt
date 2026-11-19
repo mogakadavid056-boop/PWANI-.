@@ -22,8 +22,6 @@ import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.PushPin
-import androidx.compose.material3.DropdownMenu
-import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.Text
@@ -51,6 +49,7 @@ import com.example.ui.theme.DarkCard
 import com.example.ui.theme.DarkSurface
 import com.example.ui.theme.ErrorContainer
 import com.example.ui.theme.ErrorRed
+import com.example.ui.theme.GoldLight
 import com.example.ui.theme.GoldPrimary
 import com.example.ui.theme.PoppinsFamily
 import com.example.ui.theme.TextPrimary
@@ -223,34 +222,42 @@ fun NoticeCard(
                   )
                 }
 
-                DropdownMenu(
-                  expanded = showMenu,
-                  onDismissRequest = { showMenu = false },
-                  modifier = Modifier.background(DarkSurface).border(1.dp, DarkBorder, RoundedCornerShape(8.dp))
-                ) {
+                if (showMenu) {
                   val isOnline by com.example.data.NetworkMonitor.isOnline.collectAsStateWithLifecycle()
                   val context = LocalContext.current
-                  if (onEdit != null) {
-                    DropdownMenuItem(
-                      text = { Text("Edit Notice", color = TextPrimary, fontSize = 14.sp) },
-                      leadingIcon = { Icon(Icons.Default.Edit, contentDescription = null, tint = GoldPrimary, modifier = Modifier.size(16.dp)) },
-                      onClick = {
-                        showMenu = false
-                        if (!isOnline) OfflineToastHelper.show(context) else onEdit()
-                      },
-                      modifier = Modifier.testTag("notice_edit_menu_item_${notice.id}")
-                    )
-                  }
-                  if (onDelete != null) {
-                    DropdownMenuItem(
-                      text = { Text("Delete Notice", color = ErrorRed, fontSize = 14.sp) },
-                      leadingIcon = { Icon(Icons.Default.Delete, contentDescription = null, tint = ErrorRed, modifier = Modifier.size(16.dp)) },
-                      onClick = {
-                        showMenu = false
-                        if (!isOnline) OfflineToastHelper.show(context) else onDelete()
-                      },
-                      modifier = Modifier.testTag("notice_delete_menu_item_${notice.id}")
-                    )
+                  androidx.compose.ui.window.Dialog(onDismissRequest = { showMenu = false }) {
+                    Column(
+                      modifier = Modifier.fillMaxWidth().clip(RoundedCornerShape(16.dp))
+                        .background(androidx.compose.ui.graphics.Color(0xFF0B2A1E))
+                        .border(1.dp, GoldPrimary.copy(alpha = 0.6f), RoundedCornerShape(16.dp)).padding(16.dp)
+                    ) {
+                      Text("Notice Options", fontSize = 16.sp, fontWeight = FontWeight.Bold, color = GoldLight)
+                      Spacer(modifier = Modifier.height(10.dp))
+                      if (onEdit != null) {
+                        Row(
+                          modifier = Modifier.fillMaxWidth().clip(RoundedCornerShape(10.dp)).clickable {
+                            showMenu = false; if (!isOnline) OfflineToastHelper.show(context) else onEdit()
+                          }.padding(vertical = 12.dp, horizontal = 8.dp).testTag("notice_edit_menu_item_${notice.id}"),
+                          verticalAlignment = Alignment.CenterVertically
+                        ) {
+                          Icon(Icons.Default.Edit, contentDescription = null, tint = GoldPrimary, modifier = Modifier.size(18.dp))
+                          Spacer(modifier = Modifier.width(12.dp))
+                          Text("Edit Notice", color = TextPrimary, fontSize = 14.sp)
+                        }
+                      }
+                      if (onDelete != null) {
+                        Row(
+                          modifier = Modifier.fillMaxWidth().clip(RoundedCornerShape(10.dp)).clickable {
+                            showMenu = false; if (!isOnline) OfflineToastHelper.show(context) else onDelete()
+                          }.padding(vertical = 12.dp, horizontal = 8.dp).testTag("notice_delete_menu_item_${notice.id}"),
+                          verticalAlignment = Alignment.CenterVertically
+                        ) {
+                          Icon(Icons.Default.Delete, contentDescription = null, tint = ErrorRed, modifier = Modifier.size(18.dp))
+                          Spacer(modifier = Modifier.width(12.dp))
+                          Text("Delete Notice", color = ErrorRed, fontSize = 14.sp)
+                        }
+                      }
+                    }
                   }
                 }
               }

@@ -14,6 +14,7 @@ data class ClassAttendanceCallbacks(
   val onCloseAttendanceSubScreen: () -> Unit,
   val onOpenAttendanceSummary: () -> Unit = {},
   val onOpenMyAttendance: () -> Unit = {},
+  val onOpenAttendanceTracker: () -> Unit = {},
   val onShowActiveCode: ((String, String) -> Unit)? = null,
   val onOpenRegister: (sessionId: String) -> Unit = {},
   val onCloseSession: (sessionId: String) -> Unit = {},

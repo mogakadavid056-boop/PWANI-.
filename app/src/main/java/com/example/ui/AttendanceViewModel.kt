@@ -229,11 +229,8 @@ class AttendanceViewModel : ViewModel() {
     }
   }
 
-  fun signOutSession(sessionId: String, session: UserSession?) =
-    runOkMsgAction(session, reloadList = true, refreshRegId = null) { token -> registerService.signOutAttendance(sessionId, token) }
-
-  fun signRegister(sessionId: String, signerRole: String, signatureBase64: String, session: UserSession?) =
-    runOkMsgAction(session, reloadList = false, refreshRegId = sessionId) { token -> registerService.signRegister(sessionId, signerRole, signatureBase64, token) }
+  fun signOutSession(sessionId: String, session: UserSession?) = runOkMsgAction(session, true, null) { registerService.signOutAttendance(sessionId, it) }
+  fun signRegister(sessionId: String, signerRole: String, signatureBase64: String, session: UserSession?) = runOkMsgAction(session, false, sessionId) { registerService.signRegister(sessionId, signerRole, signatureBase64, it) }
 
   fun updateMyDetails(fullName: String, admissionNo: String, phone: String, session: UserSession?, onSaved: (String, String) -> Unit) {
     if (session == null || session.accessToken.isBlank()) return
@@ -295,5 +292,6 @@ class AttendanceViewModel : ViewModel() {
   fun showError(message: String) { _uiState.update { it.copy(errorMessage = message) } }
   fun openAttendanceSummary() { _uiState.update { it.copy(currentSubScreen = AttendanceSubScreen.AttendanceSummary, errorMessage = null) } }
   fun openMyAttendance() { _uiState.update { it.copy(currentSubScreen = AttendanceSubScreen.MyAttendance, errorMessage = null) } }
+  fun openAttendanceTracker() { _uiState.update { it.copy(currentSubScreen = AttendanceSubScreen.AttendanceTracker, errorMessage = null) } }
   fun dismissActiveSessionBanner() { _uiState.update { it.copy(activeSessionCode = null, activeSessionId = null, canManageActiveSession = false) } }
 }

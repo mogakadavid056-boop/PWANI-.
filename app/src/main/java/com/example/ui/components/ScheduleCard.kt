@@ -2,6 +2,7 @@ package com.example.ui.components
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -21,8 +22,6 @@ import androidx.compose.material.icons.filled.MeetingRoom
 import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.Schedule
-import androidx.compose.material3.DropdownMenu
-import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.Text
@@ -107,40 +106,49 @@ fun ScheduleCard(
             ) {
               Icon(Icons.Default.MoreVert, contentDescription = "Options", tint = TextSecondary, modifier = Modifier.size(16.dp))
             }
-            DropdownMenu(
-              expanded = showMenu,
-              onDismissRequest = { showMenu = false },
-              modifier = Modifier.background(DarkSurface).border(1.dp, DarkBorder, RoundedCornerShape(8.dp))
-            ) {
+            if (showMenu) {
               val isOnline by com.example.data.NetworkMonitor.isOnline.collectAsStateWithLifecycle()
               val context = LocalContext.current
-              DropdownMenuItem(
-                text = { Text("Mark Cancelled / Moved", color = GoldLight, fontSize = 13.sp) },
-                leadingIcon = { Icon(Icons.Default.EventBusy, contentDescription = null, tint = GoldLight, modifier = Modifier.size(16.dp)) },
-                onClick = {
-                  showMenu = false
-                  if (!isOnline) OfflineToastHelper.show(context) else onChangeStatus()
-                },
-                modifier = Modifier.testTag("status_schedule_btn_${schedule.id}")
-              )
-              DropdownMenuItem(
-                text = { Text("Edit Class", color = TextPrimary, fontSize = 13.sp) },
-                leadingIcon = { Icon(Icons.Default.Edit, contentDescription = null, tint = GoldPrimary, modifier = Modifier.size(16.dp)) },
-                onClick = {
-                  showMenu = false
-                  if (!isOnline) OfflineToastHelper.show(context) else onEdit()
-                },
-                modifier = Modifier.testTag("edit_schedule_btn_${schedule.id}")
-              )
-              DropdownMenuItem(
-                text = { Text("Delete Class", color = ErrorRed, fontSize = 13.sp) },
-                leadingIcon = { Icon(Icons.Default.Delete, contentDescription = null, tint = ErrorRed, modifier = Modifier.size(16.dp)) },
-                onClick = {
-                  showMenu = false
-                  if (!isOnline) OfflineToastHelper.show(context) else onDelete()
-                },
-                modifier = Modifier.testTag("delete_schedule_btn_${schedule.id}")
-              )
+              androidx.compose.ui.window.Dialog(onDismissRequest = { showMenu = false }) {
+                Column(
+                  modifier = Modifier.fillMaxWidth().clip(RoundedCornerShape(16.dp))
+                    .background(androidx.compose.ui.graphics.Color(0xFF0B2A1E))
+                    .border(1.dp, GoldPrimary.copy(alpha = 0.6f), RoundedCornerShape(16.dp)).padding(16.dp)
+                ) {
+                  Text("Class Options", fontSize = 16.sp, fontWeight = FontWeight.Bold, color = GoldLight)
+                  Spacer(modifier = Modifier.height(10.dp))
+                  Row(
+                    modifier = Modifier.fillMaxWidth().clip(RoundedCornerShape(10.dp)).clickable {
+                      showMenu = false; if (!isOnline) OfflineToastHelper.show(context) else onChangeStatus()
+                    }.padding(vertical = 12.dp, horizontal = 8.dp).testTag("status_schedule_btn_${schedule.id}"),
+                    verticalAlignment = Alignment.CenterVertically
+                  ) {
+                    Icon(Icons.Default.EventBusy, contentDescription = null, tint = GoldLight, modifier = Modifier.size(18.dp))
+                    Spacer(modifier = Modifier.width(12.dp))
+                    Text("Mark Cancelled / Moved", color = GoldLight, fontSize = 14.sp)
+                  }
+                  Row(
+                    modifier = Modifier.fillMaxWidth().clip(RoundedCornerShape(10.dp)).clickable {
+                      showMenu = false; if (!isOnline) OfflineToastHelper.show(context) else onEdit()
+                    }.padding(vertical = 12.dp, horizontal = 8.dp).testTag("edit_schedule_btn_${schedule.id}"),
+                    verticalAlignment = Alignment.CenterVertically
+                  ) {
+                    Icon(Icons.Default.Edit, contentDescription = null, tint = GoldPrimary, modifier = Modifier.size(18.dp))
+                    Spacer(modifier = Modifier.width(12.dp))
+                    Text("Edit Class", color = TextPrimary, fontSize = 14.sp)
+                  }
+                  Row(
+                    modifier = Modifier.fillMaxWidth().clip(RoundedCornerShape(10.dp)).clickable {
+                      showMenu = false; if (!isOnline) OfflineToastHelper.show(context) else onDelete()
+                    }.padding(vertical = 12.dp, horizontal = 8.dp).testTag("delete_schedule_btn_${schedule.id}"),
+                    verticalAlignment = Alignment.CenterVertically
+                  ) {
+                    Icon(Icons.Default.Delete, contentDescription = null, tint = ErrorRed, modifier = Modifier.size(18.dp))
+                    Spacer(modifier = Modifier.width(12.dp))
+                    Text("Delete Class", color = ErrorRed, fontSize = 14.sp)
+                  }
+                }
+              }
             }
           }
         }
