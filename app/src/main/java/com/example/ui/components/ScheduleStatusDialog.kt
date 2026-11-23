@@ -37,13 +37,13 @@ fun ScheduleStatusDialog(
 
   AlertDialog(
     onDismissRequest = { if (!isLoading) onDismiss() },
-    containerColor = DarkCard,
-    shape = RoundedCornerShape(16.dp),
+    containerColor = RoyalSurfaceHigh,
+    shape = RoundedCornerShape(18.dp),
     title = {
       Column {
-        Text("Update Class Status", fontWeight = FontWeight.Bold, fontSize = 18.sp, color = GoldLight)
+        Text("Update Class Status", style = SectionHeadingStyle)
         Spacer(modifier = Modifier.height(2.dp))
-        Text(schedule.title, fontSize = 13.sp, color = TextSecondary)
+        Text(schedule.title, style = CaptionStyle)
       }
     },
     text = {
@@ -55,8 +55,8 @@ fun ScheduleStatusDialog(
           val isSelected = selectedStatus == value
           val activeColor = when (value) {
             "cancelled" -> ErrorRed
-            "moved" -> Color(0xFFFFB300)
-            else -> GoldPrimary
+            "moved" -> ChampagneGold
+            else -> MetallicGold
           }
           Row(
             modifier = Modifier
@@ -93,18 +93,8 @@ fun ScheduleStatusDialog(
             singleLine = false,
             maxLines = 3,
             modifier = Modifier.fillMaxWidth().testTag("schedule_status_note_input"),
-            shape = RoundedCornerShape(12.dp),
-            colors = OutlinedTextFieldDefaults.colors(
-              focusedContainerColor = DarkSurface,
-              unfocusedContainerColor = DarkSurface,
-              focusedBorderColor = GoldPrimary,
-              unfocusedBorderColor = DarkBorder,
-              focusedLabelColor = GoldLight,
-              unfocusedLabelColor = TextSecondary,
-              focusedTextColor = TextPrimary,
-              unfocusedTextColor = TextPrimary,
-              cursorColor = GoldPrimary
-            )
+            shape = RoundedCornerShape(14.dp),
+            colors = royalOutlinedTextFieldColors()
           )
         }
       }

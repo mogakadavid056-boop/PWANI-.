@@ -35,6 +35,9 @@ import com.example.ui.components.AppDropdownField
 import com.example.ui.components.DarkTextField
 import com.example.ui.components.ErrorBanner
 import com.example.ui.components.GoldButton
+import com.example.ui.components.MetallicGoldText
+import com.example.ui.components.OutlinedGoldButton
+import com.example.ui.components.RoyalCard
 import com.example.ui.theme.*
 
 @Composable
@@ -67,20 +70,20 @@ fun CreateClassScreen(
   val clipboardManager = LocalClipboardManager.current
   val context = LocalContext.current
 
-  Box(modifier = Modifier.fillMaxSize().background(DarkBackground).testTag("create_class_screen")) {
+  Box(modifier = Modifier.fillMaxSize().testTag("create_class_screen")) {
     Column(
       modifier = Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(horizontal = 24.dp, vertical = 20.dp)
     ) {
       Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth()) {
-        IconButton(onClick = onBack, modifier = Modifier.size(40.dp)) {
-          Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back", tint = GoldLight)
+        IconButton(onClick = onBack, modifier = Modifier.size(48.dp)) {
+          Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back", tint = ChampagneGold)
         }
-        Spacer(modifier = Modifier.width(8.dp))
-        Text("Create Class", fontSize = 22.sp, fontWeight = FontWeight.Bold, color = GoldLight)
+        Spacer(modifier = Modifier.width(6.dp))
+        MetallicGoldText("Create Class", style = ScreenTitleStyle)
       }
 
       Spacer(modifier = Modifier.height(14.dp))
-      Text("Set up a new university class. A unique join code will be generated for students.", fontSize = 14.sp, color = TextSecondary, lineHeight = 20.sp)
+      Text("Set up a new university class. A unique join code will be generated for students.", style = SecondaryTextStyle)
       Spacer(modifier = Modifier.height(18.dp))
 
       if (!errorMessage.isNullOrBlank()) {
@@ -135,13 +138,10 @@ fun CreateClassScreen(
       Spacer(modifier = Modifier.height(10.dp))
 
       // Note for automatic student enrollment
-      Box(
-        modifier = Modifier.fillMaxWidth().clip(RoundedCornerShape(8.dp)).background(DarkSurface)
-          .border(1.dp, DarkBorder, RoundedCornerShape(8.dp)).padding(10.dp)
-      ) {
+      RoyalCard {
         Text(
           text = "Note: Students who registered for this programme and year will be added automatically.",
-          fontSize = 12.sp, color = GoldLight, lineHeight = 16.sp
+          style = CaptionStyle.copy(color = ChampagneGold)
         )
       }
 
@@ -170,49 +170,40 @@ fun CreateClassScreen(
     if (!createdJoinCode.isNullOrBlank()) {
       AlertDialog(
         onDismissRequest = onDismissSuccessDialog,
-        containerColor = DarkSurface,
-        title = { Text("Class Created!", color = GoldLight, fontWeight = FontWeight.Bold, fontSize = 20.sp) },
+        containerColor = RoyalSurfaceHigh,
+        title = { Text("Class Created!", style = SectionHeadingStyle) },
         text = {
           Column {
-            Text("Share this join code with your class members:", color = TextSecondary, fontSize = 14.sp)
+            Text("Share this join code with your class members:", style = SecondaryTextStyle)
             Spacer(modifier = Modifier.height(14.dp))
             Box(
-              modifier = Modifier.fillMaxWidth().clip(RoundedCornerShape(12.dp)).background(DarkSurfaceVariant)
-                .border(1.5.dp, GoldPrimary, RoundedCornerShape(12.dp)).padding(vertical = 14.dp, horizontal = 12.dp),
+              modifier = Modifier.fillMaxWidth().clip(RoundedCornerShape(14.dp)).background(RoyalSurface)
+                .border(1.5.dp, MetallicGold, RoundedCornerShape(14.dp)).padding(vertical = 14.dp, horizontal = 12.dp),
               contentAlignment = Alignment.Center
             ) {
               Text(
-                text = createdJoinCode, color = GoldLight, fontSize = 24.sp,
-                fontWeight = FontWeight.ExtraBold, fontFamily = com.example.ui.theme.PoppinsFamily, letterSpacing = 2.sp
+                text = createdJoinCode,
+                style = ButtonTextStyle.copy(fontSize = 24.sp, letterSpacing = 2.5.sp, color = ChampagneGold, fontWeight = FontWeight.Bold)
               )
             }
           }
         },
         confirmButton = {
-          Button(
+          GoldButton(
+            text = "Copy Code",
             onClick = {
               clipboardManager.setText(AnnotatedString(createdJoinCode))
               Toast.makeText(context, "Join code copied to clipboard!", Toast.LENGTH_SHORT).show()
             },
-            colors = ButtonDefaults.buttonColors(containerColor = GoldPrimary, contentColor = com.example.ui.theme.DarkTextOnGold),
-            shape = RoundedCornerShape(10.dp),
-            modifier = Modifier.defaultMinSize(minHeight = 48.dp)
-          ) {
-            Icon(Icons.Default.ContentCopy, contentDescription = null, tint = com.example.ui.theme.DarkTextOnGold, modifier = Modifier.size(18.dp))
-            Spacer(modifier = Modifier.width(6.dp))
-            Text("Copy Code", fontWeight = FontWeight.Bold, fontSize = 16.sp, color = com.example.ui.theme.DarkTextOnGold)
-          }
+            modifier = Modifier.fillMaxWidth()
+          )
         },
         dismissButton = {
-          OutlinedButton(
+          OutlinedGoldButton(
+            text = "Done",
             onClick = onDismissSuccessDialog,
-            shape = RoundedCornerShape(10.dp),
-            modifier = Modifier.defaultMinSize(minHeight = 48.dp),
-            border = androidx.compose.foundation.BorderStroke(1.5.dp, GoldPrimary),
-            colors = ButtonDefaults.outlinedButtonColors(containerColor = DarkSurface, contentColor = GoldPrimary)
-          ) {
-            Text("Done", color = GoldPrimary, fontSize = 16.sp, fontWeight = FontWeight.Bold)
-          }
+            modifier = Modifier.fillMaxWidth()
+          )
         }
       )
     }

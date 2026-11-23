@@ -15,6 +15,7 @@ fun ClassDetailRoute(
   timetableUiState: TimetableUiState,
   materialsUiState: MaterialsUiState,
   pollsUiState: PollsUiState,
+  challengesUiState: ChallengesUiState = ChallengesUiState(),
   noticesViewModel: NoticesViewModel,
   classesViewModel: ClassesViewModel,
   attendanceViewModel: AttendanceViewModel,
@@ -24,11 +25,16 @@ fun ClassDetailRoute(
   timetableViewModel: TimetableViewModel,
   materialsViewModel: MaterialsViewModel,
   pollsViewModel: PollsViewModel,
+  challengesViewModel: ChallengesViewModel? = null,
+  showOnLeaderboard: Boolean = true,
+  onToggleLeaderboardVisibility: (Boolean) -> Unit = {},
   allClasses: List<com.example.data.ClassItem> = emptyList(),
   unreadNotificationCount: Int = 0,
   openTimetableSignal: Int = 0,
   openTabSignal: Triple<Int, com.example.ui.components.ClassTab, MoreSubView>? = null,
   onOpenNotifications: () -> Unit = {},
+  isOnline: Boolean = true,
+  onOpenAssistant: () -> Unit = {},
   onMemberDetailsSaved: (fullName: String, admissionNumber: String) -> Unit = { _, _ -> },
   onSwitchClass: (com.example.data.ClassItem) -> Unit = {},
   onNavigateToJoinClass: () -> Unit = {},
@@ -214,6 +220,101 @@ fun ClassDetailRoute(
     onClosePollDetail = { pollsViewModel.closePollDetail() },
     onDismissCreatePoll = { pollsViewModel.setShowCreateDialog(false) },
     onCreatePollSubmit = { q, opts, dur -> pollsViewModel.createPoll(q, opts, dur, session) {} },
+    challengesUiState = challengesUiState,
+    showOnLeaderboard = showOnLeaderboard,
+    challengesCallbacks = ClassChallengesCallbacks(
+      onRefreshAll = { challengesViewModel?.loadClassChallengesData(selectedClass.id, session) },
+      onSelectFilter = { f -> challengesViewModel?.selectFilter(f) },
+      onSelectLeaderboardPeriod = { p -> challengesViewModel?.selectLeaderboardPeriod(p, session) },
+      onOpenCreateDialog = { challengesViewModel?.setShowCreateDialog(true) },
+      onDismissCreateDialog = { challengesViewModel?.setShowCreateDialog(false) },
+      onCreateChallenge = { title, desc, opensAt, closesAt, limit, qs, courseId, asExam, shuffle, answerFormat, securityConfig ->
+        challengesViewModel?.createQuiz(
+          title = title,
+          description = desc,
+          opensAtIso = opensAt,
+          closesAtIso = closesAt,
+          timeLimitMinutes = limit,
+          questions = qs,
+          courseId = courseId,
+          asExam = asExam,
+          shuffleQuestions = shuffle,
+          answerFormat = answerFormat,
+          securityConfig = securityConfig,
+          session = session
+        )
+      },
+      onOpenAddQuestionsDialog = { q -> challengesViewModel?.setAddQuestionsQuiz(q) },
+      onDismissAddQuestionsDialog = { challengesViewModel?.setAddQuestionsQuiz(null) },
+      onAddQuestions = { qid, qs -> challengesViewModel?.addQuizQuestions(qid, qs, session) },
+      onPlayChallenge = { q -> challengesViewModel?.startQuiz(q, session) },
+      onSelectAnswer = { ord, optIdx -> challengesViewModel?.selectAnswer(ord, optIdx) },
+      onUpdateWrittenAnswer = { ord, text -> challengesViewModel?.updateWrittenAnswer(ord, text) },
+      onGoToQuestion = { idx -> challengesViewModel?.goToQuestion(idx, session) },
+      onSecurityViolation = { eventType, detail -> challengesViewModel?.onExamSecurityViolation(eventType, detail, session) },
+      onDismissSecurityWarning = { challengesViewModel?.dismissSecurityWarning() },
+      onSubmitChallenge = { challengesViewModel?.submitQuiz(session) },
+      onClosePlay = { challengesViewModel?.closePlayQuiz() },
+      onOpenReview = { q -> challengesViewModel?.openQuizReview(q, session) },
+      onCloseReview = { challengesViewModel?.closeQuizReview() },
+      onOpenResults = { q -> challengesViewModel?.openQuizResults(q, session) },
+      onCloseResults = { challengesViewModel?.closeQuizResults() },
+      onExportRankedPdfFromResults = {
+        val rq = challengesUiState.resultsQuiz ?: return@ClassChallengesCallbacks
+        val staffName = session?.fullName?.ifBlank { "Lecturer" } ?: "Lecturer"
+        challengesViewModel?.exportRankedResultsPdf(context, selectedClass.name, rq, challengesUiState.resultsRows, staffName)
+      },
+      onOpenExamSubmissions = { q -> challengesViewModel?.openExamSubmissions(q, session) },
+      onCloseExamSubmissions = { challengesViewModel?.closeExamSubmissions() },
+      onSelectSubmissionFilter = { f -> challengesViewModel?.selectSubmissionFilter(f) },
+      onSelectSubmissionSortOrder = { s -> challengesViewModel?.selectSubmissionSortOrder(s) },
+      onToggleSubmissionsWaitingFirst = { challengesViewModel?.toggleSubmissionsWaitingFirst() },
+      onUpdateSubmissionsSearch = { q -> challengesViewModel?.updateSubmissionsSearchQuery(q) },
+      onRefreshExamSubmissions = {
+        challengesUiState.markingQuiz?.let { mq -> challengesViewModel?.openExamSubmissions(mq, session) }
+      },
+      onReleaseAllReady = { challengesViewModel?.releaseAllReadyPapers(context, session) },
+      onExportRankedPdfFromMarking = {
+        val mq = challengesUiState.markingQuiz ?: return@ClassChallengesCallbacks
+        challengesViewModel?.exportRankedResultsPdfFromMarking(context, selectedClass.name, mq, session)
+      },
+      onOpenPaperForMarking = { qid, sid -> challengesViewModel?.openPaperForMarking(qid, sid, session) },
+      onOpenPrevPaper = { challengesViewModel?.openAdjacentPaperForMarking(-1, session) },
+      onOpenNextPaper = { challengesViewModel?.openAdjacentPaperForMarking(1, session) },
+      onClosePaperMarking = { challengesViewModel?.closePaperMarking() },
+      onAddStroke = { ord, stroke -> challengesViewModel?.addStroke(ord, stroke) },
+      onAddStamp = { ord, stamp -> challengesViewModel?.addStamp(ord, stamp) },
+      onUndoAnnotation = { ord -> challengesViewModel?.undoLastAnnotation(ord) },
+      onClearQuestionInk = { ord -> challengesViewModel?.clearQuestionAnnotations(ord) },
+      onUpdateQuestionMark = { ord, marks -> challengesViewModel?.updateQuestionMark(ord, marks) },
+      onUpdateQuestionComment = { ord, comment -> challengesViewModel?.updateQuestionComment(ord, comment) },
+      onUpdateOverallComment = { comment -> challengesViewModel?.updateOverallComment(comment) },
+      onSaveMarkingDraft = { challengesViewModel?.saveMarkingDraft(session) },
+      onReleaseMarkedPaper = { challengesViewModel?.releaseMarkedPaper(context, session) },
+      onReopenMarkedPaper = {
+        val active = challengesUiState.activePaper ?: return@ClassChallengesCallbacks
+        challengesViewModel?.reopenMarkedPaper(active.quiz.id, active.student.id, session)
+      },
+      onViewMarkedPaperForStudent = { q -> challengesViewModel?.openMarkedPaperForStudent(context, q, session) },
+      onViewReleasedPdfForMarker = {
+        val active = challengesUiState.activePaper ?: return@ClassChallengesCallbacks
+        challengesViewModel?.openReleasedPdfForMarker(
+          context = context,
+          quizId = active.quiz.id,
+          studentId = active.student.id,
+          storagePath = active.attempt.markedPdfPath,
+          title = "${active.student.fullName} • ${active.quiz.title}",
+          session = session
+        )
+      },
+      onClosePdfViewer = { challengesViewModel?.closePdfViewer() },
+      onPromptDelete = { q -> challengesViewModel?.promptDeleteQuiz(q) },
+      onDismissDelete = { challengesViewModel?.dismissDeleteQuiz() },
+      onConfirmDelete = { challengesViewModel?.confirmDeleteQuiz(session) },
+      onToggleLeaderboardVisibility = onToggleLeaderboardVisibility,
+      onDismissError = { challengesViewModel?.clearError() },
+      onDismissSuccess = { challengesViewModel?.clearSuccess() }
+    ),
     onRegenerateJoinCode = {
       classesViewModel.regenerateJoinCode(selectedClass.id, session) { newCode ->
         noticesViewModel.updateSelectedClassJoinCode(newCode)
@@ -221,6 +322,8 @@ fun ClassDetailRoute(
     },
     unreadNotificationCount = unreadNotificationCount,
     onOpenNotifications = onOpenNotifications,
+    isOnline = isOnline,
+    onOpenAssistant = onOpenAssistant,
     allClasses = allClasses,
     isAdmin = com.example.util.RoleHelper.isAdmin(session?.role),
     isLecturer = com.example.util.RoleHelper.isLecturer(session?.role),

@@ -45,6 +45,12 @@ fun NoticesSection(
   showMyAttendanceCard: Boolean = false,
   myAttendanceStatus: com.example.data.MyAttendanceStatus? = null,
   isMyAttendanceLoading: Boolean = false,
+  showActivityStatsCard: Boolean = false,
+  activityStats: com.example.data.ActivityStats? = null,
+  isActivityStatsLoading: Boolean = false,
+  openChallengesCount: Int = 0,
+  onOpenChallenges: () -> Unit = {},
+  onOpenLeaderboard: () -> Unit = {},
   onOpenMyAttendance: () -> Unit = {},
   onRefreshNotices: () -> Unit,
   onNoticeClick: (NoticeItem) -> Unit,
@@ -61,6 +67,17 @@ fun NoticesSection(
         status = myAttendanceStatus,
         isLoading = isMyAttendanceLoading,
         onClick = onOpenMyAttendance
+      )
+      Spacer(modifier = Modifier.height(14.dp))
+    }
+    if (showActivityStatsCard) {
+      ActivityStatsSummaryCard(
+        stats = activityStats,
+        isLoading = isActivityStatsLoading,
+        openChallengesCount = openChallengesCount,
+        showQuickActions = true,
+        onOpenChallenges = onOpenChallenges,
+        onOpenLeaderboard = onOpenLeaderboard
       )
       Spacer(modifier = Modifier.height(14.dp))
     }

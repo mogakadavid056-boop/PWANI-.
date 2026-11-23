@@ -38,13 +38,15 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.data.AdminUserItem
+import com.example.ui.theme.CardTitleStyle
+import com.example.ui.theme.ChampagneGold
 import com.example.ui.theme.DarkBorder
 import com.example.ui.theme.DarkSurfaceVariant
 import com.example.ui.theme.DarkTextOnGold
+import com.example.ui.theme.ElectricViolet
 import com.example.ui.theme.GoldLight
 import com.example.ui.theme.GoldPrimary
 import com.example.ui.theme.SuccessGreen
-import com.example.ui.theme.TextPrimary
 import com.example.ui.theme.TextSecondary
 import com.example.util.JsonHelper
 
@@ -61,8 +63,8 @@ fun AdminUserRow(
   val isClassRep = user.isClassRep
   val badgeColor = when {
     isSuperAdmin -> DarkTextOnGold
-    isClassRep -> Color(0xFF64B5F6)
-    isLecturer -> GoldLight
+    isClassRep -> ElectricViolet
+    isLecturer -> ChampagneGold
     else -> TextSecondary
   }
   val badgeBg = if (isSuperAdmin) GoldPrimary else DarkSurfaceVariant
@@ -101,9 +103,7 @@ fun AdminUserRow(
       Column(modifier = Modifier.weight(1f)) {
         Text(
           text = user.fullName.ifBlank { "Unnamed User" },
-          fontSize = 16.sp,
-          fontWeight = FontWeight.SemiBold,
-          color = TextPrimary
+          style = CardTitleStyle
         )
 
         Spacer(modifier = Modifier.height(6.dp))
@@ -131,7 +131,7 @@ fun AdminUserRow(
           if (isLecturer) {
             StatusChip(
               text = if (user.isVerified) "Verified" else "Not verified",
-              color = if (user.isVerified) SuccessGreen else Color(0xFFFFB74D),
+              color = if (user.isVerified) SuccessGreen else ChampagneGold,
               tag = "admin_user_verified_badge_${user.id}"
             )
           }
@@ -161,16 +161,16 @@ fun AdminUserRow(
           Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
             OutlinedButton(
               onClick = onToggleVerification,
-              modifier = Modifier.height(30.dp).testTag("admin_verify_lecturer_btn_${user.id}"),
-              shape = RoundedCornerShape(8.dp),
-              contentPadding = PaddingValues(horizontal = 10.dp, vertical = 0.dp),
-              border = BorderStroke(1.dp, if (user.isVerified) Color(0xFFFF9800) else GoldPrimary)
+              modifier = Modifier.height(48.dp).testTag("admin_verify_lecturer_btn_${user.id}"),
+              shape = RoundedCornerShape(10.dp),
+              contentPadding = PaddingValues(horizontal = 12.dp, vertical = 0.dp),
+              border = BorderStroke(1.dp, if (user.isVerified) ChampagneGold else GoldPrimary)
             ) {
               Text(
                 text = if (user.isVerified) "Remove verification" else "Verify",
                 fontSize = 12.sp,
                 fontWeight = FontWeight.SemiBold,
-                color = if (user.isVerified) Color(0xFFFFB74D) else GoldLight
+                color = if (user.isVerified) ChampagneGold else GoldLight
               )
             }
           }

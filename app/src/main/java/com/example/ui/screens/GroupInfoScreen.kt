@@ -45,14 +45,19 @@ import com.example.ui.GroupsUiState
 import com.example.ui.components.ConfirmActionDialog
 import com.example.ui.components.ErrorBanner
 import com.example.ui.components.GroupMemberCard
-import com.example.ui.theme.DarkBackground
-import com.example.ui.theme.DarkBorder
-import com.example.ui.theme.DarkSurface
+import com.example.ui.components.MetallicGoldText
+import com.example.ui.components.RoyalCard
+import com.example.ui.theme.ButtonRadius
+import com.example.ui.theme.CaptionStyle
+import com.example.ui.theme.CardTitleStyle
+import com.example.ui.theme.ChampagneGold
 import com.example.ui.theme.ErrorRed
-import com.example.ui.theme.GoldLight
-import com.example.ui.theme.GoldPrimary
-import com.example.ui.theme.TextPrimary
-import com.example.ui.theme.TextSecondary
+import com.example.ui.theme.Lavender
+import com.example.ui.theme.MetallicGold
+import com.example.ui.theme.MontserratFamily
+import com.example.ui.theme.ScreenTitleStyle
+import com.example.ui.theme.SectionHeadingStyle
+import com.example.ui.theme.SilverWhite
 
 @Composable
 fun GroupInfoScreen(
@@ -79,21 +84,21 @@ fun GroupInfoScreen(
 
   val canManageGroup = isStaff || group.isOwner || (group.creatorId != null && group.creatorId == currentUserId)
 
-  Box(modifier = Modifier.fillMaxSize().background(DarkBackground).testTag("group_info_screen")) {
+  Box(modifier = Modifier.fillMaxSize().testTag("group_info_screen")) {
     Column(
       modifier = Modifier
         .fillMaxSize()
         .padding(horizontal = 20.dp, vertical = 18.dp)
     ) {
       Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-        IconButton(onClick = onBack, modifier = Modifier.size(38.dp).testTag("group_info_back_button")) {
-          Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back", tint = GoldLight)
+        IconButton(onClick = onBack, modifier = Modifier.size(48.dp).testTag("group_info_back_button")) {
+          Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back", tint = ChampagneGold)
         }
         Spacer(modifier = Modifier.width(6.dp))
-        Text("Group Info", fontSize = 19.sp, fontWeight = FontWeight.Bold, color = GoldLight, modifier = Modifier.weight(1f))
+        MetallicGoldText("Group Info", style = ScreenTitleStyle, modifier = Modifier.weight(1f))
         if (canManageGroup) {
-          IconButton(onClick = onOpenEditGroup, modifier = Modifier.size(38.dp).testTag("edit_group_button")) {
-            Icon(Icons.Default.Edit, contentDescription = "Edit Group", tint = GoldPrimary)
+          IconButton(onClick = onOpenEditGroup, modifier = Modifier.size(48.dp).testTag("edit_group_button")) {
+            Icon(Icons.Default.Edit, contentDescription = "Edit Group", tint = MetallicGold)
           }
         }
       }
@@ -105,27 +110,19 @@ fun GroupInfoScreen(
         Spacer(modifier = Modifier.height(10.dp))
       }
 
-      Box(
-        modifier = Modifier
-          .fillMaxWidth()
-          .clip(RoundedCornerShape(14.dp))
-          .background(DarkSurface)
-          .border(1.dp, DarkBorder, RoundedCornerShape(14.dp))
-          .padding(16.dp)
-      ) {
-        Column {
-          Text(group.name, fontSize = 17.sp, fontWeight = FontWeight.Bold, color = TextPrimary)
-          Spacer(modifier = Modifier.height(4.dp))
-          Text(
-            text = if (group.description.isNotBlank()) group.description else "No description provided.",
-            fontSize = 13.sp, color = TextSecondary, lineHeight = 18.sp
-          )
-          Spacer(modifier = Modifier.height(10.dp))
-          Text(
-            text = "Capacity: ${group.memberCount} of ${group.maxMembers} members",
-            fontSize = 13.sp, color = GoldLight, fontWeight = FontWeight.SemiBold
-          )
-        }
+      RoyalCard {
+        Text(group.name, style = CardTitleStyle)
+        Text(
+          text = if (group.description.isNotBlank()) group.description else "No description provided.",
+          style = CaptionStyle.copy(color = Lavender)
+        )
+        Text(
+          text = "Capacity: ${group.memberCount} of ${group.maxMembers} members",
+          fontFamily = MontserratFamily,
+          fontSize = 14.sp,
+          color = ChampagneGold,
+          fontWeight = FontWeight.SemiBold
+        )
       }
 
       Spacer(modifier = Modifier.height(14.dp))
@@ -133,36 +130,37 @@ fun GroupInfoScreen(
       Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
         OutlinedButton(
           onClick = onPromptLeaveGroup,
-          modifier = Modifier.weight(1f).height(42.dp).testTag("leave_group_button"),
-          shape = RoundedCornerShape(10.dp)
+          modifier = Modifier.weight(1f).height(48.dp).testTag("leave_group_button"),
+          shape = RoundedCornerShape(ButtonRadius),
+          border = androidx.compose.foundation.BorderStroke(1.5.dp, ErrorRed.copy(alpha = 0.7f))
         ) {
           Icon(Icons.AutoMirrored.Filled.ExitToApp, contentDescription = null, tint = ErrorRed, modifier = Modifier.size(16.dp))
           Spacer(modifier = Modifier.width(6.dp))
-          Text("Leave", fontSize = 13.sp, color = ErrorRed, fontWeight = FontWeight.SemiBold)
+          Text("Leave", fontFamily = MontserratFamily, fontSize = 14.sp, color = ErrorRed, fontWeight = FontWeight.SemiBold)
         }
 
         if (canManageGroup) {
           Button(
             onClick = onPromptDeleteGroup,
-            modifier = Modifier.weight(1f).height(42.dp).testTag("delete_group_button"),
-            shape = RoundedCornerShape(10.dp),
-            colors = ButtonDefaults.buttonColors(containerColor = ErrorRed, contentColor = Color.White)
+            modifier = Modifier.weight(1f).height(48.dp).testTag("delete_group_button"),
+            shape = RoundedCornerShape(ButtonRadius),
+            colors = ButtonDefaults.buttonColors(containerColor = ErrorRed, contentColor = SilverWhite)
           ) {
-            Icon(Icons.Default.Delete, contentDescription = null, tint = Color.White, modifier = Modifier.size(16.dp))
+            Icon(Icons.Default.Delete, contentDescription = null, tint = SilverWhite, modifier = Modifier.size(16.dp))
             Spacer(modifier = Modifier.width(6.dp))
-            Text("Delete Group", fontSize = 13.sp, fontWeight = FontWeight.Bold, color = Color.White)
+            Text("Delete Group", fontFamily = MontserratFamily, fontSize = 14.sp, fontWeight = FontWeight.Bold, color = SilverWhite)
           }
         }
       }
 
       Spacer(modifier = Modifier.height(16.dp))
 
-      Text("Members (${uiState.groupMembers.size})", fontSize = 15.sp, fontWeight = FontWeight.Bold, color = TextPrimary)
+      Text("Members (${uiState.groupMembers.size})", style = SectionHeadingStyle.copy(fontSize = 18.sp, color = SilverWhite))
       Spacer(modifier = Modifier.height(8.dp))
 
       if (uiState.isLoadingMembers) {
         Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-          CircularProgressIndicator(color = GoldPrimary)
+          CircularProgressIndicator(color = ChampagneGold)
         }
       } else {
         LazyColumn(

@@ -2,14 +2,12 @@ package com.example.ui.components
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -29,19 +27,17 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.data.NoticeItem
-import com.example.ui.theme.BodyStyle
 import com.example.ui.theme.CaptionStyle
-import com.example.ui.theme.CardRadius
-import com.example.ui.theme.DarkBorder
-import com.example.ui.theme.DarkCard
-import com.example.ui.theme.DarkSurfaceVariant
+import com.example.ui.theme.CardTitleStyle
+import com.example.ui.theme.ChampagneGold
 import com.example.ui.theme.ErrorContainer
 import com.example.ui.theme.ErrorRed
-import com.example.ui.theme.GoldLight
-import com.example.ui.theme.GoldPrimary
+import com.example.ui.theme.FieldLabelStyle
+import com.example.ui.theme.Lavender
+import com.example.ui.theme.MetallicGold
+import com.example.ui.theme.RoyalSurfaceHigh
 import com.example.ui.theme.SectionHeadingStyle
-import com.example.ui.theme.TextPrimary
-import com.example.ui.theme.TextSecondary
+import com.example.ui.theme.SilverWhite
 
 @Composable
 fun LatestAnnouncementsSection(
@@ -60,14 +56,13 @@ fun LatestAnnouncementsSection(
       Icon(
         Icons.Default.Campaign,
         contentDescription = null,
-        tint = GoldPrimary,
+        tint = MetallicGold,
         modifier = Modifier.size(20.dp)
       )
       Spacer(modifier = Modifier.width(8.dp))
       Text(
         text = "Latest Announcements",
-        style = SectionHeadingStyle,
-        color = GoldLight
+        style = SectionHeadingStyle.copy(color = ChampagneGold)
       )
     }
 
@@ -93,16 +88,9 @@ private fun AnnouncementCard(
   notice: NoticeItem,
   onClick: () -> Unit
 ) {
-  val shape = RoundedCornerShape(CardRadius)
-  Column(
-    modifier = Modifier
-      .fillMaxWidth()
-      .clip(shape)
-      .background(DarkCard)
-      .border(1.dp, if (notice.isUrgent) ErrorRed.copy(alpha = 0.6f) else DarkBorder, shape)
-      .clickable { onClick() }
-      .padding(14.dp),
-    verticalArrangement = Arrangement.spacedBy(6.dp)
+  RoyalCard(
+    borderColor = if (notice.isUrgent) ErrorRed.copy(alpha = 0.65f) else null,
+    onClick = onClick
   ) {
     Row(
       modifier = Modifier.fillMaxWidth(),
@@ -116,22 +104,25 @@ private fun AnnouncementCard(
         if (notice.isUrgent) {
           Box(
             modifier = Modifier
-              .clip(RoundedCornerShape(6.dp))
+              .clip(RoundedCornerShape(8.dp))
               .background(ErrorContainer)
-              .padding(horizontal = 6.dp, vertical = 2.dp)
+              .border(1.dp, ErrorRed.copy(alpha = 0.55f), RoundedCornerShape(8.dp))
+              .padding(horizontal = 7.dp, vertical = 2.dp)
           ) {
             Row(verticalAlignment = Alignment.CenterVertically) {
-              Icon(Icons.Default.PriorityHigh, contentDescription = null, tint = ErrorRed, modifier = Modifier.size(12.dp))
-              Text("URGENT", style = CaptionStyle.copy(color = ErrorRed, fontWeight = FontWeight.Bold, fontSize = 12.sp))
+              Icon(Icons.Default.PriorityHigh, contentDescription = null, tint = ErrorRed, modifier = Modifier.size(13.dp))
+              Text(
+                "URGENT",
+                style = FieldLabelStyle.copy(color = ErrorRed, fontSize = 11.sp, fontWeight = FontWeight.Bold)
+              )
             }
           }
-          Spacer(modifier = Modifier.width(6.dp))
+          Spacer(modifier = Modifier.width(8.dp))
         }
 
         Text(
           text = notice.title,
-          style = BodyStyle.copy(fontWeight = FontWeight.SemiBold),
-          color = TextPrimary,
+          style = CardTitleStyle.copy(color = SilverWhite),
           maxLines = 2,
           overflow = TextOverflow.Ellipsis
         )
@@ -141,13 +132,13 @@ private fun AnnouncementCard(
         Spacer(modifier = Modifier.width(8.dp))
         Box(
           modifier = Modifier
-            .clip(RoundedCornerShape(6.dp))
-            .background(DarkSurfaceVariant)
-            .padding(horizontal = 8.dp, vertical = 3.dp)
+            .clip(RoundedCornerShape(8.dp))
+            .background(RoyalSurfaceHigh)
+            .padding(horizontal = 8.dp, vertical = 4.dp)
         ) {
           Text(
             text = notice.className,
-            style = CaptionStyle.copy(color = GoldLight, fontSize = 11.sp, fontWeight = FontWeight.Medium),
+            style = FieldLabelStyle.copy(color = ChampagneGold, fontSize = 12.sp),
             maxLines = 1,
             overflow = TextOverflow.Ellipsis
           )
@@ -158,7 +149,7 @@ private fun AnnouncementCard(
     if (notice.content.isNotBlank()) {
       Text(
         text = notice.content,
-        style = CaptionStyle.copy(color = TextSecondary, fontSize = 13.sp),
+        style = CaptionStyle.copy(color = Lavender),
         maxLines = 2,
         overflow = TextOverflow.Ellipsis
       )

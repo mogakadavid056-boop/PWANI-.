@@ -45,22 +45,25 @@ import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.material3.HorizontalDivider
+import androidx.compose.ui.focus.onFocusChanged
 import com.example.data.DiscussionGroupItem
 import com.example.data.GroupMessageItem
 import com.example.ui.GroupsUiState
 import com.example.ui.components.ChatMessageBubble
 import com.example.ui.components.ConfirmActionDialog
 import com.example.ui.components.ErrorBanner
-import com.example.ui.theme.DarkBackground
-import com.example.ui.theme.DarkBorder
-import com.example.ui.theme.DarkSurface
-import com.example.ui.theme.DarkSurfaceVariant
-import com.example.ui.theme.DarkTextOnGold
-import com.example.ui.theme.ErrorRed
-import com.example.ui.theme.GoldLight
-import com.example.ui.theme.GoldPrimary
-import com.example.ui.theme.TextPrimary
-import com.example.ui.theme.TextSecondary
+import com.example.ui.components.royalOutlinedTextFieldColors
+import com.example.ui.components.violetGlowShadow
+import com.example.ui.theme.BodyStyle
+import com.example.ui.theme.CaptionStyle
+import com.example.ui.theme.CardTitleStyle
+import com.example.ui.theme.ChampagneGold
+import com.example.ui.theme.ErrorColor
+import com.example.ui.theme.MetallicGold
+import com.example.ui.theme.Midnight
+import com.example.ui.theme.RoyalNavSurface
+import com.example.ui.theme.RoyalSurfaceHigh
 
 @Composable
 fun GroupChatScreen(
@@ -79,6 +82,7 @@ fun GroupChatScreen(
   BackHandler(onBack = onBack)
 
   var inputText by remember { mutableStateOf("") }
+  var isInputFocused by remember { mutableStateOf(false) }
   val listState = rememberLazyListState()
 
   LaunchedEffect(uiState.messages.size) {
@@ -90,46 +94,43 @@ fun GroupChatScreen(
   Box(
     modifier = Modifier
       .fillMaxSize()
-      .background(DarkBackground)
       .testTag("group_chat_screen")
   ) {
     Column(modifier = Modifier.fillMaxSize()) {
       // Top bar
-      Row(
-        modifier = Modifier
-          .fillMaxWidth()
-          .background(DarkSurface)
-          .border(1.dp, DarkBorder)
-          .padding(horizontal = 12.dp, vertical = 10.dp),
-        verticalAlignment = Alignment.CenterVertically
-      ) {
-        IconButton(
-          onClick = onBack,
-          modifier = Modifier.size(38.dp).testTag("chat_back_button")
+      Column(modifier = Modifier.fillMaxWidth().background(RoyalNavSurface)) {
+        Row(
+          modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 12.dp, vertical = 8.dp),
+          verticalAlignment = Alignment.CenterVertically
         ) {
-          Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back", tint = GoldLight)
+          IconButton(
+            onClick = onBack,
+            modifier = Modifier.size(48.dp).testTag("chat_back_button")
+          ) {
+            Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back", tint = ChampagneGold)
+          }
+          Spacer(modifier = Modifier.width(4.dp))
+          Column(modifier = Modifier.weight(1f)) {
+            Text(
+              text = group.name,
+              style = CardTitleStyle.copy(color = ChampagneGold),
+              maxLines = 1
+            )
+            Text(
+              text = "${group.memberCount} members",
+              style = CaptionStyle
+            )
+          }
+          IconButton(
+            onClick = onOpenInfo,
+            modifier = Modifier.size(48.dp).testTag("chat_info_button")
+          ) {
+            Icon(Icons.Default.Info, contentDescription = "Group Info", tint = ChampagneGold)
+          }
         }
-        Spacer(modifier = Modifier.width(6.dp))
-        Column(modifier = Modifier.weight(1f)) {
-          Text(
-            text = group.name,
-            fontSize = 16.sp,
-            fontWeight = FontWeight.Bold,
-            color = GoldLight,
-            maxLines = 1
-          )
-          Text(
-            text = "${group.memberCount} members",
-            fontSize = 11.sp,
-            color = TextSecondary
-          )
-        }
-        IconButton(
-          onClick = onOpenInfo,
-          modifier = Modifier.size(38.dp).testTag("chat_info_button")
-        ) {
-          Icon(Icons.Default.Info, contentDescription = "Group Info", tint = GoldLight)
-        }
+        HorizontalDivider(color = MetallicGold.copy(alpha = 0.25f), thickness = 1.dp)
       }
 
       if (!uiState.errorMessage.isNullOrBlank()) {
@@ -142,11 +143,11 @@ fun GroupChatScreen(
       Box(modifier = Modifier.weight(1f)) {
         if (uiState.isLoadingMessages && uiState.messages.isEmpty()) {
           Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-            CircularProgressIndicator(color = GoldPrimary)
+            CircularProgressIndicator(color = MetallicGold)
           }
         } else if (uiState.messages.isEmpty()) {
           Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-            Text("No messages yet. Say hello!", color = TextSecondary, fontSize = 13.sp)
+            Text("No messages yet. Say hello!", style = BodyStyle.copy(color = com.example.ui.theme.Lavender))
           }
         } else {
           LazyColumn(
@@ -170,65 +171,62 @@ fun GroupChatScreen(
       }
 
       // Input row
-      Row(
-        modifier = Modifier
-          .fillMaxWidth()
-          .imePadding()
-          .background(DarkSurface)
-          .border(1.dp, DarkBorder)
-          .padding(horizontal = 12.dp, vertical = 8.dp),
-        verticalAlignment = Alignment.CenterVertically
-      ) {
-        OutlinedTextField(
-          value = inputText,
-          onValueChange = { if (it.length <= 2000) inputText = it },
-          placeholder = { Text("Type a message...", color = TextSecondary, fontSize = 14.sp) },
-          maxLines = 4,
-          modifier = Modifier.weight(1f).testTag("chat_message_input"),
-          shape = RoundedCornerShape(22.dp),
-          colors = OutlinedTextFieldDefaults.colors(
-            focusedBorderColor = GoldPrimary,
-            unfocusedBorderColor = DarkBorder,
-            focusedTextColor = TextPrimary,
-            unfocusedTextColor = TextPrimary,
-            focusedContainerColor = DarkSurfaceVariant,
-            unfocusedContainerColor = DarkSurfaceVariant
-          )
-        )
-
-        Spacer(modifier = Modifier.width(8.dp))
-
-        val isOnline by com.example.data.NetworkMonitor.isOnline.collectAsStateWithLifecycle()
-        val context = androidx.compose.ui.platform.LocalContext.current
-        IconButton(
-          onClick = {
-            if (!isOnline) {
-              com.example.ui.components.OfflineToastHelper.show(context)
-              return@IconButton
-            }
-            val textToSend = inputText.trim()
-            if (textToSend.isNotBlank()) {
-              inputText = ""
-              onSendMessage(textToSend)
-            }
-          },
-          enabled = if (!isOnline) true else (inputText.trim().isNotBlank() && !uiState.isSendingMessage),
+      Column(modifier = Modifier.fillMaxWidth().imePadding().background(RoyalNavSurface)) {
+        HorizontalDivider(color = MetallicGold.copy(alpha = 0.25f), thickness = 1.dp)
+        Row(
           modifier = Modifier
-            .size(44.dp)
-            .clip(CircleShape)
-            .background(if (inputText.trim().isNotBlank() && isOnline) GoldPrimary else DarkSurfaceVariant)
-            .then(if (!isOnline) Modifier.alpha(0.5f) else Modifier)
-            .testTag("chat_send_button")
+            .fillMaxWidth()
+            .padding(horizontal = 12.dp, vertical = 8.dp),
+          verticalAlignment = Alignment.CenterVertically
         ) {
-          if (uiState.isSendingMessage) {
-            CircularProgressIndicator(modifier = Modifier.size(18.dp), color = DarkTextOnGold, strokeWidth = 2.dp)
-          } else {
-            Icon(
-              Icons.AutoMirrored.Filled.Send,
-              contentDescription = "Send",
-              tint = if (inputText.trim().isNotBlank()) DarkTextOnGold else TextSecondary,
-              modifier = Modifier.size(20.dp)
-            )
+          OutlinedTextField(
+            value = inputText,
+            onValueChange = { if (it.length <= 2000) inputText = it },
+            placeholder = { Text("Type a message...", style = CaptionStyle) },
+            maxLines = 4,
+            modifier = Modifier
+              .weight(1f)
+              .then(violetGlowShadow(isInputFocused))
+              .onFocusChanged { isInputFocused = it.isFocused }
+              .testTag("chat_message_input"),
+            shape = RoundedCornerShape(22.dp),
+            colors = royalOutlinedTextFieldColors()
+          )
+
+          Spacer(modifier = Modifier.width(8.dp))
+
+          val isOnline by com.example.data.NetworkMonitor.isOnline.collectAsStateWithLifecycle()
+          val context = androidx.compose.ui.platform.LocalContext.current
+          IconButton(
+            onClick = {
+              if (!isOnline) {
+                com.example.ui.components.OfflineToastHelper.show(context)
+                return@IconButton
+              }
+              val textToSend = inputText.trim()
+              if (textToSend.isNotBlank()) {
+                inputText = ""
+                onSendMessage(textToSend)
+              }
+            },
+            enabled = if (!isOnline) true else (inputText.trim().isNotBlank() && !uiState.isSendingMessage),
+            modifier = Modifier
+              .size(48.dp)
+              .clip(CircleShape)
+              .background(if (inputText.trim().isNotBlank() && isOnline) MetallicGold else RoyalSurfaceHigh)
+              .then(if (!isOnline) Modifier.alpha(0.5f) else Modifier)
+              .testTag("chat_send_button")
+          ) {
+            if (uiState.isSendingMessage) {
+              CircularProgressIndicator(modifier = Modifier.size(18.dp), color = Midnight, strokeWidth = 2.dp)
+            } else {
+              Icon(
+                Icons.AutoMirrored.Filled.Send,
+                contentDescription = "Send",
+                tint = if (inputText.trim().isNotBlank()) Midnight else com.example.ui.theme.Lavender,
+                modifier = Modifier.size(20.dp)
+              )
+            }
           }
         }
       }
@@ -239,7 +237,7 @@ fun GroupChatScreen(
         title = "Delete Message",
         message = "Are you sure you want to delete this message? This action cannot be undone.",
         confirmButtonText = "Delete",
-        confirmButtonColor = ErrorRed,
+        confirmButtonColor = ErrorColor,
         isLoading = uiState.isActionLoading,
         onConfirm = onConfirmDeleteMessage,
         onDismiss = onDismissPromptDeleteMessage

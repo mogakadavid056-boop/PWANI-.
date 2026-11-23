@@ -14,10 +14,6 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.School
-import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -28,24 +24,29 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
-import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.Shadow
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.painterResource
-import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.data.SupabaseConfig
+import com.example.ui.components.GoldButton
+import com.example.ui.components.MetallicGoldText
+import com.example.ui.components.RoyalCrownIcon
+import com.example.ui.components.RoyalDivider
+import com.example.ui.theme.ChampagneGold
 import com.example.ui.theme.ErrorRed
-import com.example.ui.theme.GoldLight
-import com.example.ui.theme.GoldPrimary
-import com.example.ui.theme.PoppinsFamily
+import com.example.ui.theme.FieldLabelStyle
+import com.example.ui.theme.GoldShadow
+import com.example.ui.theme.GreetingStyle
+import com.example.ui.theme.MetallicGold
+import com.example.ui.theme.RoyalSurfaceHigh
+import com.example.ui.theme.SubtitleItalicStyle
 import com.example.ui.theme.SuccessGreen
+import com.example.ui.theme.WordmarkStyle
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import okhttp3.OkHttpClient
@@ -92,93 +93,67 @@ fun WelcomeScreen(
       horizontalAlignment = Alignment.CenterHorizontally,
       verticalArrangement = Arrangement.Center
     ) {
-      // 1. Logo: drawable logo_classrep if it exists, otherwise a graduation-cap icon in a gold circle
       val logoResId = context.resources.getIdentifier("logo_classrep", "drawable", context.packageName)
       if (logoResId != 0) {
         Image(
           painter = painterResource(id = logoResId),
           contentDescription = "ClassRep Logo",
           modifier = Modifier
-            .size(92.dp)
+            .size(96.dp)
             .clip(CircleShape)
-            .border(2.5.dp, GoldPrimary, CircleShape)
+            .border(2.5.dp, Brush.linearGradient(listOf(ChampagneGold, MetallicGold, GoldShadow)), CircleShape)
         )
       } else {
         Box(
           modifier = Modifier
-            .size(92.dp)
+            .size(96.dp)
             .clip(CircleShape)
-            .background(Color(0xD90B2A1E))
-            .border(2.5.dp, GoldPrimary, CircleShape),
+            .background(RoyalSurfaceHigh)
+            .border(2.5.dp, Brush.linearGradient(listOf(ChampagneGold, MetallicGold, GoldShadow)), CircleShape),
           contentAlignment = Alignment.Center
         ) {
-          Icon(
-            imageVector = Icons.Default.School,
-            contentDescription = "Graduation Cap Logo",
-            tint = GoldPrimary,
-            modifier = Modifier.size(52.dp)
-          )
+          RoyalCrownIcon(size = 46.dp, tint = ChampagneGold)
         }
       }
 
-      Spacer(modifier = Modifier.height(24.dp))
+      Spacer(modifier = Modifier.height(22.dp))
 
-      // 2. Large title "Pwani University ClassRep" (Poppins SemiBold, white, soft shadow)
-      Text(
-        text = "Pwani University ClassRep",
-        style = TextStyle(
-          fontFamily = PoppinsFamily,
-          fontWeight = FontWeight.SemiBold,
-          fontSize = 24.sp,
-          color = Color.White,
-          shadow = Shadow(
-            color = Color.Black.copy(alpha = 0.65f),
-            offset = Offset(0f, 3f),
-            blurRadius = 6f
-          )
-        ),
+      MetallicGoldText(
+        text = "ClassRep",
+        style = WordmarkStyle.copy(fontSize = 42.sp, lineHeight = 48.sp),
         textAlign = TextAlign.Center
       )
+
+      Spacer(modifier = Modifier.height(4.dp))
+
+      Text(
+        text = "Pwani University",
+        style = SubtitleItalicStyle.copy(fontSize = 18.sp),
+        textAlign = TextAlign.Center
+      )
+
+      Spacer(modifier = Modifier.height(10.dp))
+
+      RoyalDivider(modifier = Modifier.fillMaxWidth(0.7f))
 
       Spacer(modifier = Modifier.height(8.dp))
 
-      // 3. Subtitle "One Campus. One Community." in gold
       Text(
         text = "One Campus. One Community.",
-        fontSize = 15.sp,
-        fontWeight = FontWeight.Medium,
-        color = GoldPrimary,
+        style = GreetingStyle.copy(fontSize = 30.sp, lineHeight = 36.sp),
         textAlign = TextAlign.Center
       )
 
-      Spacer(modifier = Modifier.height(48.dp))
+      Spacer(modifier = Modifier.height(40.dp))
 
-      // 4. Large gold button "Enter" (gold gradient, dark bold text, 56dp high)
-      Box(
-        modifier = Modifier
-          .fillMaxWidth()
-          .height(56.dp)
-          .clip(RoundedCornerShape(14.dp))
-          .background(
-            Brush.horizontalGradient(
-              listOf(GoldPrimary, GoldLight)
-            )
-          )
-          .clickable(onClick = onNavigateToLogin)
-          .testTag("welcome_enter_btn"),
-        contentAlignment = Alignment.Center
-      ) {
-        Text(
-          text = "Enter",
-          fontSize = 17.sp,
-          fontWeight = FontWeight.Bold,
-          color = Color(0xFF0B2A1E)
-        )
-      }
+      GoldButton(
+        text = "Enter",
+        onClick = onNavigateToLogin,
+        testTag = "welcome_enter_btn"
+      )
 
       Spacer(modifier = Modifier.height(16.dp))
 
-      // 5. Status line under the button: "● Server connected" in green or "● Not connected" in red
       val statusText = when (isConnected) {
         true -> "● Server connected"
         false -> "● Not connected (tap to retry)"
@@ -187,14 +162,12 @@ fun WelcomeScreen(
       val statusColor = when (isConnected) {
         true -> SuccessGreen
         false -> ErrorRed
-        null -> GoldPrimary
+        null -> ChampagneGold
       }
 
       Text(
         text = statusText,
-        fontSize = 12.5.sp,
-        fontWeight = FontWeight.SemiBold,
-        color = statusColor,
+        style = FieldLabelStyle.copy(color = statusColor, fontWeight = FontWeight.SemiBold),
         textAlign = TextAlign.Center,
         modifier = Modifier
           .clickable {
@@ -202,6 +175,7 @@ fun WelcomeScreen(
               retryTrigger++
             }
           }
+          .padding(horizontal = 12.dp, vertical = 8.dp)
           .testTag("welcome_connection_status")
       )
     }

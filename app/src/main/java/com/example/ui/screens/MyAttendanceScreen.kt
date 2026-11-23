@@ -34,6 +34,10 @@ import com.example.ui.components.ClassRepPullToRefresh
 import com.example.ui.components.EmptyAttendanceState
 import com.example.ui.components.ErrorBanner
 import com.example.ui.components.LoadingSkeleton
+import com.example.ui.components.MetallicGoldText
+import com.example.ui.components.PrimaryButton
+import com.example.ui.components.OutlinedGoldButton
+import com.example.ui.components.RoyalCard
 import com.example.ui.theme.*
 import kotlinx.coroutines.launch
 import java.util.Locale
@@ -76,19 +80,19 @@ fun MyAttendanceScreen(
     loadData()
   }
 
-  Box(modifier = Modifier.fillMaxSize().background(DarkBackground).testTag("my_attendance_screen")) {
+  Box(modifier = Modifier.fillMaxSize().testTag("my_attendance_screen")) {
     Column(modifier = Modifier.fillMaxSize().padding(horizontal = 20.dp, vertical = 18.dp)) {
       Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-        IconButton(onClick = onBack, modifier = Modifier.size(40.dp).testTag("my_attendance_back_btn")) {
-          Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back", tint = GoldLight)
+        IconButton(onClick = onBack, modifier = Modifier.size(48.dp).testTag("my_attendance_back_btn")) {
+          Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back", tint = ChampagneGold)
         }
         Spacer(modifier = Modifier.width(6.dp))
         Column(modifier = Modifier.weight(1f)) {
-          Text("My Attendance", fontSize = 19.sp, fontWeight = FontWeight.Bold, color = GoldLight)
-          Text("Personal attendance record", fontSize = 12.sp, color = TextSecondary)
+          MetallicGoldText("My Attendance", style = ScreenTitleStyle, maxLines = 1)
+          Text("Personal attendance record", style = CaptionStyle.copy(color = Lavender))
         }
-        IconButton(onClick = loadData, modifier = Modifier.size(40.dp)) {
-          Icon(Icons.Default.Refresh, contentDescription = "Refresh", tint = GoldLight)
+        IconButton(onClick = loadData, modifier = Modifier.size(48.dp)) {
+          Icon(Icons.Default.Refresh, contentDescription = "Refresh", tint = ChampagneGold)
         }
       }
 
@@ -97,26 +101,23 @@ fun MyAttendanceScreen(
       val currentReport = reportData
       if (currentReport != null) {
         // Summary Header Card
-        Box(
-          modifier = Modifier.fillMaxWidth().clip(RoundedCornerShape(12.dp)).background(DarkSurface)
-            .border(1.dp, DarkBorder, RoundedCornerShape(12.dp)).padding(14.dp)
-        ) {
+        RoyalCard {
           Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
             Column(modifier = Modifier.weight(1f)) {
-              Text(currentReport.studentName, fontSize = 15.sp, fontWeight = FontWeight.Bold, color = TextPrimary)
+              Text(currentReport.studentName, style = CardTitleStyle)
               if (currentReport.admissionNumber.isNotBlank()) {
-                Text("Adm: ${currentReport.admissionNumber}", fontSize = 13.sp, color = GoldLight)
+                Text("Adm: ${currentReport.admissionNumber}", style = CaptionStyle.copy(color = ChampagneGold))
               }
               Spacer(modifier = Modifier.height(4.dp))
-              Text("Attended ${currentReport.attended} of ${currentReport.total} sessions", fontSize = 13.sp, color = TextSecondary)
+              Text("Attended ${currentReport.attended} of ${currentReport.total} sessions", style = CaptionStyle.copy(color = Lavender))
             }
             val pctStr = String.format(Locale.US, "%.1f%%", currentReport.percentage)
-            val pctColor = if (currentReport.percentage < 75.0) ErrorRed else SuccessGreen
+            val pctColor = if (currentReport.percentage < 75.0) ErrorRed else SuccessColor
             Box(
-              modifier = Modifier.clip(RoundedCornerShape(8.dp)).background(pctColor.copy(alpha = 0.15f))
-                .border(1.dp, pctColor.copy(alpha = 0.5f), RoundedCornerShape(8.dp)).padding(horizontal = 12.dp, vertical = 6.dp)
+              modifier = Modifier.clip(RoundedCornerShape(10.dp)).background(pctColor.copy(alpha = 0.16f))
+                .border(1.dp, pctColor.copy(alpha = 0.55f), RoundedCornerShape(10.dp)).padding(horizontal = 12.dp, vertical = 6.dp)
             ) {
-              Text(pctStr, fontSize = 16.sp, fontWeight = FontWeight.Bold, color = pctColor)
+              Text(pctStr, fontFamily = MontserratFamily, fontSize = 16.sp, fontWeight = FontWeight.Bold, color = pctColor)
             }
           }
         }
@@ -125,7 +126,9 @@ fun MyAttendanceScreen(
 
         // Export Buttons side by side
         Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-          OutlinedButton(
+          OutlinedGoldButton(
+            text = "Export CSV",
+            leadingIcon = Icons.Default.FileDownload,
             onClick = {
               isExportingCsv = true
               exportError = null
@@ -136,17 +139,12 @@ fun MyAttendanceScreen(
               }
             },
             enabled = !isExportingCsv && !isExportingPdf,
-            modifier = Modifier.weight(1f).height(48.dp).testTag("my_attendance_export_csv_btn"),
-            shape = RoundedCornerShape(10.dp),
-            colors = ButtonDefaults.outlinedButtonColors(containerColor = com.example.ui.theme.DarkSurface, contentColor = GoldPrimary),
-            border = androidx.compose.foundation.BorderStroke(1.5.dp, GoldPrimary)
-          ) {
-            Icon(Icons.Default.FileDownload, contentDescription = null, modifier = Modifier.size(18.dp), tint = GoldPrimary)
-            Spacer(modifier = Modifier.width(6.dp))
-            Text("Export CSV", fontSize = 15.sp, fontWeight = FontWeight.Bold, color = GoldPrimary)
-          }
+            modifier = Modifier.weight(1f).testTag("my_attendance_export_csv_btn")
+          )
 
-          Button(
+          PrimaryButton(
+            text = if (isExportingPdf) "PDF..." else "Export PDF",
+            leadingIcon = Icons.Default.PictureAsPdf,
             onClick = {
               isExportingPdf = true
               exportError = null
@@ -157,20 +155,9 @@ fun MyAttendanceScreen(
               }
             },
             enabled = !isExportingCsv && !isExportingPdf,
-            modifier = Modifier.weight(1f).height(48.dp).testTag("my_attendance_export_pdf_btn"),
-            shape = RoundedCornerShape(10.dp),
-            colors = ButtonDefaults.buttonColors(containerColor = GoldPrimary, contentColor = com.example.ui.theme.DarkTextOnGold)
-          ) {
-            if (isExportingPdf) {
-              CircularProgressIndicator(color = com.example.ui.theme.DarkTextOnGold, strokeWidth = 2.dp, modifier = Modifier.size(18.dp))
-              Spacer(modifier = Modifier.width(6.dp))
-              Text("Generating PDF...", fontSize = 13.sp, fontWeight = FontWeight.Bold, color = com.example.ui.theme.DarkTextOnGold)
-            } else {
-              Icon(Icons.Default.PictureAsPdf, contentDescription = null, tint = com.example.ui.theme.DarkTextOnGold, modifier = Modifier.size(18.dp))
-              Spacer(modifier = Modifier.width(6.dp))
-              Text("Export PDF", fontSize = 15.sp, fontWeight = FontWeight.Bold, color = com.example.ui.theme.DarkTextOnGold)
-            }
-          }
+            isLoading = isExportingPdf,
+            modifier = Modifier.weight(1f).testTag("my_attendance_export_pdf_btn")
+          )
         }
       }
 
@@ -205,27 +192,24 @@ fun MyAttendanceScreen(
 
 @Composable
 private fun StudentSessionRecordRow(index: Int, record: MyAttendanceRecordItem) {
-  Box(
-    modifier = Modifier.fillMaxWidth().clip(RoundedCornerShape(10.dp)).background(DarkSurface)
-      .border(1.dp, DarkBorder, RoundedCornerShape(10.dp)).padding(12.dp)
-  ) {
+  RoyalCard {
     Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-      Text("$index.", fontSize = 13.sp, fontWeight = FontWeight.Bold, color = TextSecondary, modifier = Modifier.width(26.dp))
+      Text("$index.", style = CaptionStyle.copy(color = Lavender, fontWeight = FontWeight.Bold), modifier = Modifier.width(26.dp))
       Column(modifier = Modifier.weight(1f)) {
-        Text(record.sessionTitle, fontSize = 14.sp, fontWeight = FontWeight.SemiBold, color = TextPrimary)
+        Text(record.sessionTitle, fontFamily = PlayfairDisplayFamily, fontSize = 16.sp, fontWeight = FontWeight.SemiBold, color = SilverWhite)
         if (record.date.isNotBlank()) {
-          Text(record.date, fontSize = 13.sp, color = TextSecondary)
+          Text(record.date, style = CaptionStyle.copy(color = Lavender))
         }
       }
       Row(verticalAlignment = Alignment.CenterVertically) {
         if (record.isPresent) {
-          Icon(Icons.Default.CheckCircle, contentDescription = null, tint = SuccessGreen, modifier = Modifier.size(16.dp))
+          Icon(Icons.Default.CheckCircle, contentDescription = null, tint = SuccessColor, modifier = Modifier.size(16.dp))
           Spacer(modifier = Modifier.width(4.dp))
-          Text("Present", fontSize = 13.sp, fontWeight = FontWeight.Bold, color = SuccessGreen)
+          Text("Present", fontFamily = MontserratFamily, fontSize = 13.sp, fontWeight = FontWeight.Bold, color = SuccessColor)
         } else {
           Icon(Icons.Default.Cancel, contentDescription = null, tint = ErrorRed, modifier = Modifier.size(16.dp))
           Spacer(modifier = Modifier.width(4.dp))
-          Text("Absent", fontSize = 12.sp, fontWeight = FontWeight.Bold, color = ErrorRed)
+          Text("Absent", fontFamily = MontserratFamily, fontSize = 13.sp, fontWeight = FontWeight.Bold, color = ErrorRed)
         }
       }
     }

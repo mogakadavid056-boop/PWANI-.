@@ -55,6 +55,7 @@ class RegistrationHandler(
             sessionManager.savePendingRegistration(
               SessionManager.PendingRegistrationData(
                 email = cleanEmail,
+                fullName = cleanName,
                 isLecturer = wizard.isLecturer,
                 idNumber = cleanId,
                 phone = cleanPhone,
@@ -81,6 +82,7 @@ class RegistrationHandler(
           }
 
           val patchJson = buildProfilePatch(
+            fullName = cleanName,
             idNumber = cleanId,
             phone = cleanPhone,
             universityId = universityId,
@@ -114,6 +116,7 @@ class RegistrationHandler(
   suspend fun completePendingOnLogin(session: UserSession): Boolean {
     val pending = sessionManager.getPendingRegistration(session.email) ?: return false
     val patchJson = buildProfilePatch(
+      fullName = pending.fullName.ifBlank { session.fullName },
       idNumber = pending.idNumber,
       phone = pending.phone,
       universityId = pending.universityId,
@@ -262,6 +265,7 @@ class RegistrationHandler(
   }
 
   private fun buildProfilePatch(
+    fullName: String,
     idNumber: String,
     phone: String,
     universityId: String,
@@ -271,6 +275,7 @@ class RegistrationHandler(
     acceptedTermsAt: String,
     termsVersion: String
   ): JSONObject = JSONObject().apply {
+    if (fullName.isNotBlank()) put("full_name", fullName.trim())
     if (idNumber.isNotBlank()) put("admission_number", idNumber)
     if (phone.isNotBlank()) put("phone", phone)
     if (universityId.isNotBlank()) put("university_id", universityId)

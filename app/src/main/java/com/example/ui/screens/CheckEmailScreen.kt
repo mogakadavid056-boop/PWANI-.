@@ -30,13 +30,18 @@ import androidx.compose.ui.unit.sp
 import com.example.ui.components.ErrorBanner
 import com.example.ui.components.GoldButton
 import com.example.ui.components.GoldOutlinedButton
-import com.example.ui.theme.DarkBackground
-import com.example.ui.theme.GoldLight
-import com.example.ui.theme.GoldPrimary
-import com.example.ui.theme.SuccessContainer
-import com.example.ui.theme.SuccessGreen
-import com.example.ui.theme.TextPrimary
-import com.example.ui.theme.TextSecondary
+import com.example.ui.components.MetallicGoldText
+import com.example.ui.theme.BodyStyle
+import com.example.ui.theme.ButtonRadius
+import com.example.ui.theme.CaptionStyle
+import com.example.ui.theme.ChampagneGold
+import com.example.ui.theme.Lavender
+import com.example.ui.theme.MetallicGold
+import com.example.ui.theme.RoyalSurfaceHigh
+import com.example.ui.theme.RoyalSuccessContainer
+import com.example.ui.theme.ScreenTitleStyle
+import com.example.ui.theme.SilverWhite
+import com.example.ui.theme.SuccessColor
 
 @Composable
 fun CheckEmailScreen(
@@ -51,7 +56,6 @@ fun CheckEmailScreen(
   Box(
     modifier = Modifier
       .fillMaxSize()
-      .background(DarkBackground)
       .testTag("check_email_screen")
   ) {
     Column(
@@ -66,25 +70,23 @@ fun CheckEmailScreen(
         modifier = Modifier
           .size(88.dp)
           .clip(CircleShape)
-          .background(GoldPrimary.copy(alpha = 0.14f))
-          .border(2.dp, GoldPrimary.copy(alpha = 0.6f), CircleShape),
+          .background(RoyalSurfaceHigh)
+          .border(2.dp, MetallicGold.copy(alpha = 0.65f), CircleShape),
         contentAlignment = Alignment.Center
       ) {
         Icon(
           imageVector = Icons.Default.MarkEmailRead,
           contentDescription = "Check your email",
-          tint = GoldPrimary,
+          tint = ChampagneGold,
           modifier = Modifier.size(44.dp)
         )
       }
 
       Spacer(modifier = Modifier.height(22.dp))
 
-      Text(
+      MetallicGoldText(
         text = "Check your email",
-        fontSize = 24.sp,
-        fontWeight = FontWeight.Bold,
-        color = GoldLight,
+        style = ScreenTitleStyle,
         textAlign = TextAlign.Center
       )
 
@@ -92,20 +94,14 @@ fun CheckEmailScreen(
 
       Text(
         text = "We sent a confirmation link to $email. Open it, then log in.",
-        fontSize = 15.sp,
-        color = TextPrimary,
-        textAlign = TextAlign.Center,
-        lineHeight = 22.sp
+        style = BodyStyle.copy(color = SilverWhite, textAlign = TextAlign.Center)
       )
 
       Spacer(modifier = Modifier.height(8.dp))
 
       Text(
         text = "Your profile and class setup will finish automatically right after your first login.",
-        fontSize = 13.sp,
-        color = TextSecondary,
-        textAlign = TextAlign.Center,
-        lineHeight = 19.sp
+        style = CaptionStyle.copy(color = Lavender, textAlign = TextAlign.Center)
       )
 
       if (!errorMessage.isNullOrBlank()) {
@@ -118,12 +114,16 @@ fun CheckEmailScreen(
         Box(
           modifier = Modifier
             .fillMaxWidth()
-            .clip(androidx.compose.foundation.shape.RoundedCornerShape(12.dp))
-            .background(SuccessContainer)
-            .border(1.dp, SuccessGreen.copy(alpha = 0.6f), androidx.compose.foundation.shape.RoundedCornerShape(12.dp))
+            .clip(androidx.compose.foundation.shape.RoundedCornerShape(ButtonRadius))
+            .background(RoyalSuccessContainer)
+            .border(1.dp, SuccessColor.copy(alpha = 0.6f), androidx.compose.foundation.shape.RoundedCornerShape(ButtonRadius))
             .padding(12.dp)
         ) {
-          Text(text = infoMessage, color = SuccessGreen, fontSize = 13.sp, textAlign = TextAlign.Center, modifier = Modifier.fillMaxWidth())
+          Text(
+            text = infoMessage,
+            style = CaptionStyle.copy(color = SuccessColor, textAlign = TextAlign.Center),
+            modifier = Modifier.fillMaxWidth()
+          )
         }
       }
 

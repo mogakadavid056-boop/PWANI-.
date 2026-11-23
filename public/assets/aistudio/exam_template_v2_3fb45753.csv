@@ -1,0 +1,4 @@
+type,question,option_a,option_b,option_c,option_d,option_e,correct,marks,explanation,model_answer
+mcq,"Which data structure removes the oldest item first (FIFO)?",Stack,Queue,Tree,Graph,,B,1,"A queue serves items in arrival order.",
+mcq,"What does SQL stand for?",Structured Query Language,Simple Question Language,Sequential Query Logic,Stored Query List,,A,1,,
+written,"Explain the difference between a stack and a queue. Give one real-life example of each.",,,,,,,10,,"Stack = LIFO (undo, browser back button). Queue = FIFO (printer queue, bank line). 2 marks per correct definition, 2 per example, 2 for a clear comparison."

@@ -51,6 +51,7 @@ class AuthViewModel(
     viewModelScope.launch {
       try {
         val savedSession = sessionManager.getSession()
+        kotlinx.coroutines.delay(950L)
         if (savedSession != null && savedSession.userId.isNotBlank() && savedSession.accessToken.isNotBlank()) {
           OfflineCache.currentUserId = savedSession.userId
           val initialRole = savedSession.role.ifBlank { RoleHelper.ROLE_STUDENT }
@@ -115,6 +116,15 @@ class AuthViewModel(
           _uiState.update { it.copy(session = session, isLoading = false, errorMessage = null) }
           triggerAlarmSync(session)
           val handledPending = registrationHandler.completePendingOnLogin(session)
+          if (!handledPending && (profileName.isBlank() || profileAdm.isBlank())) {
+            val healPayload = org.json.JSONObject().apply {
+              if (profileName.isBlank() && session.fullName.isNotBlank()) put("full_name", session.fullName)
+              if (profileAdm.isBlank() && session.admissionNumber.isNotBlank()) put("admission_number", session.admissionNumber)
+            }
+            if (healPayload.length() > 0) {
+              authService.patchProfile(session.userId, session.accessToken, healPayload)
+            }
+          }
           if (!handledPending) onLoginSuccess(session)
         },
         onFailure = { error ->
@@ -156,6 +166,7 @@ class AuthViewModel(
     com.example.alarms.TimetableAlarmSync.onLoggedOut(getApplication())
     com.example.notifications.NotificationSyncWorker.cancel(getApplication())
     com.example.notifications.NotificationPreferences.clearOnLogout(getApplication())
+    com.example.assistant.AssistantStorage.clearOnLogout(getApplication())
     viewModelScope.launch {
       if (uid.isNotBlank()) {
         OfflineCache.clearUserCache(getApplication(), uid)

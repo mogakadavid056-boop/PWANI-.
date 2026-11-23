@@ -140,6 +140,38 @@ class UniversityViewModel : ViewModel() {
     }
   }
 
+  fun setLeaderboardVisibility(visible: Boolean, session: UserSession?, onUpdated: () -> Unit = {}) {
+    val token = session?.accessToken.orEmpty()
+    if (token.isBlank()) return
+    val prev = _uiState.value.profile?.showOnLeaderboard ?: true
+    _uiState.update { state ->
+      state.copy(
+        profile = state.profile?.copy(showOnLeaderboard = visible),
+        errorMessage = null
+      )
+    }
+    viewModelScope.launch {
+      com.example.data.ChallengesService().setLeaderboardVisibility(visible, token).fold(
+        onSuccess = {
+          _uiState.update {
+            it.copy(
+              successMessage = if (visible) "Your name is visible on the leaderboard." else "Your name is now hidden (shown as Anonymous)."
+            )
+          }
+          onUpdated()
+        },
+        onFailure = { err ->
+          _uiState.update { state ->
+            state.copy(
+              profile = state.profile?.copy(showOnLeaderboard = prev),
+              errorMessage = err.message ?: "Failed to update leaderboard privacy"
+            )
+          }
+        }
+      )
+    }
+  }
+
   fun showError(message: String) {
     _uiState.update { it.copy(errorMessage = message) }
   }

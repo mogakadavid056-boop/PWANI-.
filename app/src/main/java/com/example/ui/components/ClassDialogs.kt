@@ -63,8 +63,62 @@ fun ClassDialogs(
   showCreatePollDialog: Boolean = false,
   isPollActionLoading: Boolean = false,
   onDismissCreatePollDialog: () -> Unit = {},
-  onCreatePoll: (question: String, options: List<String>, duration: String) -> Unit = { _, _, _ -> }
+  onCreatePoll: (question: String, options: List<String>, duration: String) -> Unit = { _, _, _ -> },
+  challengesUiState: com.example.ui.ChallengesUiState = com.example.ui.ChallengesUiState(),
+  canCreateExam: Boolean = false,
+  onDismissCreateChallengeDialog: () -> Unit = {},
+  onCreateChallenge: (
+    title: String,
+    description: String,
+    opensAtIso: String,
+    closesAtIso: String,
+    timeLimitMinutes: Int?,
+    questions: List<com.example.data.DraftQuizQuestion>,
+    courseId: String?,
+    asExam: Boolean,
+    shuffleQuestions: Boolean,
+    answerFormat: com.example.data.ExamAnswerFormat,
+    securityConfig: com.example.data.ExamSecurityConfig
+  ) -> Unit = { _, _, _, _, _, _, _, _, _, _, _ -> },
+  onDismissAddQuestionsDialog: () -> Unit = {},
+  onAddQuestionsSubmit: (quizId: String, List<com.example.data.DraftQuizQuestion>) -> Unit = { _, _ -> },
+  onDismissDeleteChallenge: () -> Unit = {},
+  onConfirmDeleteChallenge: () -> Unit = {}
 ) {
+  if (challengesUiState.showCreateDialog) {
+    com.example.ui.screens.CreateChallengeDialog(
+      approvedUnits = materialsUiState.approvedUnits,
+      canCreateExam = canCreateExam,
+      initialDraft = challengesUiState.challengeDraftPrefill,
+      isLoading = challengesUiState.isActionLoading,
+      errorMessage = challengesUiState.errorMessage,
+      onDismiss = onDismissCreateChallengeDialog,
+      onCreate = onCreateChallenge
+    )
+  }
+
+  challengesUiState.addQuestionsForQuiz?.let { targetQuiz ->
+    com.example.ui.screens.AddQuestionsDialog(
+      quiz = targetQuiz,
+      isLoading = challengesUiState.isActionLoading,
+      errorMessage = challengesUiState.errorMessage,
+      onDismiss = onDismissAddQuestionsDialog,
+      onSubmit = { qs -> onAddQuestionsSubmit(targetQuiz.quizId, qs) }
+    )
+  }
+
+  challengesUiState.quizPendingDelete?.let { quiz ->
+    ConfirmActionDialog(
+      title = "Delete Challenge?",
+      message = "Delete \"${quiz.title}\" and all its submitted attempts? This cannot be undone.",
+      confirmButtonText = "Delete",
+      confirmButtonColor = ErrorRed,
+      isLoading = challengesUiState.isActionLoading,
+      onConfirm = onConfirmDeleteChallenge,
+      onDismiss = onDismissDeleteChallenge
+    )
+  }
+
   if (showCreatePollDialog) {
     com.example.ui.screens.CreatePollDialog(
       isLoading = isPollActionLoading,

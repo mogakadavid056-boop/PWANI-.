@@ -36,6 +36,9 @@ import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import com.example.ui.theme.DarkBorder
 import com.example.ui.theme.DarkSurface
+import com.example.ui.theme.ErrorColor
+import com.example.ui.theme.RoyalSurfaceHigh
+import com.example.ui.theme.SectionHeadingStyle
 import com.example.ui.theme.TextPrimary
 import com.example.ui.theme.TextSecondary
 
@@ -44,7 +47,7 @@ fun ConfirmActionDialog(
   title: String,
   message: String,
   confirmButtonText: String = "Delete",
-  confirmButtonColor: Color = Color(0xFFEF4444),
+  confirmButtonColor: Color = ErrorColor,
   isLoading: Boolean = false,
   onConfirm: () -> Unit,
   onDismiss: () -> Unit
@@ -53,9 +56,9 @@ fun ConfirmActionDialog(
     Column(
       modifier = Modifier
         .fillMaxWidth()
-        .clip(RoundedCornerShape(20.dp))
-        .background(DarkSurface)
-        .border(1.dp, DarkBorder, RoundedCornerShape(20.dp))
+        .clip(RoundedCornerShape(18.dp))
+        .background(RoyalSurfaceHigh)
+        .border(1.dp, DarkBorder, RoundedCornerShape(18.dp))
         .padding(24.dp)
         .testTag("confirm_action_dialog")
     ) {
@@ -69,9 +72,7 @@ fun ConfirmActionDialog(
         Spacer(modifier = Modifier.width(10.dp))
         Text(
           text = title,
-          fontSize = 18.sp,
-          fontWeight = FontWeight.Bold,
-          color = TextPrimary
+          style = SectionHeadingStyle.copy(color = TextPrimary)
         )
       }
 

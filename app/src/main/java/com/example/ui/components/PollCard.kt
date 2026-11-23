@@ -28,13 +28,14 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.data.PollItem
+import com.example.ui.theme.CaptionStyle
+import com.example.ui.theme.CardTitleStyle
 import com.example.ui.theme.DarkBorder
 import com.example.ui.theme.DarkSurface
 import com.example.ui.theme.GoldLight
 import com.example.ui.theme.GoldPrimary
-import com.example.ui.theme.PoppinsFamily
+import com.example.ui.theme.MontserratFamily
 import com.example.ui.theme.SuccessGreen
-import com.example.ui.theme.TextPrimary
 import com.example.ui.theme.TextSecondary
 
 @Composable
@@ -74,7 +75,8 @@ fun PollCard(
             Spacer(modifier = Modifier.width(4.dp))
             Text(
               text = statusText,
-              fontSize = 11.sp,
+              fontFamily = MontserratFamily,
+              fontSize = 12.sp,
               fontWeight = FontWeight.SemiBold,
               color = if (isOpen) GoldLight else TextSecondary
             )
@@ -101,8 +103,9 @@ fun PollCard(
               Spacer(modifier = Modifier.width(4.dp))
               Text(
                 text = "Voted",
-                fontSize = 11.sp,
-                fontWeight = FontWeight.Bold,
+                fontFamily = MontserratFamily,
+                fontSize = 12.sp,
+                fontWeight = FontWeight.SemiBold,
                 color = SuccessGreen
               )
             }
@@ -115,10 +118,7 @@ fun PollCard(
       // Question
       Text(
         text = poll.question,
-        fontFamily = PoppinsFamily,
-        fontWeight = FontWeight.Bold,
-        fontSize = 16.sp,
-        color = TextPrimary
+        style = CardTitleStyle
       )
 
       Spacer(modifier = Modifier.height(8.dp))
@@ -134,8 +134,7 @@ fun PollCard(
         Spacer(modifier = Modifier.width(5.dp))
         Text(
           text = "${poll.totalVotes} ${if (poll.totalVotes == 1) "vote" else "votes"}",
-          fontSize = 12.sp,
-          color = TextSecondary
+          style = CaptionStyle
         )
       }
     }

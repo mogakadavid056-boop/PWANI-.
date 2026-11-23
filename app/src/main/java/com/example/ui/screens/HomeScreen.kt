@@ -5,10 +5,10 @@ import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.AutoAwesome
 import androidx.compose.material.icons.filled.Class
 import androidx.compose.material.icons.filled.GroupAdd
 import androidx.compose.material.icons.filled.Info
@@ -18,11 +18,12 @@ import androidx.compose.material.icons.filled.SupervisorAccount
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -31,14 +32,19 @@ import com.example.data.ClassItem
 import com.example.data.ClassWaitingForPrefect
 import com.example.data.NoticeItem
 import com.example.data.UserSession
-import com.example.ui.components.ClassRepCard
+import com.example.ui.components.ClassRepOutlinedButton
 import com.example.ui.components.ClassRepPullToRefresh
 import com.example.ui.components.ClassesWaitingForPrefectCard
 import com.example.ui.components.FriendlyErrorSnackbar
 import com.example.ui.components.LatestAnnouncementsSection
+import com.example.ui.components.NotificationBellButton
 import com.example.ui.components.PrimaryButton
+import com.example.ui.components.RoleBadge
+import com.example.ui.components.RoyalCard
+import com.example.ui.components.RoyalDivider
 import com.example.ui.theme.*
 import com.example.util.RoleHelper
+import java.util.Calendar
 
 @Composable
 fun HomeScreen(
@@ -50,10 +56,15 @@ fun HomeScreen(
   classesError: String? = null,
   classesWaitingForRep: List<ClassWaitingForPrefect> = emptyList(),
   isWaitingLoading: Boolean = false,
+  papersToMark: List<com.example.data.PaperToMarkItem> = emptyList(),
+  isPapersToMarkLoading: Boolean = false,
+  onOpenPaperToMark: (com.example.data.PaperToMarkItem) -> Unit = {},
   authInfoMessage: String? = null,
   onDismissAuthInfo: () -> Unit = {},
   unreadNotificationCount: Int = 0,
   onOpenNotifications: () -> Unit = {},
+  isOnline: Boolean = true,
+  onOpenAssistant: () -> Unit = {},
   onAppointPrefectClick: (ClassWaitingForPrefect) -> Unit = {},
   onDismissClassesError: () -> Unit = {},
   onRefreshClasses: () -> Unit = {},
@@ -78,12 +89,19 @@ fun HomeScreen(
     ?.split("\\s+".toRegex())
     ?.firstOrNull()
     ?.ifBlank { "Member" } ?: "Member"
-  val greeting = "Good morning, $firstName"
+
+  val timeGreeting = remember {
+    val hour = Calendar.getInstance().get(Calendar.HOUR_OF_DAY)
+    when {
+      hour < 12 -> "Good morning,"
+      hour < 17 -> "Good afternoon,"
+      else -> "Good evening,"
+    }
+  }
 
   Box(
     modifier = Modifier
       .fillMaxSize()
-      .background(DarkBackground)
       .testTag("home_screen")
   ) {
     ClassRepPullToRefresh(
@@ -97,201 +115,244 @@ fun HomeScreen(
           .padding(horizontal = ScreenPadding, vertical = ScreenPadding),
         verticalArrangement = Arrangement.spacedBy(ItemSpacing)
       ) {
-      // Header: Greeting and Role Chip
-      Row(
-        modifier = Modifier.fillMaxWidth(),
-        horizontalArrangement = Arrangement.SpaceBetween,
-        verticalAlignment = Alignment.CenterVertically
-      ) {
-        Column(modifier = Modifier.weight(1f)) {
-          Text(
-            text = greeting,
-            style = TitleStyle,
-            modifier = Modifier.testTag("home_greeting_text")
-          )
-          Spacer(modifier = Modifier.height(4.dp))
-          // Role chip
-          Box(
-            modifier = Modifier
-              .clip(RoundedCornerShape(8.dp))
-              .background(GoldPrimary.copy(alpha = 0.15f))
-              .border(1.dp, GoldPrimary.copy(alpha = 0.5f), RoundedCornerShape(8.dp))
-              .padding(horizontal = 10.dp, vertical = 3.dp)
-              .testTag("home_role_chip")
+        // Hero Greeting & Role Card
+        RoyalCard(isHero = true) {
+          Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
           ) {
-            Text(
-              text = displayRole,
-              style = CaptionStyle.copy(
-                color = GoldAccent,
-                fontWeight = FontWeight.SemiBold,
-                fontSize = 11.sp
+            Column(modifier = Modifier.weight(1f)) {
+              Text(
+                text = timeGreeting,
+                style = GreetingStyle.copy(fontSize = 30.sp, lineHeight = 36.sp)
               )
-            )
+              Text(
+                text = firstName,
+                style = ProfileNameStyle,
+                modifier = Modifier.testTag("home_greeting_text")
+              )
+              Spacer(modifier = Modifier.height(6.dp))
+              RoleBadge(
+                roleText = displayRole,
+                modifier = Modifier.testTag("home_role_chip")
+              )
+            }
+
+            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+              if (isOnline) {
+                IconButton(
+                  onClick = onOpenAssistant,
+                  modifier = Modifier
+                    .size(48.dp)
+                    .clip(CircleShape)
+                    .background(RoyalSurfaceHigh)
+                    .border(1.dp, MetallicGold.copy(alpha = 0.55f), CircleShape)
+                    .testTag("home_assistant_button")
+                ) {
+                  Icon(
+                    Icons.Default.AutoAwesome,
+                    contentDescription = "Assistant",
+                    tint = ChampagneGold,
+                    modifier = Modifier.size(22.dp)
+                  )
+                }
+              }
+              NotificationBellButton(
+                unreadCount = unreadNotificationCount,
+                onClick = onOpenNotifications
+              )
+              IconButton(
+                onClick = onNavigateToProfile,
+                modifier = Modifier
+                  .size(48.dp)
+                  .clip(CircleShape)
+                  .background(RoyalSurfaceHigh)
+                  .border(1.dp, DarkBorder, CircleShape)
+                  .testTag("home_profile_avatar_button")
+              ) {
+                Icon(
+                  Icons.Default.Person,
+                  contentDescription = "Profile",
+                  tint = ChampagneGold,
+                  modifier = Modifier.size(24.dp)
+                )
+              }
+            }
           }
         }
 
-        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-          com.example.ui.components.NotificationBellButton(
-            unreadCount = unreadNotificationCount,
-            onClick = onOpenNotifications
-          )
-          IconButton(
-            onClick = onNavigateToProfile,
-            modifier = Modifier
-              .size(44.dp)
-              .clip(CircleShape)
-              .background(DarkSurfaceVariant)
-              .border(1.dp, DarkBorder, CircleShape)
-              .testTag("home_profile_avatar_button")
+        if (!classesError.isNullOrBlank()) {
+          FriendlyErrorSnackbar(errorMessage = classesError, onDismiss = onDismissClassesError)
+        }
+
+        if (!authInfoMessage.isNullOrBlank()) {
+          RoyalCard(
+            borderColor = MetallicGold.copy(alpha = 0.65f),
+            backgroundColor = RoyalSurfaceHigh,
+            modifier = Modifier.testTag("home_auth_info_banner")
           ) {
-            Icon(
-              Icons.Default.Person,
-              contentDescription = "Profile",
-              tint = GoldLight,
-              modifier = Modifier.size(24.dp)
-            )
+            Row(verticalAlignment = Alignment.CenterVertically) {
+              Icon(Icons.Default.Info, contentDescription = null, tint = ChampagneGold, modifier = Modifier.size(20.dp))
+              Spacer(modifier = Modifier.width(10.dp))
+              Text(
+                text = authInfoMessage,
+                style = BodyStyle.copy(fontSize = 14.sp, lineHeight = 20.sp, color = ChampagneGold),
+                modifier = Modifier.weight(1f)
+              )
+              TextButton(onClick = onDismissAuthInfo) {
+                Text("OK", style = FieldLabelStyle.copy(color = MetallicGold))
+              }
+            }
           }
         }
-      }
 
-      if (!classesError.isNullOrBlank()) {
-        FriendlyErrorSnackbar(errorMessage = classesError, onDismiss = onDismissClassesError)
-      }
-      if (!authInfoMessage.isNullOrBlank()) {
-        androidx.compose.material3.Surface(
-          color = DarkSurfaceVariant,
-          shape = RoundedCornerShape(12.dp),
-          border = androidx.compose.foundation.BorderStroke(1.dp, GoldPrimary.copy(alpha = 0.6f)),
-          modifier = Modifier.fillMaxWidth().testTag("home_auth_info_banner")
-        ) {
-          Row(modifier = Modifier.padding(12.dp), verticalAlignment = Alignment.CenterVertically) {
-            Icon(Icons.Default.Info, contentDescription = null, tint = GoldPrimary, modifier = Modifier.size(18.dp))
-            Spacer(modifier = Modifier.width(8.dp))
-            Text(authInfoMessage, fontSize = 13.sp, color = GoldLight, modifier = Modifier.weight(1f), lineHeight = 18.sp)
-            androidx.compose.material3.TextButton(onClick = onDismissAuthInfo) { Text("OK", color = GoldPrimary, fontWeight = FontWeight.Bold) }
+        // Lecturer verification banner if unverified
+        if (isLecturer && !isVerified) {
+          RoyalCard(
+            borderColor = ChampagneGold.copy(alpha = 0.8f),
+            backgroundColor = RoyalSurfaceHigh,
+            modifier = Modifier.testTag("home_lecturer_unverified_banner")
+          ) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+              Icon(
+                Icons.Default.Info,
+                contentDescription = null,
+                tint = ChampagneGold,
+                modifier = Modifier.size(20.dp)
+              )
+              Spacer(modifier = Modifier.width(10.dp))
+              Text(
+                text = "Your lecturer account is waiting for verification by an administrator.",
+                style = BodyStyle.copy(fontSize = 14.sp, lineHeight = 20.sp, fontWeight = FontWeight.Medium, color = ChampagneGold)
+              )
+            }
           }
         }
-      }
 
-      // Lecturer verification banner if unverified
-      if (isLecturer && !isVerified) {
-        Box(
-          modifier = Modifier
-            .fillMaxWidth()
-            .clip(RoundedCornerShape(12.dp))
-            .background(androidx.compose.ui.graphics.Color(0xFF332005))
-            .border(1.dp, androidx.compose.ui.graphics.Color(0xFFFFB300), RoundedCornerShape(12.dp))
-            .padding(14.dp)
-            .testTag("home_lecturer_unverified_banner")
-        ) {
-          Row(verticalAlignment = Alignment.CenterVertically) {
-            Icon(
-              Icons.Default.Info,
-              contentDescription = null,
-              tint = androidx.compose.ui.graphics.Color(0xFFFFB300),
-              modifier = Modifier.size(20.dp)
+        // Quick Action Buttons depending on user role and verification
+        if (isLecturer) {
+          if (!isVerified) {
+            PrimaryButton(
+              text = "Join with class code",
+              leadingIcon = Icons.Default.GroupAdd,
+              onClick = onNavigateToJoinClass,
+              modifier = Modifier.fillMaxWidth().testTag("home_join_class_button")
             )
-            Spacer(modifier = Modifier.width(10.dp))
-            Text(
-              text = "Your lecturer account is waiting for verification by an administrator.",
-              fontSize = 13.sp,
-              fontWeight = FontWeight.Medium,
-              color = androidx.compose.ui.graphics.Color(0xFFFFE082),
-              lineHeight = 18.sp
-            )
+          } else {
+            Row(
+              modifier = Modifier.fillMaxWidth(),
+              horizontalArrangement = Arrangement.spacedBy(10.dp)
+            ) {
+              PrimaryButton(
+                text = "Find my classes",
+                leadingIcon = Icons.Default.Search,
+                onClick = onNavigateToFindClasses,
+                modifier = Modifier.weight(1f).testTag("home_find_my_classes_button")
+              )
+              ClassRepOutlinedButton(
+                text = "My classes",
+                leadingIcon = Icons.Default.Class,
+                onClick = onNavigateToMyClasses,
+                modifier = Modifier.weight(1f).testTag("home_my_classes_button")
+              )
+            }
           }
-        }
-      }
-
-      // Quick Action Buttons depending on user role and verification
-      if (isLecturer) {
-        if (!isVerified) {
-          PrimaryButton(
-            text = "Join with class code",
-            leadingIcon = Icons.Default.GroupAdd,
-            onClick = onNavigateToJoinClass,
-            modifier = Modifier.fillMaxWidth().testTag("home_join_class_button")
-          )
-        } else {
+        } else if (isAdmin) {
           Row(
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.spacedBy(10.dp)
           ) {
             PrimaryButton(
-              text = "Find my classes",
+              text = "Find classes",
               leadingIcon = Icons.Default.Search,
               onClick = onNavigateToFindClasses,
-              modifier = Modifier.weight(1f).testTag("home_find_my_classes_button")
+              modifier = Modifier.weight(1f).testTag("home_admin_find_classes_button")
             )
-            com.example.ui.components.ClassRepOutlinedButton(
-              text = "My classes",
-              leadingIcon = Icons.Default.Class,
-              onClick = onNavigateToMyClasses,
-              modifier = Modifier.weight(1f).testTag("home_my_classes_button")
+            ClassRepOutlinedButton(
+              text = "Create Class",
+              leadingIcon = Icons.Default.Add,
+              onClick = onNavigateToCreateClass,
+              modifier = Modifier.weight(1f).testTag("home_create_class_button")
+            )
+          }
+        } else {
+          val studentHasClass = classes.isNotEmpty()
+          if (!studentHasClass) {
+            PrimaryButton(
+              text = "Join Class",
+              leadingIcon = Icons.Default.GroupAdd,
+              onClick = onNavigateToJoinClass,
+              modifier = Modifier.fillMaxWidth().testTag("home_join_class_button")
             )
           }
         }
-      } else if (isAdmin) {
-        Row(
-          modifier = Modifier.fillMaxWidth(),
-          horizontalArrangement = Arrangement.spacedBy(10.dp)
-        ) {
-          PrimaryButton(
-            text = "Find classes",
-            leadingIcon = Icons.Default.Search,
-            onClick = onNavigateToFindClasses,
-            modifier = Modifier.weight(1f).testTag("home_admin_find_classes_button")
-          )
-          com.example.ui.components.ClassRepOutlinedButton(
-            text = "Create Class",
-            leadingIcon = Icons.Default.Add,
-            onClick = onNavigateToCreateClass,
-            modifier = Modifier.weight(1f).testTag("home_create_class_button")
+
+        if (isAdmin) {
+          ClassRepOutlinedButton(
+            text = "Manage Users",
+            leadingIcon = Icons.Default.SupervisorAccount,
+            onClick = onNavigateToManageUsers,
+            modifier = Modifier
+              .fillMaxWidth()
+              .testTag("home_manage_users_button")
           )
         }
-      } else {
-        // Student
-        val studentHasClass = classes.isNotEmpty()
-        if (!studentHasClass) {
-          PrimaryButton(
-            text = "Join Class",
-            leadingIcon = Icons.Default.GroupAdd,
-            onClick = onNavigateToJoinClass,
-            modifier = Modifier.fillMaxWidth().testTag("home_join_class_button")
+
+        if (isOnline) {
+          RoyalCard(
+            borderColor = MetallicGold.copy(alpha = 0.6f),
+            onClick = onOpenAssistant,
+            modifier = Modifier.testTag("home_ask_assistant_card")
+          ) {
+            Row(
+              modifier = Modifier.fillMaxWidth(),
+              verticalAlignment = Alignment.CenterVertically,
+              horizontalArrangement = Arrangement.spacedBy(12.dp)
+            ) {
+              Icon(
+                Icons.Default.AutoAwesome,
+                contentDescription = null,
+                tint = ChampagneGold,
+                modifier = Modifier.size(26.dp)
+              )
+              Column(modifier = Modifier.weight(1f)) {
+                Text("Ask ClassRep Assistant", style = CardTitleStyle.copy(color = ChampagneGold))
+                Text(
+                  "Timetable, attendance, points, drafts and study help",
+                  style = CaptionStyle.copy(color = Lavender)
+                )
+              }
+            }
+          }
+        }
+
+        RoyalDivider()
+
+        if (isLecturer || isAdmin) {
+          com.example.ui.components.PapersToMarkCard(
+            papers = papersToMark,
+            isLoading = isPapersToMarkLoading,
+            onOpenExamMarking = onOpenPaperToMark
           )
         }
-      }
 
-      // Manage Users button ONLY when the role is admin
-      if (isAdmin) {
-        com.example.ui.components.ClassRepOutlinedButton(
-          text = "Manage Users",
-          leadingIcon = Icons.Default.SupervisorAccount,
-          onClick = onNavigateToManageUsers,
-          modifier = Modifier
-            .fillMaxWidth()
-            .testTag("home_manage_users_button")
+        if (isStaff) {
+          ClassesWaitingForPrefectCard(
+            classes = classesWaitingForRep,
+            isLoading = isWaitingLoading,
+            onAppointClick = onAppointPrefectClick
+          )
+        }
+
+        LatestAnnouncementsSection(
+          announcements = latestAnnouncements,
+          isLoading = isLatestLoading,
+          onNoticeClick = onNoticeClick
         )
+
+        Spacer(modifier = Modifier.height(16.dp))
       }
-
-      // Classes waiting for a prefect (Admin & Lecturer)
-      if (isStaff) {
-        ClassesWaitingForPrefectCard(
-          classes = classesWaitingForRep,
-          isLoading = isWaitingLoading,
-          onAppointClick = onAppointPrefectClick
-        )
-      }
-
-      // Latest Announcements Section
-      LatestAnnouncementsSection(
-        announcements = latestAnnouncements,
-        isLoading = isLatestLoading,
-        onNoticeClick = onNoticeClick
-      )
-
-      Spacer(modifier = Modifier.height(16.dp))
     }
   }
-}
 }

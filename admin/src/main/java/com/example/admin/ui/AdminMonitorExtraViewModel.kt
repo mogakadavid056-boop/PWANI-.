@@ -25,6 +25,9 @@ data class AdminMonitorExtraState(
   val selectedGroup: AdminGroupItem? = null,
   val groupMessages: List<AdminGroupMessage> = emptyList(),
   val groupMembers: List<AdminGroupMember> = emptyList(),
+  val exams: List<AdminQuizSummary> = emptyList(),
+  val selectedExam: AdminQuizSummary? = null,
+  val examResults: List<AdminQuizResultRow> = emptyList(),
   val isLoading: Boolean = false,
   val isActionLoading: Boolean = false,
   val errorMessage: String? = null,
@@ -33,7 +36,8 @@ data class AdminMonitorExtraState(
 
 class AdminMonitorExtraViewModel(
   private val repo: AdminAttendancePollsGroupsRepository = AdminAttendancePollsGroupsRepository(),
-  private val oversightRepo: AdminOversightRepository = AdminOversightRepository()
+  private val oversightRepo: AdminOversightRepository = AdminOversightRepository(),
+  private val examsRepo: AdminExamsRepository = AdminExamsRepository()
 ) : ViewModel() {
   private val _state = MutableStateFlow(AdminMonitorExtraState())
   val state: StateFlow<AdminMonitorExtraState> = _state.asStateFlow()
@@ -50,7 +54,7 @@ class AdminMonitorExtraViewModel(
   fun loadForClass(classId: String) {
     currentClassId = classId
     stopCodeLoop()
-    _state.update { it.copy(selectedSession = null, selectedPoll = null, selectedGroup = null, errorMessage = null) }
+    _state.update { it.copy(selectedSession = null, selectedPoll = null, selectedGroup = null, selectedExam = null, examResults = emptyList(), errorMessage = null) }
     refreshAll()
   }
 
@@ -71,12 +75,14 @@ class AdminMonitorExtraViewModel(
       val sessRes = repo.fetchSessions(currentClassId, token)
       val pollRes = repo.listPolls(currentClassId, token)
       val grpRes = repo.listGroups(currentClassId, token)
+      val examsRes = examsRepo.listQuizzes(currentClassId, token)
       _state.update { s ->
         s.copy(
           isLoading = false,
           sessions = sessRes.getOrElse { s.sessions },
           polls = pollRes.getOrElse { s.polls },
           groups = grpRes.getOrElse { s.groups },
+          exams = examsRes.getOrElse { s.exams },
           errorMessage = sessRes.exceptionOrNull()?.message
             ?: pollRes.exceptionOrNull()?.message
             ?: grpRes.exceptionOrNull()?.message
@@ -254,6 +260,38 @@ class AdminMonitorExtraViewModel(
   fun deleteGroup(groupId: String) {
     _state.update { it.copy(selectedGroup = null) }
     runSimple("Group deleted") { repo.deleteGroup(groupId, it) }
+  }
+
+  fun openExam(quiz: AdminQuizSummary) {
+    val token = session?.accessToken ?: return
+    _state.update { it.copy(selectedExam = quiz, examResults = emptyList(), isLoading = true, errorMessage = null) }
+    viewModelScope.launch {
+      examsRepo.getQuizResults(quiz.id, token).fold(
+        onSuccess = { list -> _state.update { it.copy(examResults = list, isLoading = false) } },
+        onFailure = { e -> _state.update { it.copy(isLoading = false, errorMessage = e.message) } }
+      )
+    }
+  }
+
+  fun closeExamDetail() = _state.update { it.copy(selectedExam = null, examResults = emptyList()) }
+
+  fun exportRankedResultsPdf(context: android.content.Context, className: String, quiz: AdminQuizSummary) {
+    val rows = _state.value.examResults
+    if (rows.isEmpty()) {
+      _state.update { it.copy(errorMessage = "No submissions to export yet.") }
+      return
+    }
+    viewModelScope.launch {
+      _state.update { it.copy(isActionLoading = true, errorMessage = null) }
+      runCatching {
+        kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.Default) {
+          AdminExamResultsPdfExporter.exportAndShareRankedPdf(context, quiz, className, rows)
+        }
+      }.fold(
+        onSuccess = { _state.update { it.copy(isActionLoading = false, successMessage = "Ranked Results PDF ready") } },
+        onFailure = { e -> _state.update { it.copy(isActionLoading = false, errorMessage = e.message) } }
+      )
+    }
   }
 
   private fun runSimple(okMsg: String, block: suspend (String) -> Result<Unit>) {

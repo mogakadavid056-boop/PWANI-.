@@ -55,33 +55,39 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.data.FileCategory
 import com.example.data.MaterialItem
-import com.example.ui.theme.DarkBorder
-import com.example.ui.theme.DarkSurface
-import com.example.ui.theme.DarkSurfaceVariant
+import com.example.ui.theme.CaptionStyle
+import com.example.ui.theme.CardTitleStyle
+import com.example.ui.theme.ChampagneGold
+import com.example.ui.theme.ElectricViolet
 import com.example.ui.theme.ErrorRed
 import com.example.ui.theme.GoldLight
 import com.example.ui.theme.GoldPrimary
-import com.example.ui.theme.PoppinsFamily
+import com.example.ui.theme.Lavender
+import com.example.ui.theme.MetallicGold
+import com.example.ui.theme.RoyalSurfaceHigh
+import com.example.ui.theme.SectionHeadingStyle
+import com.example.ui.theme.SilverWhite
+import com.example.ui.theme.SuccessGreen
 import com.example.ui.theme.TextPrimary
 import com.example.ui.theme.TextSecondary
 
 fun getMaterialDisplayIcon(material: MaterialItem): Pair<ImageVector, Color> {
   if (material.isFile) {
     return when (material.fileCategory) {
-      FileCategory.Pdf -> Icons.Default.PictureAsPdf to Color(0xFFE53935)
-      FileCategory.Word -> Icons.Default.Article to Color(0xFF1E88E5)
-      FileCategory.PowerPoint -> Icons.Default.Slideshow to Color(0xFFFB8C00)
-      FileCategory.Excel -> Icons.Default.TableChart to Color(0xFF43A047)
-      FileCategory.Image -> Icons.Default.Image to Color(0xFF8E24AA)
-      FileCategory.Text -> Icons.Default.Description to Color(0xFF00ACC1)
+      FileCategory.Pdf -> Icons.Default.PictureAsPdf to ErrorRed
+      FileCategory.Word -> Icons.Default.Article to ElectricViolet
+      FileCategory.PowerPoint -> Icons.Default.Slideshow to ChampagneGold
+      FileCategory.Excel -> Icons.Default.TableChart to SuccessGreen
+      FileCategory.Image -> Icons.Default.Image to Lavender
+      FileCategory.Text -> Icons.Default.Description to MetallicGold
       FileCategory.Generic -> Icons.Default.AttachFile to GoldPrimary
     }
   }
   return when (material.materialType.lowercase()) {
-    "slides" -> Icons.Default.Slideshow to GoldPrimary
-    "video" -> Icons.Default.PlayCircle to Color(0xFFE53935)
+    "slides" -> Icons.Default.Slideshow to ChampagneGold
+    "video" -> Icons.Default.PlayCircle to ErrorRed
     "notes" -> Icons.Default.Description to GoldPrimary
-    else -> Icons.Default.Link to GoldPrimary
+    else -> Icons.Default.Link to ElectricViolet
   }
 }
 
@@ -180,19 +186,19 @@ fun MaterialCard(
             Box {
               IconButton(
                 onClick = { showMenu = true },
-                modifier = Modifier.size(28.dp).testTag("material_more_btn_${material.id}")
+                modifier = Modifier.size(48.dp).testTag("material_more_btn_${material.id}")
               ) {
-                Icon(Icons.Default.MoreVert, contentDescription = "Options", tint = TextSecondary, modifier = Modifier.size(16.dp))
+                Icon(Icons.Default.MoreVert, contentDescription = "Options", tint = TextSecondary, modifier = Modifier.size(18.dp))
               }
               if (showMenu) {
                 val isOnline by com.example.data.NetworkMonitor.isOnline.collectAsStateWithLifecycle()
                 androidx.compose.ui.window.Dialog(onDismissRequest = { showMenu = false }) {
                   Column(
-                    modifier = Modifier.fillMaxWidth().clip(RoundedCornerShape(16.dp))
-                      .background(androidx.compose.ui.graphics.Color(0xFF0B2A1E))
-                      .border(1.dp, GoldPrimary.copy(alpha = 0.6f), RoundedCornerShape(16.dp)).padding(16.dp)
+                    modifier = Modifier.fillMaxWidth().clip(RoundedCornerShape(18.dp))
+                      .background(RoyalSurfaceHigh)
+                      .border(1.dp, GoldPrimary.copy(alpha = 0.6f), RoundedCornerShape(18.dp)).padding(16.dp)
                   ) {
-                    Text("Material Options", fontSize = 16.sp, fontWeight = FontWeight.Bold, color = GoldLight)
+                    Text("Material Options", style = SectionHeadingStyle)
                     Spacer(modifier = Modifier.height(10.dp))
                     Row(
                       modifier = Modifier.fillMaxWidth().clip(RoundedCornerShape(10.dp)).clickable {
@@ -202,7 +208,7 @@ fun MaterialCard(
                     ) {
                       Icon(Icons.Default.Edit, contentDescription = null, tint = GoldPrimary, modifier = Modifier.size(18.dp))
                       Spacer(modifier = Modifier.width(12.dp))
-                      Text("Edit Material", color = TextPrimary, fontSize = 14.sp)
+                      Text("Edit Material", color = TextPrimary, fontSize = 15.sp)
                     }
                     Row(
                       modifier = Modifier.fillMaxWidth().clip(RoundedCornerShape(10.dp)).clickable {
@@ -212,7 +218,7 @@ fun MaterialCard(
                     ) {
                       Icon(Icons.Default.Delete, contentDescription = null, tint = ErrorRed, modifier = Modifier.size(18.dp))
                       Spacer(modifier = Modifier.width(12.dp))
-                      Text("Delete Material", color = ErrorRed, fontSize = 14.sp)
+                      Text("Delete Material", color = ErrorRed, fontSize = 15.sp)
                     }
                   }
                 }
@@ -226,10 +232,7 @@ fun MaterialCard(
 
       Text(
         text = material.title,
-        fontFamily = PoppinsFamily,
-        fontWeight = FontWeight.Bold,
-        fontSize = 15.sp,
-        color = TextPrimary,
+        style = CardTitleStyle.copy(color = SilverWhite),
         maxLines = 2,
         overflow = TextOverflow.Ellipsis
       )
@@ -238,11 +241,9 @@ fun MaterialCard(
         Spacer(modifier = Modifier.height(4.dp))
         Text(
           text = material.description,
-          fontSize = 13.sp,
-          color = TextSecondary,
+          style = CaptionStyle,
           maxLines = 2,
-          overflow = TextOverflow.Ellipsis,
-          lineHeight = 18.sp
+          overflow = TextOverflow.Ellipsis
         )
       }
 

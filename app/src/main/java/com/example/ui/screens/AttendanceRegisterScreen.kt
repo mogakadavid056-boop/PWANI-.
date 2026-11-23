@@ -78,10 +78,10 @@ fun AttendanceRegisterScreen(
     }
   }
 
-  Box(modifier = Modifier.fillMaxSize().background(DarkBackground).testTag("attendance_register_screen")) {
+  Box(modifier = Modifier.fillMaxSize().testTag("attendance_register_screen")) {
     if (isLoading && detail == null) {
       Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-        CircularProgressIndicator(color = GoldPrimary)
+        CircularProgressIndicator(color = ChampagneGold)
       }
     } else if (detail != null) {
       val perms = detail.permissions
@@ -96,13 +96,13 @@ fun AttendanceRegisterScreen(
       ) {
         Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
           Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.weight(1f)) {
-            IconButton(onClick = onBack, modifier = Modifier.size(40.dp).testTag("register_back_btn")) {
-              Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back", tint = GoldLight)
+            IconButton(onClick = onBack, modifier = Modifier.size(48.dp).testTag("register_back_btn")) {
+              Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back", tint = ChampagneGold)
             }
-            Spacer(modifier = Modifier.width(6.dp))
+            Spacer(modifier = Modifier.width(4.dp))
             Column(modifier = Modifier.weight(1f)) {
-              Text(JsonHelper.orDash(detail.registerNo), fontSize = 18.sp, fontWeight = FontWeight.Bold, color = GoldLight)
-              Text(JsonHelper.orDash(detail.title), fontSize = 13.sp, color = TextSecondary, maxLines = 1)
+              Text(JsonHelper.orDash(detail.registerNo), style = CardTitleStyle.copy(color = ChampagneGold))
+              Text(JsonHelper.orDash(detail.title), style = CaptionStyle.copy(color = Lavender), maxLines = 1)
             }
           }
           Spacer(modifier = Modifier.width(8.dp))
@@ -113,14 +113,14 @@ fun AttendanceRegisterScreen(
 
         if (detail.status.equals("voided", ignoreCase = true)) {
           Box(
-            modifier = Modifier.fillMaxWidth().clip(RoundedCornerShape(10.dp)).background(ErrorRed.copy(alpha = 0.15f))
-              .border(1.5.dp, ErrorRed, RoundedCornerShape(10.dp)).padding(12.dp).testTag("voided_register_banner")
+            modifier = Modifier.fillMaxWidth().clip(RoundedCornerShape(ButtonRadius)).background(RoyalErrorContainer)
+              .border(1.5.dp, ErrorRed, RoundedCornerShape(ButtonRadius)).padding(12.dp).testTag("voided_register_banner")
           ) {
             Column {
-              Text("VOIDED REGISTER", fontSize = 14.sp, fontWeight = FontWeight.ExtraBold, color = ErrorRed)
+              Text("VOIDED REGISTER", fontFamily = MontserratFamily, fontSize = 14.sp, fontWeight = FontWeight.ExtraBold, color = ErrorRed)
               if (!detail.voidReason.isNullOrBlank()) {
                 Spacer(modifier = Modifier.height(4.dp))
-                Text("Reason: ${detail.voidReason}", fontSize = 12.5.sp, color = TextPrimary)
+                Text("Reason: ${detail.voidReason}", style = CaptionStyle.copy(color = SilverWhite))
               }
             }
           }
@@ -129,26 +129,26 @@ fun AttendanceRegisterScreen(
 
         if (detail.missingDetails && allowEditDetails) {
           Row(
-            modifier = Modifier.fillMaxWidth().clip(RoundedCornerShape(10.dp)).background(GoldPrimary.copy(alpha = 0.14f))
-              .border(1.2.dp, GoldPrimary, RoundedCornerShape(10.dp)).padding(12.dp).testTag("missing_details_banner"),
+            modifier = Modifier.fillMaxWidth().clip(RoundedCornerShape(ButtonRadius)).background(RoyalSurfaceHigh)
+              .border(1.2.dp, MetallicGold, RoundedCornerShape(ButtonRadius)).padding(12.dp).testTag("missing_details_banner"),
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.SpaceBetween
           ) {
             Column(modifier = Modifier.weight(1f).padding(end = 8.dp)) {
-              Text("Add course and lecturer", fontSize = 14.sp, fontWeight = FontWeight.Bold, color = GoldLight)
-              Text("This register is missing unit or lecturer details.", fontSize = 12.sp, color = TextSecondary)
+              Text("Add course and lecturer", style = CardTitleStyle.copy(fontSize = 16.sp, color = ChampagneGold))
+              Text("This register is missing unit or lecturer details.", style = CaptionStyle.copy(color = Lavender))
             }
             OutlinedButton(
               onClick = { showEditDetailsDialog = true },
-              modifier = Modifier.height(38.dp).testTag("banner_edit_details_btn"),
-              shape = RoundedCornerShape(8.dp),
-              border = BorderStroke(1.5.dp, GoldPrimary),
-              colors = ButtonDefaults.outlinedButtonColors(containerColor = DarkSurface, contentColor = GoldLight),
+              modifier = Modifier.defaultMinSize(minHeight = 48.dp).testTag("banner_edit_details_btn"),
+              shape = RoundedCornerShape(10.dp),
+              border = BorderStroke(1.5.dp, MetallicGold),
+              colors = ButtonDefaults.outlinedButtonColors(containerColor = RoyalSurface, contentColor = ChampagneGold),
               contentPadding = PaddingValues(horizontal = 12.dp)
             ) {
-              Icon(Icons.Default.Edit, contentDescription = null, tint = GoldLight, modifier = Modifier.size(14.dp))
+              Icon(Icons.Default.Edit, contentDescription = null, tint = ChampagneGold, modifier = Modifier.size(16.dp))
               Spacer(modifier = Modifier.width(4.dp))
-              Text("Edit details", fontSize = 14.sp, fontWeight = FontWeight.Bold, color = GoldLight, maxLines = 1, softWrap = false)
+              Text("Edit details", fontFamily = MontserratFamily, fontSize = 14.sp, fontWeight = FontWeight.Bold, color = ChampagneGold, maxLines = 1, softWrap = false)
             }
           }
           Spacer(modifier = Modifier.height(12.dp))
@@ -179,34 +179,34 @@ fun AttendanceRegisterScreen(
             if (allowClose) {
               OutlinedButton(
                 onClick = onCloseSession, enabled = !isActionLoading,
-                modifier = Modifier.height(44.dp).testTag("close_session_btn"),
-                shape = RoundedCornerShape(10.dp), border = BorderStroke(1.5.dp, GoldPrimary),
-                colors = ButtonDefaults.outlinedButtonColors(containerColor = DarkSurface, contentColor = GoldLight, disabledContentColor = GoldLight.copy(alpha = 0.5f))
-              ) { Text("Close Session", fontSize = 14.sp, fontWeight = FontWeight.Bold, color = GoldLight, maxLines = 1, softWrap = false) }
+                modifier = Modifier.height(48.dp).testTag("close_session_btn"),
+                shape = RoundedCornerShape(ButtonRadius), border = BorderStroke(1.5.dp, MetallicGold),
+                colors = ButtonDefaults.outlinedButtonColors(containerColor = RoyalSurface, contentColor = ChampagneGold, disabledContentColor = ChampagneGold.copy(alpha = 0.5f))
+              ) { Text("Close Session", fontFamily = MontserratFamily, fontSize = 14.sp, fontWeight = FontWeight.SemiBold, color = ChampagneGold, maxLines = 1, softWrap = false) }
             }
             if (allowSignOut) {
               OutlinedButton(
                 onClick = onSignOut, enabled = !isActionLoading,
-                modifier = Modifier.height(44.dp).testTag("sign_out_session_btn"),
-                shape = RoundedCornerShape(10.dp), border = BorderStroke(1.5.dp, GoldPrimary),
-                colors = ButtonDefaults.outlinedButtonColors(containerColor = DarkSurface, contentColor = GoldLight, disabledContentColor = GoldLight.copy(alpha = 0.5f))
-              ) { Text("Sign Out", fontSize = 14.sp, fontWeight = FontWeight.Bold, color = GoldLight, maxLines = 1, softWrap = false) }
+                modifier = Modifier.height(48.dp).testTag("sign_out_session_btn"),
+                shape = RoundedCornerShape(ButtonRadius), border = BorderStroke(1.5.dp, MetallicGold),
+                colors = ButtonDefaults.outlinedButtonColors(containerColor = RoyalSurface, contentColor = ChampagneGold, disabledContentColor = ChampagneGold.copy(alpha = 0.5f))
+              ) { Text("Sign Out", fontFamily = MontserratFamily, fontSize = 14.sp, fontWeight = FontWeight.SemiBold, color = ChampagneGold, maxLines = 1, softWrap = false) }
             }
             if (allowVoid) {
               OutlinedButton(
                 onClick = { showVoidDialog = true }, enabled = !isActionLoading,
-                modifier = Modifier.height(44.dp).testTag("void_session_btn"),
-                shape = RoundedCornerShape(10.dp), border = BorderStroke(1.5.dp, ErrorRed),
-                colors = ButtonDefaults.outlinedButtonColors(containerColor = DarkSurface, contentColor = ErrorRed, disabledContentColor = ErrorRed.copy(alpha = 0.5f))
-              ) { Text("Void", fontSize = 14.sp, fontWeight = FontWeight.Bold, color = ErrorRed, maxLines = 1, softWrap = false) }
+                modifier = Modifier.height(48.dp).testTag("void_session_btn"),
+                shape = RoundedCornerShape(ButtonRadius), border = BorderStroke(1.5.dp, ErrorRed),
+                colors = ButtonDefaults.outlinedButtonColors(containerColor = RoyalSurface, contentColor = ErrorRed, disabledContentColor = ErrorRed.copy(alpha = 0.5f))
+              ) { Text("Void", fontFamily = MontserratFamily, fontSize = 14.sp, fontWeight = FontWeight.SemiBold, color = ErrorRed, maxLines = 1, softWrap = false) }
             }
             if (allowDelete) {
               OutlinedButton(
                 onClick = { showDeleteDialog = true }, enabled = !isActionLoading,
-                modifier = Modifier.height(44.dp).testTag("delete_register_btn"),
-                shape = RoundedCornerShape(10.dp), border = BorderStroke(1.5.dp, ErrorRed),
-                colors = ButtonDefaults.outlinedButtonColors(containerColor = DarkSurface, contentColor = ErrorRed, disabledContentColor = ErrorRed.copy(alpha = 0.5f))
-              ) { Text("Delete", fontSize = 14.sp, fontWeight = FontWeight.Bold, color = ErrorRed, maxLines = 1, softWrap = false) }
+                modifier = Modifier.height(48.dp).testTag("delete_register_btn"),
+                shape = RoundedCornerShape(ButtonRadius), border = BorderStroke(1.5.dp, ErrorRed),
+                colors = ButtonDefaults.outlinedButtonColors(containerColor = RoyalSurface, contentColor = ErrorRed, disabledContentColor = ErrorRed.copy(alpha = 0.5f))
+              ) { Text("Delete", fontFamily = MontserratFamily, fontSize = 14.sp, fontWeight = FontWeight.SemiBold, color = ErrorRed, maxLines = 1, softWrap = false) }
             }
           }
           Spacer(modifier = Modifier.height(14.dp))

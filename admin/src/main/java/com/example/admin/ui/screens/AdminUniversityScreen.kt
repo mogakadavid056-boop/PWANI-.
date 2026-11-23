@@ -1,14 +1,17 @@
 package com.example.admin.ui.screens
 
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.defaultMinSize
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -41,23 +44,29 @@ import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.example.admin.assistant.AdminAssistantSparkleButton
 import com.example.admin.data.AcademicYearItem
 import com.example.admin.data.ProgrammeItem
 import com.example.admin.data.SchoolItem
 import com.example.admin.ui.UniversitySection
 import com.example.admin.ui.components.AdminEmptyState
 import com.example.admin.ui.components.AdminGlassCard
+import com.example.admin.ui.components.AdminMetallicGoldText
 import com.example.admin.ui.components.AdminNotificationBellButton
 import com.example.admin.ui.components.AdminStatusPill
+import com.example.admin.ui.theme.AdminBorder
+import com.example.admin.ui.theme.AdminCaptionStyle
+import com.example.admin.ui.theme.AdminCardTitleStyle
+import com.example.admin.ui.theme.AdminNavLabelStyle
+import com.example.admin.ui.theme.AdminScreenTitleStyle
 import com.example.admin.ui.theme.AdminSurface
+import com.example.admin.ui.theme.ChampagneGold
 import com.example.admin.ui.theme.CrimsonError
 import com.example.admin.ui.theme.DarkTextOnGold
 import com.example.admin.ui.theme.EmeraldSuccess
-import com.example.admin.ui.theme.GoldLight
 import com.example.admin.ui.theme.GoldPrimary
-import com.example.admin.ui.theme.TextMuted
-import com.example.admin.ui.theme.TextPrimary
-import com.example.admin.ui.theme.TextSecondary
+import com.example.admin.ui.theme.Lavender
+import com.example.admin.ui.theme.MontserratFamily
 
 @Composable
 fun AdminUniversityScreen(
@@ -66,6 +75,7 @@ fun AdminUniversityScreen(
   programmes: List<ProgrammeItem>,
   academicYears: List<AcademicYearItem>,
   unreadNotifications: Int,
+  isOnline: Boolean = true,
   isLoading: Boolean,
   isActionLoading: Boolean,
   onSelectSection: (UniversitySection) -> Unit,
@@ -76,6 +86,7 @@ fun AdminUniversityScreen(
   onDeleteProgramme: (ProgrammeItem) -> Unit,
   onCreateYear: (String) -> Unit,
   onSetCurrentYear: (AcademicYearItem) -> Unit,
+  onOpenAssistant: () -> Unit = {},
   onOpenNotifications: () -> Unit
 ) {
   var showSchoolDialog by remember { mutableStateOf(false) }
@@ -87,12 +98,16 @@ fun AdminUniversityScreen(
   Column(modifier = Modifier.fillMaxSize().padding(horizontal = 16.dp, vertical = 14.dp).testTag("admin_university_screen")) {
     Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
       Column(modifier = Modifier.weight(1f)) {
-        Text("University Structure", fontSize = 22.sp, fontWeight = FontWeight.Bold, color = TextPrimary)
-        Text("Shared directly with the student & lecturer app", fontSize = 12.sp, color = TextSecondary)
+        AdminMetallicGoldText(text = "University Structure", style = AdminScreenTitleStyle)
+        Text("Shared directly with the student & lecturer app", style = AdminCaptionStyle)
       }
       Row(verticalAlignment = Alignment.CenterVertically) {
-        IconButton(onClick = onRefresh) { Icon(Icons.Default.Refresh, contentDescription = "Refresh", tint = GoldPrimary) }
+        AdminAssistantSparkleButton(isOnline = isOnline, onClick = onOpenAssistant)
+        IconButton(onClick = onRefresh, modifier = Modifier.size(48.dp)) {
+          Icon(Icons.Default.Refresh, contentDescription = "Refresh", tint = ChampagneGold)
+        }
         AdminNotificationBellButton(unreadCount = unreadNotifications, onClick = onOpenNotifications)
+        Spacer(modifier = Modifier.width(4.dp))
         Button(
           onClick = {
             when (section) {
@@ -101,13 +116,14 @@ fun AdminUniversityScreen(
               UniversitySection.YEARS -> showYearDialog = true
             }
           },
-          shape = RoundedCornerShape(10.dp),
-          contentPadding = PaddingValues(horizontal = 12.dp, vertical = 6.dp),
+          modifier = Modifier.defaultMinSize(minHeight = 48.dp),
+          shape = RoundedCornerShape(14.dp),
+          contentPadding = PaddingValues(horizontal = 14.dp, vertical = 8.dp),
           colors = ButtonDefaults.buttonColors(containerColor = GoldPrimary, contentColor = DarkTextOnGold)
         ) {
-          Icon(Icons.Default.Add, contentDescription = null)
+          Icon(Icons.Default.Add, contentDescription = null, modifier = Modifier.size(18.dp))
           Spacer(modifier = Modifier.width(4.dp))
-          Text("Add", fontWeight = FontWeight.Bold)
+          Text("Add", fontFamily = MontserratFamily, fontWeight = FontWeight.SemiBold, fontSize = 14.sp)
         }
       }
     }
@@ -118,12 +134,14 @@ fun AdminUniversityScreen(
         FilterChip(
           selected = section == sec,
           onClick = { onSelectSection(sec) },
-          label = { Text(sec.label, fontSize = 12.sp) },
+          modifier = Modifier.defaultMinSize(minHeight = 48.dp),
+          label = { Text(sec.label, style = AdminNavLabelStyle) },
+          border = FilterChipDefaults.filterChipBorder(enabled = true, selected = section == sec, borderColor = AdminBorder, selectedBorderColor = ChampagneGold),
           colors = FilterChipDefaults.filterChipColors(
-            selectedContainerColor = GoldPrimary,
+            selectedContainerColor = ChampagneGold,
             selectedLabelColor = DarkTextOnGold,
             containerColor = AdminSurface,
-            labelColor = TextSecondary
+            labelColor = Lavender
           )
         )
       }
@@ -146,14 +164,14 @@ fun AdminUniversityScreen(
               AdminGlassCard {
                 Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
                   Column(modifier = Modifier.weight(1f)) {
-                    Text(s.name, fontSize = 16.sp, fontWeight = FontWeight.SemiBold, color = TextPrimary)
-                    Text("${programmes.count { it.schoolId == s.id }} programmes", fontSize = 12.sp, color = TextMuted)
+                    Text(s.name, style = AdminCardTitleStyle)
+                    Text("${programmes.count { it.schoolId == s.id }} programmes", style = AdminCaptionStyle)
                   }
                   Row {
-                    IconButton(onClick = { editSchool = s; showSchoolDialog = true }) {
-                      Icon(Icons.Default.Edit, contentDescription = "Edit school", tint = GoldLight)
+                    IconButton(onClick = { editSchool = s; showSchoolDialog = true }, modifier = Modifier.size(48.dp)) {
+                      Icon(Icons.Default.Edit, contentDescription = "Edit school", tint = ChampagneGold)
                     }
-                    IconButton(onClick = { onDeleteSchool(s) }) {
+                    IconButton(onClick = { onDeleteSchool(s) }, modifier = Modifier.size(48.dp)) {
                       Icon(Icons.Default.Delete, contentDescription = "Delete school", tint = CrimsonError)
                     }
                   }
@@ -172,18 +190,17 @@ fun AdminUniversityScreen(
               AdminGlassCard {
                 Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
                   Column(modifier = Modifier.weight(1f)) {
-                    Text(p.name, fontSize = 16.sp, fontWeight = FontWeight.SemiBold, color = TextPrimary)
+                    Text(p.name, style = AdminCardTitleStyle)
                     Text(
                       text = "${p.schoolName.ifBlank { "School" }} • ${p.durationYears ?: 4} yrs",
-                      fontSize = 12.sp,
-                      color = TextSecondary
+                      style = AdminCaptionStyle
                     )
                   }
                   Row {
-                    IconButton(onClick = { editProgramme = p; showProgrammeDialog = true }) {
-                      Icon(Icons.Default.Edit, contentDescription = "Edit programme", tint = GoldLight)
+                    IconButton(onClick = { editProgramme = p; showProgrammeDialog = true }, modifier = Modifier.size(48.dp)) {
+                      Icon(Icons.Default.Edit, contentDescription = "Edit programme", tint = ChampagneGold)
                     }
-                    IconButton(onClick = { onDeleteProgramme(p) }) {
+                    IconButton(onClick = { onDeleteProgramme(p) }, modifier = Modifier.size(48.dp)) {
                       Icon(Icons.Default.Delete, contentDescription = "Delete programme", tint = CrimsonError)
                     }
                   }
@@ -202,15 +219,20 @@ fun AdminUniversityScreen(
               AdminGlassCard {
                 Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
                   Column {
-                    Text(y.name, fontSize = 16.sp, fontWeight = FontWeight.SemiBold, color = TextPrimary)
+                    Text(y.name, style = AdminCardTitleStyle)
                     if (y.isCurrent) {
                       Spacer(modifier = Modifier.height(4.dp))
                       AdminStatusPill("Current Active Year", EmeraldSuccess)
                     }
                   }
                   if (!y.isCurrent) {
-                    OutlinedButton(onClick = { onSetCurrentYear(y) }, shape = RoundedCornerShape(8.dp)) {
-                      Text("Set Current", color = GoldLight, fontSize = 12.sp)
+                    OutlinedButton(
+                      onClick = { onSetCurrentYear(y) },
+                      border = BorderStroke(1.dp, GoldPrimary),
+                      modifier = Modifier.defaultMinSize(minHeight = 48.dp),
+                      shape = RoundedCornerShape(14.dp)
+                    ) {
+                      Text("Set Current", fontFamily = MontserratFamily, fontWeight = FontWeight.SemiBold, color = ChampagneGold, fontSize = 13.sp)
                     }
                   }
                 }

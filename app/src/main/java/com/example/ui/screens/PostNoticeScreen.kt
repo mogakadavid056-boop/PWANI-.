@@ -8,6 +8,7 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.defaultMinSize
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -47,15 +48,33 @@ import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.interaction.collectIsFocusedAsState
+import androidx.compose.ui.draw.shadow
 import com.example.ui.components.ErrorBanner
-import com.example.ui.theme.DarkBackground
+import com.example.ui.components.MetallicGoldText
+import com.example.ui.components.PrimaryButton
+import com.example.ui.components.RoyalCard
+import com.example.ui.components.RoyalButtonGradientBrush
+import com.example.ui.components.royalOutlinedTextFieldColors
+import com.example.ui.theme.ButtonRadius
+import com.example.ui.theme.CaptionStyle
+import com.example.ui.theme.ChampagneGold
 import com.example.ui.theme.DarkBorder
-import com.example.ui.theme.DarkSurface
 import com.example.ui.theme.DarkSurfaceVariant
-import com.example.ui.theme.DarkTextOnGold
+import com.example.ui.theme.ElectricViolet
+import com.example.ui.theme.FieldLabelStyle
 import com.example.ui.theme.GoldDark
 import com.example.ui.theme.GoldLight
 import com.example.ui.theme.GoldPrimary
+import com.example.ui.theme.Lavender
+import com.example.ui.theme.Midnight
+import com.example.ui.theme.MontserratFamily
+import com.example.ui.theme.PlayfairDisplayFamily
+import com.example.ui.theme.RoyalPurple
+import com.example.ui.theme.RoyalSurfaceHigh
+import com.example.ui.theme.ScreenTitleStyle
+import com.example.ui.theme.SilverWhite
 import com.example.ui.theme.TextPrimary
 import com.example.ui.theme.TextSecondary
 import java.util.Locale
@@ -78,7 +97,7 @@ fun PostNoticeScreen(
   val categories = listOf("general", "exam", "assignment", "event")
 
   Box(
-    modifier = Modifier.fillMaxSize().background(DarkBackground).testTag("post_notice_screen")
+    modifier = Modifier.fillMaxSize().testTag("post_notice_screen")
   ) {
     Column(
       modifier = Modifier
@@ -89,13 +108,13 @@ fun PostNoticeScreen(
     ) {
       // Header
       Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-        IconButton(onClick = onBack, modifier = Modifier.size(40.dp).testTag("post_notice_back_button")) {
-          Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back", tint = GoldLight)
+        IconButton(onClick = onBack, modifier = Modifier.size(48.dp).testTag("post_notice_back_button")) {
+          Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back", tint = ChampagneGold)
         }
-        Spacer(modifier = Modifier.width(8.dp))
+        Spacer(modifier = Modifier.width(6.dp))
         Column {
-          Text("Post Notice", fontSize = 20.sp, fontWeight = FontWeight.Bold, color = GoldLight)
-          Text(className.ifBlank { "Class" }, fontSize = 12.sp, color = TextSecondary)
+          MetallicGoldText("Post Notice", style = ScreenTitleStyle, maxLines = 1)
+          Text(className.ifBlank { "Class" }, style = CaptionStyle.copy(color = Lavender))
         }
       }
 
@@ -107,49 +126,55 @@ fun PostNoticeScreen(
       }
 
       // Title input
-      Text("Notice Title", fontSize = 13.sp, fontWeight = FontWeight.SemiBold, color = TextPrimary, modifier = Modifier.fillMaxWidth())
+      Text("Notice Title", style = FieldLabelStyle, modifier = Modifier.fillMaxWidth())
       Spacer(modifier = Modifier.height(6.dp))
+      val titleInteraction = remember { MutableInteractionSource() }
+      val titleFocused by titleInteraction.collectIsFocusedAsState()
       OutlinedTextField(
         value = title,
         onValueChange = { title = it },
-        placeholder = { Text("e.g. Midterm exam timetable announced", color = TextSecondary, fontSize = 14.sp) },
+        interactionSource = titleInteraction,
+        placeholder = { Text("e.g. Midterm exam timetable announced", style = CaptionStyle.copy(color = Lavender.copy(alpha = 0.7f))) },
         singleLine = true,
-        modifier = Modifier.fillMaxWidth().testTag("post_notice_title_input"),
-        shape = RoundedCornerShape(12.dp),
-        colors = OutlinedTextFieldDefaults.colors(
-          focusedContainerColor = DarkSurface,
-          unfocusedContainerColor = DarkSurface,
-          focusedBorderColor = GoldPrimary,
-          unfocusedBorderColor = DarkBorder,
-          focusedTextColor = TextPrimary,
-          unfocusedTextColor = TextPrimary
-        )
+        modifier = Modifier
+          .fillMaxWidth()
+          .then(if (titleFocused) Modifier.shadow(10.dp, RoundedCornerShape(ButtonRadius), ambientColor = ElectricViolet, spotColor = ElectricViolet) else Modifier)
+          .testTag("post_notice_title_input"),
+        shape = RoundedCornerShape(ButtonRadius),
+        colors = royalOutlinedTextFieldColors()
       )
 
       Spacer(modifier = Modifier.height(16.dp))
 
       // Category Selector
-      Text("Category", fontSize = 13.sp, fontWeight = FontWeight.SemiBold, color = TextPrimary, modifier = Modifier.fillMaxWidth())
+      Text("Category", style = FieldLabelStyle, modifier = Modifier.fillMaxWidth())
       Spacer(modifier = Modifier.height(8.dp))
       Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
         categories.forEach { cat ->
           val isSelected = selectedCategory.equals(cat, ignoreCase = true)
+          val chipModifier = Modifier
+            .weight(1f)
+            .defaultMinSize(minHeight = 48.dp)
+            .clip(RoundedCornerShape(12.dp))
+            .then(
+              if (isSelected) Modifier.background(RoyalButtonGradientBrush)
+              else Modifier.background(RoyalSurfaceHigh)
+            )
+            .border(1.dp, if (isSelected) ChampagneGold else DarkBorder, RoundedCornerShape(12.dp))
+            .clickable { selectedCategory = cat }
+            .padding(vertical = 12.dp)
+            .testTag("category_chip_$cat")
           Box(
-            modifier = Modifier
-              .weight(1f)
-              .clip(RoundedCornerShape(10.dp))
-              .background(if (isSelected) GoldPrimary else DarkSurface)
-              .border(1.dp, if (isSelected) GoldPrimary else DarkBorder, RoundedCornerShape(10.dp))
-              .clickable { selectedCategory = cat }
-              .padding(vertical = 10.dp)
-              .testTag("category_chip_$cat"),
+            modifier = chipModifier,
             contentAlignment = Alignment.Center
           ) {
             Text(
               text = cat.replaceFirstChar { if (it.isLowerCase()) it.titlecase(Locale.ROOT) else it.toString() },
-              fontSize = 12.sp,
-              fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
-              color = if (isSelected) DarkTextOnGold else TextSecondary
+              fontFamily = MontserratFamily,
+              fontSize = 13.sp,
+              fontWeight = if (isSelected) FontWeight.Bold else FontWeight.SemiBold,
+              color = if (isSelected) RoyalPurple else Lavender,
+              maxLines = 1
             )
           }
         }
@@ -158,24 +183,23 @@ fun PostNoticeScreen(
       Spacer(modifier = Modifier.height(16.dp))
 
       // Content input
-      Text("Notice Content", fontSize = 13.sp, fontWeight = FontWeight.SemiBold, color = TextPrimary, modifier = Modifier.fillMaxWidth())
+      Text("Notice Content", style = FieldLabelStyle, modifier = Modifier.fillMaxWidth())
       Spacer(modifier = Modifier.height(6.dp))
+      val contentInteraction = remember { MutableInteractionSource() }
+      val contentFocused by contentInteraction.collectIsFocusedAsState()
       OutlinedTextField(
         value = content,
         onValueChange = { content = it },
-        placeholder = { Text("Type all details, room numbers, instructions or dates...", color = TextSecondary, fontSize = 14.sp) },
+        interactionSource = contentInteraction,
+        placeholder = { Text("Type all details, room numbers, instructions or dates...", style = CaptionStyle.copy(color = Lavender.copy(alpha = 0.7f))) },
         minLines = 4,
         maxLines = 8,
-        modifier = Modifier.fillMaxWidth().testTag("post_notice_content_input"),
-        shape = RoundedCornerShape(12.dp),
-        colors = OutlinedTextFieldDefaults.colors(
-          focusedContainerColor = DarkSurface,
-          unfocusedContainerColor = DarkSurface,
-          focusedBorderColor = GoldPrimary,
-          unfocusedBorderColor = DarkBorder,
-          focusedTextColor = TextPrimary,
-          unfocusedTextColor = TextPrimary
-        )
+        modifier = Modifier
+          .fillMaxWidth()
+          .then(if (contentFocused) Modifier.shadow(10.dp, RoundedCornerShape(ButtonRadius), ambientColor = ElectricViolet, spotColor = ElectricViolet) else Modifier)
+          .testTag("post_notice_content_input"),
+        shape = RoundedCornerShape(ButtonRadius),
+        colors = royalOutlinedTextFieldColors()
       )
 
       Spacer(modifier = Modifier.height(16.dp))
@@ -206,7 +230,9 @@ fun PostNoticeScreen(
       // Submit Button
       val isOnline by com.example.data.NetworkMonitor.isOnline.collectAsStateWithLifecycle()
       val context = androidx.compose.ui.platform.LocalContext.current
-      Button(
+      PrimaryButton(
+        text = "Post Notice",
+        leadingIcon = Icons.Default.Campaign,
         onClick = {
           if (!isOnline) {
             com.example.ui.components.OfflineToastHelper.show(context)
@@ -215,25 +241,12 @@ fun PostNoticeScreen(
           }
         },
         enabled = if (!isOnline) true else (!isLoading && title.isNotBlank() && content.isNotBlank()),
-        modifier = Modifier.fillMaxWidth().height(48.dp)
+        isLoading = isLoading,
+        modifier = Modifier
+          .fillMaxWidth()
           .then(if (!isOnline) Modifier.alpha(0.5f) else Modifier)
-          .testTag("post_notice_submit_button"),
-        shape = RoundedCornerShape(12.dp),
-        colors = ButtonDefaults.buttonColors(
-          containerColor = GoldPrimary,
-          contentColor = com.example.ui.theme.DarkTextOnGold,
-          disabledContainerColor = GoldDark.copy(alpha = 0.4f),
-          disabledContentColor = com.example.ui.theme.DarkTextOnGold.copy(alpha = 0.5f)
-        )
-      ) {
-        if (isLoading) {
-          CircularProgressIndicator(color = com.example.ui.theme.DarkTextOnGold, strokeWidth = 2.dp, modifier = Modifier.size(20.dp))
-        } else {
-          Icon(Icons.Default.Campaign, contentDescription = null, tint = com.example.ui.theme.DarkTextOnGold, modifier = Modifier.size(18.dp))
-          Spacer(modifier = Modifier.width(8.dp))
-          Text("Post Notice", fontSize = 16.sp, fontWeight = FontWeight.Bold, color = com.example.ui.theme.DarkTextOnGold)
-        }
-      }
+          .testTag("post_notice_submit_button")
+      )
     }
   }
 }
@@ -247,25 +260,18 @@ private fun NoticeToggleRow(
   onCheckedChange: (Boolean) -> Unit,
   testTag: String
 ) {
-  Box(
-    modifier = Modifier
-      .fillMaxWidth()
-      .clip(RoundedCornerShape(12.dp))
-      .background(DarkSurface)
-      .border(1.dp, DarkBorder, RoundedCornerShape(12.dp))
-      .padding(horizontal = 14.dp, vertical = 10.dp)
-  ) {
+  RoyalCard {
     Row(
       modifier = Modifier.fillMaxWidth(),
       verticalAlignment = Alignment.CenterVertically,
       horizontalArrangement = Arrangement.SpaceBetween
     ) {
-      Row(verticalAlignment = Alignment.CenterVertically) {
-        Icon(icon, contentDescription = null, tint = GoldLight, modifier = Modifier.size(20.dp))
+      Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.weight(1f)) {
+        Icon(icon, contentDescription = null, tint = ChampagneGold, modifier = Modifier.size(20.dp))
         Spacer(modifier = Modifier.width(10.dp))
         Column {
-          Text(title, fontSize = 14.sp, fontWeight = FontWeight.SemiBold, color = TextPrimary)
-          Text(subtitle, fontSize = 13.sp, color = TextSecondary)
+          Text(title, fontFamily = PlayfairDisplayFamily, fontSize = 16.sp, fontWeight = FontWeight.SemiBold, color = SilverWhite)
+          Text(subtitle, style = CaptionStyle.copy(color = Lavender))
         }
       }
       Switch(
@@ -273,9 +279,9 @@ private fun NoticeToggleRow(
         onCheckedChange = onCheckedChange,
         modifier = Modifier.testTag(testTag),
         colors = SwitchDefaults.colors(
-          checkedThumbColor = com.example.ui.theme.DarkTextOnGold,
+          checkedThumbColor = Midnight,
           checkedTrackColor = GoldPrimary,
-          uncheckedThumbColor = TextSecondary,
+          uncheckedThumbColor = Lavender,
           uncheckedTrackColor = DarkSurfaceVariant
         )
       )

@@ -28,17 +28,21 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.shadow
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.testTag
-import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.example.ui.theme.DarkBackground
+import com.example.ui.theme.ButtonTextStyle
+import com.example.ui.theme.ChampagneGold
 import com.example.ui.theme.DarkBorder
-import com.example.ui.theme.DarkSurface
-import com.example.ui.theme.GoldPrimary
-import com.example.ui.theme.TextPrimary
-import com.example.ui.theme.TextSecondary
+import com.example.ui.theme.ElectricViolet
+import com.example.ui.theme.Lavender
+import com.example.ui.theme.MetallicGold
+import com.example.ui.theme.Midnight
+import com.example.ui.theme.RoyalSurface
 
 data class ClassTabInfo(val label: String, val icon: ImageVector)
 
@@ -67,19 +71,30 @@ fun ClassTabsRow(
     modifier = modifier
       .fillMaxWidth()
       .horizontalScroll(rememberScrollState())
-      .clip(RoundedCornerShape(12.dp))
-      .background(DarkSurface)
-      .border(1.dp, DarkBorder, RoundedCornerShape(12.dp))
-      .padding(3.dp),
+      .clip(RoundedCornerShape(14.dp))
+      .background(RoyalSurface)
+      .border(1.dp, DarkBorder, RoundedCornerShape(14.dp))
+      .padding(4.dp),
     horizontalArrangement = Arrangement.spacedBy(4.dp)
   ) {
     tabs.forEachIndexed { idx, tab ->
       val isSel = selectedTab == idx
+      val shape = RoundedCornerShape(10.dp)
+      val glowMod = if (isSel) {
+        Modifier.shadow(8.dp, shape, ambientColor = ElectricViolet, spotColor = ElectricViolet)
+      } else {
+        Modifier
+      }
+
       Box(
         modifier = Modifier
-          .height(42.dp)
-          .clip(RoundedCornerShape(10.dp))
-          .background(if (isSel) GoldPrimary else DarkSurface)
+          .height(44.dp)
+          .then(glowMod)
+          .clip(shape)
+          .background(
+            if (isSel) Brush.horizontalGradient(listOf(ChampagneGold, MetallicGold))
+            else Brush.horizontalGradient(listOf(Color.Transparent, Color.Transparent))
+          )
           .clickable { onSelectTab(idx) }
           .padding(horizontal = 12.dp)
           .testTag("tab_$idx"),
@@ -89,15 +104,16 @@ fun ClassTabsRow(
           Icon(
             tab.icon,
             contentDescription = null,
-            tint = if (isSel) com.example.ui.theme.DarkTextOnGold else TextSecondary,
+            tint = if (isSel) Midnight else Lavender,
             modifier = Modifier.size(16.dp)
           )
           Spacer(modifier = Modifier.width(6.dp))
           Text(
             text = tab.label,
-            fontSize = 13.5.sp,
-            fontWeight = if (isSel) FontWeight.Bold else FontWeight.Medium,
-            color = if (isSel) com.example.ui.theme.DarkTextOnGold else TextPrimary
+            style = ButtonTextStyle.copy(
+              fontSize = 13.5.sp,
+              color = if (isSel) Midnight else Lavender
+            )
           )
         }
       }

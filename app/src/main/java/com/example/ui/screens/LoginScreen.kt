@@ -40,12 +40,18 @@ import androidx.compose.ui.unit.sp
 import com.example.ui.components.DarkTextField
 import com.example.ui.components.ErrorBanner
 import com.example.ui.components.GoldButton
+import com.example.ui.components.GoldOutlinedButton
+import com.example.ui.components.MetallicGoldText
 import com.example.ui.components.PasswordTextField
+import com.example.ui.components.RoyalDivider
+import com.example.ui.theme.BodyStyle
+import com.example.ui.theme.ChampagneGold
 import com.example.ui.theme.DarkBackground
-import com.example.ui.theme.GoldLight
-import com.example.ui.theme.GoldPrimary
-import com.example.ui.theme.TextPrimary
-import com.example.ui.theme.TextSecondary
+import com.example.ui.theme.GreetingStyle
+import com.example.ui.theme.Lavender
+import com.example.ui.theme.MetallicGold
+import com.example.ui.theme.ScreenTitleStyle
+import com.example.ui.theme.SubtitleItalicStyle
 
 @Composable
 fun LoginScreen(
@@ -64,7 +70,6 @@ fun LoginScreen(
   Box(
     modifier = Modifier
       .fillMaxSize()
-      .background(DarkBackground)
       .testTag("login_screen")
   ) {
     Column(
@@ -79,32 +84,35 @@ fun LoginScreen(
       ) {
         IconButton(
           onClick = onBack,
-          modifier = Modifier.size(40.dp)
+          modifier = Modifier.size(48.dp)
         ) {
           Icon(
             imageVector = Icons.AutoMirrored.Filled.ArrowBack,
             contentDescription = "Back",
-            tint = GoldLight
+            tint = ChampagneGold
           )
         }
-        Spacer(modifier = Modifier.width(8.dp))
-        Text(
+        Spacer(modifier = Modifier.width(6.dp))
+        MetallicGoldText(
           text = "Sign In",
-          fontSize = 22.sp,
-          fontWeight = FontWeight.Bold,
-          color = GoldLight
+          style = ScreenTitleStyle
         )
       }
 
-      Spacer(modifier = Modifier.height(16.dp))
+      Spacer(modifier = Modifier.height(14.dp))
 
       Text(
-        text = "Welcome back to ClassRep",
-        fontSize = 14.sp,
-        color = TextSecondary
+        text = "Welcome back",
+        style = GreetingStyle
+      )
+      Text(
+        text = "Enter your ClassRep credentials to continue",
+        style = SubtitleItalicStyle
       )
 
-      Spacer(modifier = Modifier.height(24.dp))
+      Spacer(modifier = Modifier.height(10.dp))
+      RoyalDivider()
+      Spacer(modifier = Modifier.height(18.dp))
 
       if (!errorMessage.isNullOrBlank()) {
         ErrorBanner(
@@ -166,7 +174,7 @@ fun LoginScreen(
 
       Spacer(modifier = Modifier.height(14.dp))
 
-      com.example.ui.components.GoldOutlinedButton(
+      GoldOutlinedButton(
         text = "Create Account",
         onClick = onNavigateToRegister,
         modifier = Modifier.fillMaxWidth().testTag("login_create_account_button")
@@ -181,16 +189,19 @@ fun LoginScreen(
       ) {
         Text(
           text = "New student? ",
-          fontSize = 13.sp,
-          color = TextSecondary
+          style = BodyStyle.copy(fontSize = 14.sp, lineHeight = 20.sp, color = Lavender)
         )
         Text(
           text = "Create Account",
-          fontSize = 13.sp,
-          fontWeight = FontWeight.Bold,
-          color = GoldPrimary,
+          style = BodyStyle.copy(
+            fontSize = 14.sp,
+            lineHeight = 20.sp,
+            fontWeight = FontWeight.SemiBold,
+            color = MetallicGold
+          ),
           modifier = Modifier
             .clickable { onNavigateToRegister() }
+            .padding(vertical = 8.dp, horizontal = 4.dp)
             .testTag("login_to_register_link")
         )
       }

@@ -35,7 +35,10 @@ import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 import androidx.core.content.ContextCompat
 import com.example.ui.components.ClassRepCard
+import com.example.ui.components.MetallicGoldText
+import com.example.ui.components.OutlinedGoldButton
 import com.example.ui.components.PrimaryButton
+import com.example.ui.components.StarfieldBackground
 import com.example.ui.theme.*
 
 @Composable
@@ -81,10 +84,9 @@ fun AlarmOnboardingDialog(
     onDismissRequest = {},
     properties = DialogProperties(usePlatformDefaultWidth = false, dismissOnBackPress = false, dismissOnClickOutside = false)
   ) {
-    Box(
+    StarfieldBackground(
       modifier = Modifier
         .fillMaxSize()
-        .background(DarkBackground)
         .safeDrawingPadding()
         .testTag("alarm_onboarding_screen")
     ) {
@@ -99,29 +101,29 @@ fun AlarmOnboardingDialog(
           modifier = Modifier
             .size(76.dp)
             .clip(CircleShape)
-            .background(GoldPrimary.copy(alpha = 0.14f))
-            .border(1.5.dp, GoldPrimary.copy(alpha = 0.5f), CircleShape),
+            .background(RoyalSurfaceHigh)
+            .border(1.5.dp, MetallicGold.copy(alpha = 0.65f), CircleShape),
           contentAlignment = Alignment.Center
         ) {
-          Icon(Icons.Default.Alarm, contentDescription = null, tint = GoldPrimary, modifier = Modifier.size(38.dp))
+          Icon(Icons.Default.Alarm, contentDescription = null, tint = ChampagneGold, modifier = Modifier.size(38.dp))
         }
 
         Spacer(modifier = Modifier.height(18.dp))
 
-        Text(
-          text = "Enable Reliable Class Alarms",
-          fontSize = 22.sp,
-          fontWeight = FontWeight.Bold,
-          color = TextPrimary,
+        MetallicGoldText(
+          text = "Class Alarms",
+          style = ScreenTitleStyle,
           textAlign = TextAlign.Center
+        )
+        Spacer(modifier = Modifier.height(6.dp))
+        Text(
+          text = "Enable Reliable Alerts",
+          style = SectionHeadingStyle.copy(color = SilverWhite, textAlign = TextAlign.Center)
         )
         Spacer(modifier = Modifier.height(8.dp))
         Text(
           text = "ClassRep rings alarms 15 minutes before and at the start of every registered class, even offline or on silent.",
-          fontSize = 14.sp,
-          color = TextSecondary,
-          textAlign = TextAlign.Center,
-          lineHeight = 20.sp
+          style = CaptionStyle.copy(color = Lavender, textAlign = TextAlign.Center)
         )
 
         Spacer(modifier = Modifier.height(20.dp))
@@ -159,31 +161,23 @@ fun AlarmOnboardingDialog(
 
         ClassRepCard {
           Row(verticalAlignment = Alignment.CenterVertically) {
-            Icon(Icons.Default.BatteryAlert, contentDescription = null, tint = GoldPrimary, modifier = Modifier.size(22.dp))
+            Icon(Icons.Default.BatteryAlert, contentDescription = null, tint = ChampagneGold, modifier = Modifier.size(22.dp))
             Spacer(modifier = Modifier.width(10.dp))
             Text(
               text = "Turn Off Battery Optimization",
-              fontSize = 16.sp,
-              fontWeight = FontWeight.Bold,
-              color = GoldLight
+              style = CardTitleStyle.copy(color = ChampagneGold)
             )
           }
           Text(
             text = "Android phones may pause background alarms to save battery. Open Battery Optimization settings, find ClassRep, and select Unrestricted / Don't optimize so your morning and afternoon classes always ring on time.",
-            fontSize = 13.sp,
-            color = TextSecondary,
-            lineHeight = 19.sp
+            style = CaptionStyle.copy(color = Lavender)
           )
           Spacer(modifier = Modifier.height(6.dp))
-          OutlinedButton(
+          OutlinedGoldButton(
+            text = "Open Battery Settings",
             onClick = { com.example.alarms.AlarmNavigationHelper.openBatteryOptimizationSettings(context) },
-            modifier = Modifier.fillMaxWidth().height(48.dp).testTag("onboarding_battery_btn"),
-            shape = RoundedCornerShape(12.dp),
-            border = BorderStroke(1.5.dp, GoldPrimary),
-            colors = ButtonDefaults.outlinedButtonColors(contentColor = GoldLight)
-          ) {
-            Text("Open Battery Optimization Settings", fontWeight = FontWeight.Bold, fontSize = 14.sp)
-          }
+            modifier = Modifier.fillMaxWidth().testTag("onboarding_battery_btn")
+          )
         }
 
         Spacer(modifier = Modifier.height(24.dp))
@@ -221,10 +215,10 @@ private fun PermissionStepRow(
       }
     }
     if (granted) {
-      Icon(Icons.Default.CheckCircle, contentDescription = "Granted", tint = SuccessGreen, modifier = Modifier.size(20.dp))
+      Icon(Icons.Default.CheckCircle, contentDescription = "Granted", tint = SuccessColor, modifier = Modifier.size(20.dp))
     } else if (actionLabel != null) {
-      TextButton(onClick = onAction) {
-        Text(actionLabel, color = GoldPrimary, fontWeight = FontWeight.Bold, fontSize = 12.sp)
+      TextButton(onClick = onAction, modifier = Modifier.defaultMinSize(minHeight = 48.dp)) {
+        Text(actionLabel, style = FieldLabelStyle.copy(color = ChampagneGold))
       }
     }
   }

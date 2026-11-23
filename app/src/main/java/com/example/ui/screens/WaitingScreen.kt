@@ -44,17 +44,23 @@ import androidx.compose.ui.text.input.KeyboardCapitalization
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.foundation.layout.defaultMinSize
 import com.example.ui.components.ClassRepCard
 import com.example.ui.components.DarkTextField
 import com.example.ui.components.FriendlyErrorSnackbar
+import com.example.ui.components.MetallicGoldText
 import com.example.ui.components.PrimaryButton
-import com.example.ui.theme.DarkBackground
+import com.example.ui.components.RoyalDivider
+import com.example.ui.theme.ButtonRadius
+import com.example.ui.theme.ButtonTextStyle
+import com.example.ui.theme.CardTitleStyle
+import com.example.ui.theme.ChampagneGold
 import com.example.ui.theme.DarkBorder
-import com.example.ui.theme.DarkSurfaceVariant
-import com.example.ui.theme.GoldLight
-import com.example.ui.theme.GoldPrimary
-import com.example.ui.theme.TextPrimary
-import com.example.ui.theme.TextSecondary
+import com.example.ui.theme.MetallicGold
+import com.example.ui.theme.RoyalSurfaceHigh
+import com.example.ui.theme.ScreenTitleStyle
+import com.example.ui.theme.SecondaryTextStyle
+import com.example.ui.theme.SectionHeadingStyle
 
 @Composable
 fun WaitingScreen(
@@ -73,7 +79,6 @@ fun WaitingScreen(
   Box(
     modifier = Modifier
       .fillMaxSize()
-      .background(DarkBackground)
       .testTag("waiting_screen")
   ) {
     Column(
@@ -89,11 +94,9 @@ fun WaitingScreen(
         horizontalArrangement = Arrangement.SpaceBetween,
         verticalAlignment = Alignment.CenterVertically
       ) {
-        Text(
+        MetallicGoldText(
           text = "ClassRep",
-          fontSize = 20.sp,
-          fontWeight = FontWeight.Bold,
-          color = GoldLight
+          style = ScreenTitleStyle
         )
 
         Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
@@ -106,14 +109,14 @@ fun WaitingScreen(
             modifier = Modifier
               .size(48.dp)
               .clip(CircleShape)
-              .background(DarkSurfaceVariant)
+              .background(RoyalSurfaceHigh)
               .border(1.dp, DarkBorder, CircleShape)
               .testTag("waiting_profile_avatar_button")
           ) {
             Icon(
               Icons.Default.Person,
               contentDescription = "Profile & Logout",
-              tint = GoldLight,
+              tint = ChampagneGold,
               modifier = Modifier.size(24.dp)
             )
           }
@@ -122,19 +125,19 @@ fun WaitingScreen(
 
       Spacer(modifier = Modifier.height(28.dp))
 
-      // Status card
+      // Status icon
       Box(
         modifier = Modifier
           .size(80.dp)
           .clip(CircleShape)
-          .background(GoldPrimary.copy(alpha = 0.12f))
-          .border(1.5.dp, GoldPrimary.copy(alpha = 0.4f), CircleShape),
+          .background(MetallicGold.copy(alpha = 0.14f))
+          .border(1.5.dp, MetallicGold.copy(alpha = 0.45f), CircleShape),
         contentAlignment = Alignment.Center
       ) {
         Icon(
           Icons.Default.HourglassEmpty,
           contentDescription = null,
-          tint = GoldPrimary,
+          tint = ChampagneGold,
           modifier = Modifier.size(40.dp)
         )
       }
@@ -143,9 +146,7 @@ fun WaitingScreen(
 
       Text(
         text = "You are not in a class yet",
-        fontSize = 22.sp,
-        fontWeight = FontWeight.Bold,
-        color = TextPrimary,
+        style = SectionHeadingStyle.copy(fontSize = 22.sp),
         textAlign = TextAlign.Center,
         modifier = Modifier.testTag("waiting_title_text")
       )
@@ -154,13 +155,13 @@ fun WaitingScreen(
 
       Text(
         text = "We could not find your class. Check your programme and year in your Profile, or use a class code.",
-        fontSize = 14.sp,
-        color = TextSecondary,
-        textAlign = TextAlign.Center,
-        lineHeight = 20.sp
+        style = SecondaryTextStyle,
+        textAlign = TextAlign.Center
       )
 
-      Spacer(modifier = Modifier.height(28.dp))
+      Spacer(modifier = Modifier.height(16.dp))
+      RoyalDivider()
+      Spacer(modifier = Modifier.height(20.dp))
 
       if (!errorMessage.isNullOrBlank()) {
         FriendlyErrorSnackbar(errorMessage = errorMessage, onDismiss = onDismissError)
@@ -172,9 +173,7 @@ fun WaitingScreen(
         Column(modifier = Modifier.fillMaxWidth()) {
           Text(
             text = "Join with Class Code",
-            fontSize = 16.sp,
-            fontWeight = FontWeight.SemiBold,
-            color = GoldLight
+            style = CardTitleStyle.copy(color = ChampagneGold)
           )
           Spacer(modifier = Modifier.height(12.dp))
 
@@ -207,24 +206,22 @@ fun WaitingScreen(
         enabled = !isLoading,
         modifier = Modifier
           .fillMaxWidth()
-          .height(48.dp)
+          .defaultMinSize(minHeight = 52.dp)
           .testTag("waiting_try_again_button"),
-        shape = RoundedCornerShape(12.dp),
-        colors = ButtonDefaults.outlinedButtonColors(contentColor = GoldLight),
-        border = androidx.compose.foundation.BorderStroke(1.dp, GoldPrimary.copy(alpha = 0.6f))
+        shape = RoundedCornerShape(ButtonRadius),
+        colors = ButtonDefaults.outlinedButtonColors(contentColor = ChampagneGold),
+        border = androidx.compose.foundation.BorderStroke(1.5.dp, MetallicGold.copy(alpha = 0.65f))
       ) {
         if (isLoading) {
-          CircularProgressIndicator(color = GoldPrimary, strokeWidth = 2.dp, modifier = Modifier.size(18.dp))
+          CircularProgressIndicator(color = ChampagneGold, strokeWidth = 2.dp, modifier = Modifier.size(18.dp))
           Spacer(modifier = Modifier.width(8.dp))
         } else {
-          Icon(Icons.Default.Refresh, contentDescription = null, modifier = Modifier.size(18.dp), tint = GoldPrimary)
+          Icon(Icons.Default.Refresh, contentDescription = null, modifier = Modifier.size(18.dp), tint = ChampagneGold)
           Spacer(modifier = Modifier.width(8.dp))
         }
         Text(
           text = "Try again (Auto-match my class)",
-          fontSize = 14.sp,
-          fontWeight = FontWeight.Bold,
-          color = GoldLight
+          style = ButtonTextStyle.copy(color = ChampagneGold, fontSize = 14.sp)
         )
       }
 
@@ -234,14 +231,12 @@ fun WaitingScreen(
         onClick = onContinueHome,
         modifier = Modifier
           .fillMaxWidth()
-          .height(48.dp)
+          .defaultMinSize(minHeight = 48.dp)
           .testTag("waiting_continue_home_button")
       ) {
         Text(
           text = "Go to Home Dashboard",
-          fontSize = 14.sp,
-          fontWeight = FontWeight.SemiBold,
-          color = GoldLight
+          style = ButtonTextStyle.copy(color = ChampagneGold, fontSize = 14.sp)
         )
       }
 

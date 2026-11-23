@@ -24,13 +24,16 @@ import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.example.admin.ui.theme.AdminCaptionStyle
 import com.example.admin.ui.theme.AdminCardElevated
+import com.example.admin.ui.theme.AdminSectionHeadingStyle
+import com.example.admin.ui.theme.ChampagneGold
 import com.example.admin.ui.theme.CrimsonError
 import com.example.admin.ui.theme.DarkTextOnGold
-import com.example.admin.ui.theme.GoldLight
 import com.example.admin.ui.theme.GoldPrimary
-import com.example.admin.ui.theme.TextPrimary
-import com.example.admin.ui.theme.TextSecondary
+import com.example.admin.ui.theme.Lavender
+import com.example.admin.ui.theme.MontserratFamily
+import com.example.admin.ui.theme.SilverWhite
 
 @Composable
 fun AdminNotificationBellButton(
@@ -41,12 +44,12 @@ fun AdminNotificationBellButton(
   Box(modifier = modifier) {
     IconButton(
       onClick = onClick,
-      modifier = Modifier.testTag("admin_notification_bell")
+      modifier = Modifier.size(48.dp).testTag("admin_notification_bell")
     ) {
       Icon(
         imageVector = Icons.Default.Notifications,
         contentDescription = if (unreadCount > 0) "$unreadCount unread notifications" else "Notifications",
-        tint = if (unreadCount > 0) GoldPrimary else GoldLight
+        tint = if (unreadCount > 0) GoldPrimary else ChampagneGold
       )
     }
     if (unreadCount > 0) {
@@ -63,9 +66,10 @@ fun AdminNotificationBellButton(
       ) {
         Text(
           text = label,
+          fontFamily = MontserratFamily,
           fontSize = 10.sp,
-          fontWeight = FontWeight.Bold,
-          color = TextPrimary,
+          fontWeight = FontWeight.SemiBold,
+          color = SilverWhite,
           maxLines = 1
         )
       }
@@ -81,25 +85,25 @@ fun AdminPermissionRationaleDialog(
   AlertDialog(
     onDismissRequest = onDismiss,
     containerColor = AdminCardElevated,
-    shape = RoundedCornerShape(16.dp),
+    shape = RoundedCornerShape(18.dp),
     title = {
-      Text("Enable Admin Alerts?", fontWeight = FontWeight.Bold, color = GoldLight, fontSize = 18.sp)
+      Text("Enable Admin Alerts?", style = AdminSectionHeadingStyle)
     },
     text = {
       Text(
         "Allow notifications so ClassRep Admin can alert you immediately when lecturers register, request to join a class, submit new units, or when students reach critical attendance risk.",
-        color = TextSecondary,
-        fontSize = 14.sp
+        style = AdminCaptionStyle.copy(color = SilverWhite.copy(alpha = 0.9f))
       )
     },
     confirmButton = {
       Button(
         onClick = onAllow,
+        shape = RoundedCornerShape(14.dp),
         colors = ButtonDefaults.buttonColors(containerColor = GoldPrimary, contentColor = DarkTextOnGold)
-      ) { Text("Allow Notifications", fontWeight = FontWeight.Bold) }
+      ) { Text("Allow Notifications", fontFamily = MontserratFamily, fontWeight = FontWeight.SemiBold) }
     },
     dismissButton = {
-      TextButton(onClick = onDismiss) { Text("Not now", color = TextSecondary) }
+      TextButton(onClick = onDismiss) { Text("Not now", fontFamily = MontserratFamily, color = Lavender) }
     }
   )
 }

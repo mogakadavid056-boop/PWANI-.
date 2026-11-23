@@ -44,6 +44,10 @@ fun ClassTabContent(
   timetableUiState: TimetableUiState,
   materialsUiState: MaterialsUiState,
   pollsUiState: PollsUiState,
+  challengesUiState: com.example.ui.ChallengesUiState = com.example.ui.ChallengesUiState(),
+  isAdmin: Boolean = false,
+  showOnLeaderboard: Boolean = true,
+  challengesCallbacks: com.example.ui.screens.ClassChallengesCallbacks = com.example.ui.screens.ClassChallengesCallbacks(),
   onRefreshNotices: () -> Unit,
   onNoticeClick: (NoticeItem) -> Unit,
   onNavigateToPostNotice: () -> Unit,
@@ -87,6 +91,8 @@ fun ClassTabContent(
   onPollClick: (PollItem) -> Unit,
   onOpenMaterials: () -> Unit,
   onOpenPolls: () -> Unit,
+  onOpenChallenges: () -> Unit = {},
+  onOpenLeaderboard: () -> Unit = {},
   onOpenAlarmSettings: () -> Unit = {},
   onOpenManageMembers: () -> Unit,
   onBackFromMoreSubView: () -> Unit
@@ -99,6 +105,12 @@ fun ClassTabContent(
       showMyAttendanceCard = !isStaff && !isLecturer,
       myAttendanceStatus = trackerUiState.myStatus,
       isMyAttendanceLoading = trackerUiState.isMyStatusLoading,
+      showActivityStatsCard = !isLecturer && !isAdmin,
+      activityStats = challengesUiState.activityStats,
+      isActivityStatsLoading = challengesUiState.isLoadingStats,
+      openChallengesCount = challengesUiState.openCount,
+      onOpenChallenges = onOpenChallenges,
+      onOpenLeaderboard = onOpenLeaderboard,
       onOpenMyAttendance = onOpenMyAttendance,
       onRefreshNotices = onRefreshNotices, onNoticeClick = onNoticeClick, onNavigateToPostNotice = onNavigateToPostNotice,
       onEditNotice = onEditNoticeClick, onDeleteNotice = onDeleteNoticeClick
@@ -132,13 +144,64 @@ fun ClassTabContent(
         isStaff = isStaff,
         materialsCount = materialsUiState.materials.size,
         pollsCount = pollsUiState.polls.size,
+        openChallengesCount = challengesUiState.openCount,
+        totalChallengesCount = challengesUiState.quizzes.size,
+        weekPoints = challengesUiState.activityStats?.weekPoints ?: 0,
         alarmsEnabled = alarmSettings.masterEnabled,
         alarmReminderMinutes = alarmSettings.reminderMinutes,
         onOpenMaterials = onOpenMaterials,
         onOpenPolls = onOpenPolls,
+        onOpenChallenges = onOpenChallenges,
+        onOpenLeaderboard = onOpenLeaderboard,
         onOpenAlarmSettings = onOpenAlarmSettings,
         onOpenManageMembers = onOpenManageMembers
       )
+      MoreSubView.Challenges -> {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+          IconButton(onClick = onBackFromMoreSubView) {
+            Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back", tint = GoldLight)
+          }
+          Text("Challenges", style = SectionHeadingStyle, color = GoldLight)
+        }
+        com.example.ui.screens.ChallengesSection(
+          uiState = challengesUiState,
+          isStaff = isStaff,
+          canPlayChallenges = com.example.util.RoleHelper.canSignAttendance(session?.role),
+          isAdmin = isAdmin,
+          isLecturer = isLecturer,
+          currentUserId = session?.userId,
+          onRefresh = challengesCallbacks.onRefreshAll,
+          onSelectFilter = challengesCallbacks.onSelectFilter,
+          onCreateClick = challengesCallbacks.onOpenCreateDialog,
+          onAddQuestionsClick = challengesCallbacks.onOpenAddQuestionsDialog,
+          onPlayClick = challengesCallbacks.onPlayChallenge,
+          onReviewClick = challengesCallbacks.onOpenReview,
+          onResultsClick = challengesCallbacks.onOpenResults,
+          onMarkPapersClick = challengesCallbacks.onOpenExamSubmissions,
+          onViewMarkedPaperClick = challengesCallbacks.onViewMarkedPaperForStudent,
+          onDeleteClick = challengesCallbacks.onPromptDelete,
+          onOpenLeaderboard = onOpenLeaderboard,
+          onDismissError = challengesCallbacks.onDismissError,
+          onDismissSuccess = challengesCallbacks.onDismissSuccess
+        )
+      }
+      MoreSubView.Leaderboard -> {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+          IconButton(onClick = onBackFromMoreSubView) {
+            Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back", tint = GoldLight)
+          }
+          Text("Leaderboard", style = SectionHeadingStyle, color = GoldLight)
+        }
+        com.example.ui.screens.LeaderboardSection(
+          uiState = challengesUiState,
+          showPrivacyToggle = com.example.util.RoleHelper.canSignAttendance(session?.role),
+          showOnLeaderboard = showOnLeaderboard,
+          onToggleVisibility = challengesCallbacks.onToggleLeaderboardVisibility,
+          onSelectPeriod = challengesCallbacks.onSelectLeaderboardPeriod,
+          onRefresh = challengesCallbacks.onRefreshAll,
+          onDismissError = challengesCallbacks.onDismissError
+        )
+      }
       MoreSubView.AlarmSettings -> {
         Row(verticalAlignment = Alignment.CenterVertically) {
           IconButton(onClick = onBackFromMoreSubView) {

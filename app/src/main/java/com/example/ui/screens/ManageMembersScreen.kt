@@ -43,20 +43,30 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.data.ClassMemberItem
 import com.example.ui.MembersUiState
+import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.interaction.collectIsFocusedAsState
+import androidx.compose.ui.draw.shadow
 import com.example.ui.components.ClassRepPullToRefresh
 import com.example.ui.components.ConfirmActionDialog
 import com.example.ui.components.EmptyState
 import com.example.ui.components.ErrorBanner
 import com.example.ui.components.LoadingSkeleton
 import com.example.ui.components.MemberCard
-import com.example.ui.theme.DarkBackground
-import com.example.ui.theme.DarkBorder
-import com.example.ui.theme.DarkSurface
+import com.example.ui.components.MetallicGoldText
+import com.example.ui.components.RoleBadge
+import com.example.ui.components.royalOutlinedTextFieldColors
+import com.example.ui.theme.ButtonRadius
+import com.example.ui.theme.CaptionStyle
+import com.example.ui.theme.ChampagneGold
+import com.example.ui.theme.ElectricViolet
 import com.example.ui.theme.ErrorRed
-import com.example.ui.theme.GoldLight
-import com.example.ui.theme.GoldPrimary
-import com.example.ui.theme.TextPrimary
-import com.example.ui.theme.TextSecondary
+import com.example.ui.theme.Lavender
+import com.example.ui.theme.MetallicGold
+import com.example.ui.theme.RoyalSuccessContainer
+import com.example.ui.theme.ScreenTitleStyle
+import com.example.ui.theme.SectionHeadingStyle
+import com.example.ui.theme.SuccessColor
+import com.example.ui.theme.SilverWhite
 
 @Composable
 fun ManageMembersScreen(
@@ -90,7 +100,6 @@ fun ManageMembersScreen(
   Box(
     modifier = Modifier
       .fillMaxSize()
-      .background(DarkBackground)
       .testTag("manage_members_screen")
   ) {
     Column(
@@ -105,20 +114,20 @@ fun ManageMembersScreen(
       ) {
         IconButton(
           onClick = onBack,
-          modifier = Modifier.size(40.dp).testTag("manage_members_back_button")
+          modifier = Modifier.size(48.dp).testTag("manage_members_back_button")
         ) {
-          Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back", tint = GoldLight)
+          Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back", tint = ChampagneGold)
         }
-        Spacer(modifier = Modifier.width(8.dp))
+        Spacer(modifier = Modifier.width(6.dp))
         Column(modifier = Modifier.weight(1f)) {
-          Text("Manage Members", fontSize = 20.sp, fontWeight = FontWeight.Bold, color = GoldLight)
-          Text(className, fontSize = 12.sp, color = TextSecondary)
+          MetallicGoldText("Manage Members", style = ScreenTitleStyle, maxLines = 1)
+          Text(className, style = CaptionStyle.copy(color = Lavender))
         }
         IconButton(
           onClick = onRefresh,
-          modifier = Modifier.size(36.dp).testTag("refresh_members_button")
+          modifier = Modifier.size(48.dp).testTag("refresh_members_button")
         ) {
-          Icon(Icons.Default.Refresh, contentDescription = "Refresh", tint = GoldLight)
+          Icon(Icons.Default.Refresh, contentDescription = "Refresh", tint = ChampagneGold)
         }
       }
 
@@ -133,17 +142,17 @@ fun ManageMembersScreen(
         Box(
           modifier = Modifier
             .fillMaxWidth()
-            .clip(RoundedCornerShape(10.dp))
-            .background(GoldPrimary.copy(alpha = 0.15f))
-            .border(1.dp, GoldPrimary, RoundedCornerShape(10.dp))
-            .padding(12.dp)
+            .clip(RoundedCornerShape(ButtonRadius))
+            .background(RoyalSuccessContainer)
+            .border(1.dp, SuccessColor.copy(alpha = 0.65f), RoundedCornerShape(ButtonRadius))
+            .padding(start = 12.dp, end = 4.dp, top = 6.dp, bottom = 6.dp)
         ) {
           Row(verticalAlignment = Alignment.CenterVertically) {
-            Icon(Icons.Default.Shield, contentDescription = null, tint = GoldPrimary, modifier = Modifier.size(16.dp))
+            Icon(Icons.Default.Shield, contentDescription = null, tint = SuccessColor, modifier = Modifier.size(18.dp))
             Spacer(modifier = Modifier.width(8.dp))
-            Text(uiState.successMessage, fontSize = 13.sp, color = GoldLight, modifier = Modifier.weight(1f))
-            IconButton(onClick = onDismissSuccess, modifier = Modifier.size(24.dp)) {
-              Text("✕", color = GoldLight, fontSize = 12.sp)
+            Text(uiState.successMessage, style = CaptionStyle.copy(color = SilverWhite), modifier = Modifier.weight(1f))
+            IconButton(onClick = onDismissSuccess, modifier = Modifier.size(48.dp)) {
+              Text("✕", color = ChampagneGold, fontSize = 14.sp)
             }
           }
         }
@@ -160,22 +169,21 @@ fun ManageMembersScreen(
       }
 
       // Search box to filter members by name or admission number
+      val searchInteraction = remember { MutableInteractionSource() }
+      val isSearchFocused by searchInteraction.collectIsFocusedAsState()
       OutlinedTextField(
         value = memberSearch,
         onValueChange = { memberSearch = it },
-        placeholder = { Text("Search by name or admission number...", color = TextSecondary.copy(alpha = 0.6f), fontSize = 13.sp) },
-        leadingIcon = { Icon(Icons.Default.Search, contentDescription = null, tint = GoldLight, modifier = Modifier.size(18.dp)) },
+        interactionSource = searchInteraction,
+        placeholder = { Text("Search by name or admission number...", style = CaptionStyle.copy(color = Lavender.copy(alpha = 0.7f))) },
+        leadingIcon = { Icon(Icons.Default.Search, contentDescription = null, tint = if (isSearchFocused) ChampagneGold else MetallicGold, modifier = Modifier.size(18.dp)) },
         singleLine = true,
-        modifier = Modifier.fillMaxWidth().testTag("member_search_input"),
-        shape = RoundedCornerShape(10.dp),
-        colors = OutlinedTextFieldDefaults.colors(
-          focusedBorderColor = GoldPrimary,
-          unfocusedBorderColor = DarkBorder,
-          focusedContainerColor = DarkSurface,
-          unfocusedContainerColor = DarkSurface,
-          focusedTextColor = TextPrimary,
-          unfocusedTextColor = TextPrimary
-        )
+        modifier = Modifier
+          .fillMaxWidth()
+          .then(if (isSearchFocused) Modifier.shadow(10.dp, RoundedCornerShape(ButtonRadius), ambientColor = ElectricViolet, spotColor = ElectricViolet) else Modifier)
+          .testTag("member_search_input"),
+        shape = RoundedCornerShape(ButtonRadius),
+        colors = royalOutlinedTextFieldColors()
       )
 
       Spacer(modifier = Modifier.height(12.dp))
@@ -185,9 +193,9 @@ fun ManageMembersScreen(
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.SpaceBetween
       ) {
-        Text("Roster (${filteredMembers.size})", fontSize = 14.sp, fontWeight = FontWeight.Bold, color = TextPrimary)
+        Text("Roster (${filteredMembers.size})", style = SectionHeadingStyle.copy(fontSize = 18.sp, color = SilverWhite))
         if (canManageReps) {
-          Text("Admin / Lecturer Mode", fontSize = 11.sp, color = GoldLight, fontWeight = FontWeight.SemiBold)
+          RoleBadge(roleText = "Admin / Lecturer", isGoldFilled = false)
         }
       }
 

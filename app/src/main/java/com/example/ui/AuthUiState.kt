@@ -3,6 +3,7 @@ package com.example.ui
 import com.example.data.UserSession
 
 sealed interface Screen {
+  data object Splash : Screen
   data object Welcome : Screen
   data object Landing : Screen
   data object Register : Screen
@@ -22,6 +23,7 @@ sealed interface Screen {
   data object Waiting : Screen
   data object FindClasses : Screen
   data object Notifications : Screen
+  data object Assistant : Screen
 }
 
 sealed interface RegisterResultState {
@@ -43,7 +45,7 @@ sealed interface RegisterResultState {
 }
 
 data class AuthUiState(
-  val currentScreen: Screen = Screen.Welcome,
+  val currentScreen: Screen = Screen.Splash,
   val isLoading: Boolean = false,
   val errorMessage: String? = null,
   val infoMessage: String? = null,

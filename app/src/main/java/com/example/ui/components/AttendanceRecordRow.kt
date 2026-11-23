@@ -21,27 +21,31 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.platform.testTag
-import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.data.AttendanceRecordItem
+import com.example.ui.theme.CaptionStyle
+import com.example.ui.theme.CardTitleStyle
+import com.example.ui.theme.ChampagneGold
 import com.example.ui.theme.DarkBorder
-import com.example.ui.theme.DarkSurface
-import com.example.ui.theme.DarkSurfaceVariant
-import com.example.ui.theme.GoldDark
-import com.example.ui.theme.GoldLight
-import com.example.ui.theme.TextPrimary
-import com.example.ui.theme.TextSecondary
+import com.example.ui.theme.Lavender
+import com.example.ui.theme.MetallicGold
+import com.example.ui.theme.MontserratFamily
+import com.example.ui.theme.RoyalSurface
+import com.example.ui.theme.RoyalSurfaceHigh
+import com.example.ui.theme.SilverWhite
+import com.example.util.JsonHelper
+import com.example.util.NairobiTimeHelper
 
 @Composable
 fun AttendanceRecordRow(record: AttendanceRecordItem) {
   Box(
     modifier = Modifier
       .fillMaxWidth()
-      .clip(RoundedCornerShape(12.dp))
-      .background(DarkSurface)
-      .border(1.dp, DarkBorder, RoundedCornerShape(12.dp))
+      .clip(RoundedCornerShape(14.dp))
+      .background(RoyalSurface)
+      .border(1.dp, DarkBorder, RoundedCornerShape(14.dp))
       .padding(14.dp)
       .testTag("attendance_record_item")
   ) {
@@ -52,41 +56,37 @@ fun AttendanceRecordRow(record: AttendanceRecordItem) {
       val initial = record.fullName.firstOrNull()?.uppercaseChar()?.toString() ?: "S"
       Box(
         modifier = Modifier
-          .size(38.dp)
+          .size(40.dp)
           .clip(CircleShape)
-          .background(DarkSurfaceVariant)
-          .border(1.dp, GoldDark.copy(alpha = 0.5f), CircleShape),
+          .background(RoyalSurfaceHigh)
+          .border(1.dp, MetallicGold.copy(alpha = 0.55f), CircleShape),
         contentAlignment = Alignment.Center
       ) {
-        Text(text = initial, fontSize = 15.sp, fontWeight = FontWeight.Bold, color = GoldLight)
+        Text(text = initial, fontFamily = MontserratFamily, fontSize = 15.sp, fontWeight = FontWeight.Bold, color = ChampagneGold)
       }
 
       Spacer(modifier = Modifier.width(12.dp))
 
       Column(modifier = Modifier.weight(1f)) {
         Text(
-          text = com.example.util.JsonHelper.orDash(record.fullName),
-          fontSize = 14.sp,
-          fontWeight = FontWeight.SemiBold,
-          color = TextPrimary
+          text = JsonHelper.orDash(record.fullName),
+          style = CardTitleStyle.copy(fontSize = 16.sp, color = SilverWhite)
         )
         if (record.admissionNumber.isNotBlank() && !record.admissionNumber.equals("null", true)) {
           Text(
             text = "Adm: ${record.admissionNumber}",
-            fontSize = 13.sp,
-            color = GoldLight
+            style = CaptionStyle.copy(color = ChampagneGold)
           )
         }
       }
 
       if (record.timeSigned.isNotBlank() && !record.timeSigned.equals("null", true)) {
         Row(verticalAlignment = Alignment.CenterVertically) {
-          Icon(Icons.Default.Schedule, contentDescription = null, tint = TextSecondary, modifier = Modifier.size(13.dp))
+          Icon(Icons.Default.Schedule, contentDescription = null, tint = Lavender, modifier = Modifier.size(14.dp))
           Spacer(modifier = Modifier.width(4.dp))
           Text(
-            text = com.example.util.NairobiTimeHelper.formatIsoToTimeOnly(record.timeSigned),
-            fontSize = 13.sp,
-            color = TextSecondary
+            text = NairobiTimeHelper.formatIsoToTimeOnly(record.timeSigned),
+            style = CaptionStyle.copy(color = Lavender)
           )
         }
       }

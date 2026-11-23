@@ -23,30 +23,23 @@ fun ProfileFieldCard(
   value: String,
   modifier: Modifier = Modifier
 ) {
-  Box(
-    modifier = modifier
-      .fillMaxWidth()
-      .clip(RoundedCornerShape(12.dp))
-      .background(DarkSurface)
-      .border(1.dp, DarkBorder, RoundedCornerShape(12.dp))
-      .padding(12.dp)
-  ) {
+  RoyalCard(modifier = modifier) {
     Row(verticalAlignment = Alignment.CenterVertically) {
       Box(
         modifier = Modifier
-          .size(36.dp)
-          .clip(RoundedCornerShape(8.dp))
-          .background(DarkBackground)
-          .border(1.dp, GoldDark.copy(alpha = 0.4f), RoundedCornerShape(8.dp)),
+          .size(40.dp)
+          .clip(RoundedCornerShape(10.dp))
+          .background(RoyalSurfaceHigh)
+          .border(1.dp, MetallicGold.copy(alpha = 0.45f), RoundedCornerShape(10.dp)),
         contentAlignment = Alignment.Center
       ) {
-        Icon(icon, contentDescription = null, tint = GoldPrimary, modifier = Modifier.size(18.dp))
+        Icon(icon, contentDescription = null, tint = ChampagneGold, modifier = Modifier.size(20.dp))
       }
       Spacer(modifier = Modifier.width(12.dp))
       Column {
-        Text(label, fontSize = 11.sp, color = TextSecondary)
+        Text(label, style = FieldLabelStyle.copy(color = Lavender, fontSize = 12.sp))
         Spacer(modifier = Modifier.height(2.dp))
-        Text(value, fontSize = 14.sp, fontWeight = FontWeight.Medium, color = TextPrimary)
+        Text(value, style = BodyStyle.copy(fontSize = 15.sp, fontWeight = FontWeight.Medium))
       }
     }
   }

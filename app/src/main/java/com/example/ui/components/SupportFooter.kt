@@ -28,14 +28,19 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
-import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.example.ui.theme.GoldPrimary
+import com.example.ui.theme.ChampagneGold
+import com.example.ui.theme.FieldLabelStyle
+import com.example.ui.theme.Lavender
+import com.example.ui.theme.MetallicGold
+import com.example.ui.theme.MontserratFamily
+import com.example.ui.theme.RoyalNavSurface
+import com.example.ui.theme.SilverWhite
+import com.example.ui.theme.SuccessColor
 
 @OptIn(androidx.compose.foundation.layout.ExperimentalLayoutApi::class)
 @Composable
@@ -43,7 +48,6 @@ fun SupportFooter(
   showHelpBanner: Boolean = false,
   modifier: Modifier = Modifier
 ) {
-  // Hide footer when the software keyboard is active so it never obstructs inputs
   if (WindowInsets.isImeVisible) return
 
   val context = LocalContext.current
@@ -51,24 +55,24 @@ fun SupportFooter(
   Column(
     modifier = modifier
       .fillMaxWidth()
-      .background(Color(0xFF0B2A1E))
+      .background(RoyalNavSurface)
       .testTag("support_footer")
   ) {
-    // Thin gold top line
     HorizontalDivider(
       thickness = 1.dp,
-      color = GoldPrimary.copy(alpha = 0.6f)
+      color = MetallicGold.copy(alpha = 0.5f)
     )
 
     if (showHelpBanner) {
       Text(
         text = SupportConfig.AUTH_HELP_TEXT,
-        fontSize = 11.sp,
-        color = Color(0xFFE4E4E7),
+        fontFamily = MontserratFamily,
+        fontSize = 14.sp,
+        color = Lavender,
         textAlign = TextAlign.Center,
         modifier = Modifier
           .fillMaxWidth()
-          .padding(top = 5.dp, bottom = 2.dp, start = 12.dp, end = 12.dp)
+          .padding(top = 6.dp, bottom = 2.dp, start = 12.dp, end = 12.dp)
           .testTag("support_auth_help_text")
       )
     }
@@ -76,7 +80,7 @@ fun SupportFooter(
     Row(
       modifier = Modifier
         .fillMaxWidth()
-        .height(40.dp)
+        .height(48.dp)
         .padding(horizontal = 14.dp),
       verticalAlignment = Alignment.CenterVertically,
       horizontalArrangement = Arrangement.SpaceBetween
@@ -84,15 +88,13 @@ fun SupportFooter(
       Row(verticalAlignment = Alignment.CenterVertically) {
         Box(
           modifier = Modifier
-            .size(6.dp)
-            .background(GoldPrimary, shape = CircleShape)
+            .size(7.dp)
+            .background(MetallicGold, shape = CircleShape)
         )
-        Spacer(modifier = Modifier.width(7.dp))
+        Spacer(modifier = Modifier.width(8.dp))
         Text(
           text = "Support Desk",
-          fontSize = 12.sp,
-          fontWeight = FontWeight.Bold,
-          color = GoldPrimary
+          style = FieldLabelStyle.copy(color = ChampagneGold)
         )
       }
 
@@ -100,41 +102,38 @@ fun SupportFooter(
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(2.dp)
       ) {
-        // Email button
         IconButton(
           onClick = { openEmail(context) },
-          modifier = Modifier.size(36.dp).testTag("support_email_btn")
+          modifier = Modifier.size(48.dp).testTag("support_email_btn")
         ) {
           Icon(
             imageVector = Icons.Default.Email,
             contentDescription = "Email Support",
-            tint = Color.White,
+            tint = SilverWhite,
             modifier = Modifier.size(18.dp)
           )
         }
 
-        // WhatsApp button
         IconButton(
           onClick = { openWhatsApp(context) },
-          modifier = Modifier.size(36.dp).testTag("support_whatsapp_btn")
+          modifier = Modifier.size(48.dp).testTag("support_whatsapp_btn")
         ) {
           Icon(
             imageVector = Icons.Default.Phone,
             contentDescription = "WhatsApp Support",
-            tint = Color(0xFF25D366),
+            tint = SuccessColor,
             modifier = Modifier.size(18.dp)
           )
         }
 
-        // Website button
         IconButton(
           onClick = { openWebsite(context) },
-          modifier = Modifier.size(36.dp).testTag("support_website_btn")
+          modifier = Modifier.size(48.dp).testTag("support_website_btn")
         ) {
           Icon(
             imageVector = Icons.Default.Language,
             contentDescription = "Support Website",
-            tint = GoldPrimary,
+            tint = ChampagneGold,
             modifier = Modifier.size(18.dp)
           )
         }

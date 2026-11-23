@@ -47,9 +47,9 @@ fun UnitsSectionCard(
       Row(verticalAlignment = Alignment.CenterVertically) {
         Icon(Icons.Default.MenuBook, contentDescription = null, tint = GoldPrimary, modifier = Modifier.size(18.dp))
         Spacer(modifier = Modifier.width(6.dp))
-        Text("Units", fontSize = 18.sp, fontWeight = FontWeight.Bold, color = TextPrimary, modifier = Modifier.testTag("units_section_title"))
+        Text("Units", style = SectionHeadingStyle, modifier = Modifier.testTag("units_section_title"))
         Spacer(modifier = Modifier.width(6.dp))
-        Text("(${units.size})", fontSize = 13.sp, color = TextSecondary)
+        Text("(${units.size})", style = CaptionStyle)
       }
 
       if (isLecturer) {
@@ -57,13 +57,13 @@ fun UnitsSectionCard(
           onClick = {
             if (!isOnline) OfflineToastHelper.show(context) else onRegisterUnitClick()
           },
-          shape = RoundedCornerShape(10.dp),
+          shape = RoundedCornerShape(12.dp),
           colors = ButtonDefaults.buttonColors(containerColor = GoldPrimary, contentColor = DarkTextOnGold),
-          modifier = Modifier.height(36.dp).testTag("register_unit_btn").then(if (!isOnline) Modifier.alpha(0.5f) else Modifier)
+          modifier = Modifier.defaultMinSize(minHeight = 48.dp).testTag("register_unit_btn").then(if (!isOnline) Modifier.alpha(0.5f) else Modifier)
         ) {
-          Icon(Icons.Default.Add, contentDescription = null, tint = DarkTextOnGold, modifier = Modifier.size(14.dp))
+          Icon(Icons.Default.Add, contentDescription = null, tint = DarkTextOnGold, modifier = Modifier.size(16.dp))
           Spacer(modifier = Modifier.width(4.dp))
-          Text("Register a unit", fontSize = 12.sp, fontWeight = FontWeight.Bold, color = DarkTextOnGold)
+          Text("Register a unit", fontFamily = MontserratFamily, fontSize = 13.sp, fontWeight = FontWeight.SemiBold, color = DarkTextOnGold)
         }
       }
     }
@@ -100,7 +100,7 @@ fun UnitsSectionCard(
 private fun UnitCardRow(unit: CourseUnit, showStatus: Boolean) {
   val (statusBg, statusFg, statusText) = when {
     unit.isApproved -> Triple(SuccessGreen.copy(alpha = 0.16f), SuccessGreen, "Approved")
-    unit.isPending -> Triple(Color(0x33FFB300), Color(0xFFFFB300), "Pending approval")
+    unit.isPending -> Triple(ChampagneGold.copy(alpha = 0.18f), ChampagneGold, "Pending approval")
     else -> Triple(ErrorRed.copy(alpha = 0.16f), ErrorRed, "Rejected")
   }
 

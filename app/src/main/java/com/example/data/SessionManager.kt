@@ -35,6 +35,7 @@ class SessionManager(private val context: Context) {
 
   data class PendingRegistrationData(
     val email: String,
+    val fullName: String = "",
     val isLecturer: Boolean,
     val idNumber: String,
     val phone: String,
@@ -98,6 +99,7 @@ class SessionManager(private val context: Context) {
     try {
       val json = org.json.JSONObject().apply {
         put("email", data.email.trim().lowercase())
+        if (data.fullName.isNotBlank()) put("full_name", data.fullName.trim())
         put("is_lecturer", data.isLecturer)
         put("id_number", data.idNumber)
         put("phone", data.phone)
@@ -121,6 +123,7 @@ class SessionManager(private val context: Context) {
       if (!o.optString("email").equals(email.trim(), ignoreCase = true)) return@withContext null
       PendingRegistrationData(
         email = o.optString("email"),
+        fullName = o.optString("full_name"),
         isLecturer = o.optBoolean("is_lecturer", false),
         idNumber = o.optString("id_number"),
         phone = o.optString("phone"),

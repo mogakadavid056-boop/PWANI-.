@@ -4,12 +4,14 @@ import android.content.Intent
 import android.net.Uri
 import android.widget.Toast
 import androidx.activity.compose.BackHandler
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.defaultMinSize
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -44,8 +46,10 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.example.admin.assistant.AdminAssistantSparkleButton
 import com.example.admin.data.AdminUserItem
 import com.example.admin.ui.AdminClassMonitorState
 import com.example.admin.ui.AdminClassMonitorViewModel
@@ -57,14 +61,20 @@ import com.example.admin.ui.components.AdminFeedbackBanner
 import com.example.admin.ui.components.AdminGlassCard
 import com.example.admin.ui.components.AdminNotificationBellButton
 import com.example.admin.ui.components.AdminStatusPill
+import com.example.admin.ui.theme.AdminBorder
+import com.example.admin.ui.theme.AdminCaptionStyle
+import com.example.admin.ui.theme.AdminNavLabelStyle
+import com.example.admin.ui.theme.AdminSectionHeadingStyle
 import com.example.admin.ui.theme.AdminSurface
+import com.example.admin.ui.theme.ChampagneGold
 import com.example.admin.ui.theme.DarkTextOnGold
 import com.example.admin.ui.theme.EmeraldSuccess
 import com.example.admin.ui.theme.GoldLight
 import com.example.admin.ui.theme.GoldPrimary
 import com.example.admin.ui.theme.InfoBlue
-import com.example.admin.ui.theme.TextMuted
-import com.example.admin.ui.theme.TextPrimary
+import com.example.admin.ui.theme.Lavender
+import com.example.admin.ui.theme.MontserratFamily
+import com.example.admin.ui.theme.PlayfairDisplayFamily
 import com.example.admin.ui.theme.TextSecondary
 import com.example.admin.util.AdminJsonHelper
 import java.net.URLEncoder
@@ -75,9 +85,11 @@ fun AdminClassMonitorScreen(
   extraState: AdminMonitorExtraState,
   allUsers: List<AdminUserItem>,
   unreadNotifications: Int,
+  isOnline: Boolean = true,
   monitorVm: AdminClassMonitorViewModel,
   extraVm: AdminMonitorExtraViewModel,
   onOpenClassRisk: (String, String) -> Unit,
+  onOpenAssistant: () -> Unit = {},
   onOpenNotifications: () -> Unit,
   onBack: () -> Unit
 ) {
@@ -94,20 +106,21 @@ fun AdminClassMonitorScreen(
 
   Column(modifier = Modifier.fillMaxSize().padding(horizontal = 16.dp, vertical = 12.dp).testTag("admin_class_monitor_screen")) {
     Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-      IconButton(onClick = onBack) {
-        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back to classes", tint = GoldPrimary)
+      IconButton(onClick = onBack, modifier = Modifier.size(48.dp)) {
+        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back to classes", tint = ChampagneGold)
       }
       Column(modifier = Modifier.weight(1f)) {
-        Text(className, fontSize = 19.sp, fontWeight = FontWeight.Bold, color = TextPrimary, maxLines = 1)
+        Text(className, style = AdminSectionHeadingStyle, maxLines = 1, overflow = TextOverflow.Ellipsis)
         val sub = listOfNotNull(
           ov?.schoolName?.takeIf { it.isNotBlank() },
           ov?.programmeName?.takeIf { it.isNotBlank() },
           ov?.yearOfStudy?.let { "Yr $it" }
         ).joinToString(" • ")
-        if (sub.isNotBlank()) Text(sub, fontSize = 11.sp, color = GoldLight, maxLines = 1)
+        if (sub.isNotBlank()) Text(sub, style = AdminCaptionStyle, maxLines = 1, overflow = TextOverflow.Ellipsis)
       }
-      IconButton(onClick = { monitorVm.refreshCurrentClass(); extraVm.refreshAll() }) {
-        Icon(Icons.Default.Refresh, contentDescription = "Refresh monitor", tint = GoldPrimary)
+      AdminAssistantSparkleButton(isOnline = isOnline, onClick = onOpenAssistant)
+      IconButton(onClick = { monitorVm.refreshCurrentClass(); extraVm.refreshAll() }, modifier = Modifier.size(48.dp)) {
+        Icon(Icons.Default.Refresh, contentDescription = "Refresh monitor", tint = ChampagneGold)
       }
       AdminNotificationBellButton(unreadCount = unreadNotifications, onClick = onOpenNotifications)
     }
@@ -141,31 +154,42 @@ fun AdminClassMonitorScreen(
           Spacer(modifier = Modifier.height(10.dp))
           Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.SpaceBetween) {
             Column {
-              Text("Class Join Code", fontSize = 11.sp, color = TextMuted)
-              Text(AdminJsonHelper.orDash(ov.joinCode), fontSize = 18.sp, fontWeight = FontWeight.Bold, color = GoldPrimary, letterSpacing = 2.sp)
+              Text("Class Join Code", style = AdminCaptionStyle)
+              Text(AdminJsonHelper.orDash(ov.joinCode), fontFamily = PlayfairDisplayFamily, fontSize = 20.sp, fontWeight = FontWeight.Bold, color = ChampagneGold, letterSpacing = 2.sp)
             }
-            Row(horizontalArrangement = Arrangement.spacedBy(2.dp)) {
+            Row(horizontalArrangement = Arrangement.spacedBy(2.dp), verticalAlignment = Alignment.CenterVertically) {
               val shareText = "Join $className on ClassRep. Open the app, choose Join with a class code and enter: ${ov.joinCode}"
-              IconButton(onClick = {
-                clipboard.setText(AnnotatedString(ov.joinCode))
-                Toast.makeText(context, "Code copied", Toast.LENGTH_SHORT).show()
-              }) { Icon(Icons.Default.ContentCopy, contentDescription = "Copy code", tint = GoldLight, modifier = Modifier.size(19.dp)) }
-              IconButton(onClick = {
-                val intent = Intent(Intent.ACTION_SEND).apply { type = "text/plain"; putExtra(Intent.EXTRA_TEXT, shareText) }
-                context.startActivity(Intent.createChooser(intent, "Share class code"))
-              }) { Icon(Icons.Default.Share, contentDescription = "Share code", tint = GoldLight, modifier = Modifier.size(19.dp)) }
-              IconButton(onClick = {
-                val url = "https://wa.me/?text=${URLEncoder.encode(shareText, "UTF-8")}"
-                runCatching { context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(url))) }
-              }) { Icon(Icons.AutoMirrored.Filled.Send, contentDescription = "WhatsApp", tint = EmeraldSuccess, modifier = Modifier.size(19.dp)) }
+              IconButton(
+                onClick = {
+                  clipboard.setText(AnnotatedString(ov.joinCode))
+                  Toast.makeText(context, "Code copied", Toast.LENGTH_SHORT).show()
+                },
+                modifier = Modifier.size(48.dp)
+              ) { Icon(Icons.Default.ContentCopy, contentDescription = "Copy code", tint = ChampagneGold, modifier = Modifier.size(19.dp)) }
+              IconButton(
+                onClick = {
+                  val intent = Intent(Intent.ACTION_SEND).apply { type = "text/plain"; putExtra(Intent.EXTRA_TEXT, shareText) }
+                  context.startActivity(Intent.createChooser(intent, "Share class code"))
+                },
+                modifier = Modifier.size(48.dp)
+              ) { Icon(Icons.Default.Share, contentDescription = "Share code", tint = ChampagneGold, modifier = Modifier.size(19.dp)) }
+              IconButton(
+                onClick = {
+                  val url = "https://wa.me/?text=${URLEncoder.encode(shareText, "UTF-8")}"
+                  runCatching { context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(url))) }
+                },
+                modifier = Modifier.size(48.dp)
+              ) { Icon(Icons.AutoMirrored.Filled.Send, contentDescription = "WhatsApp", tint = EmeraldSuccess, modifier = Modifier.size(19.dp)) }
               OutlinedButton(
                 onClick = { confirmRegen = true },
-                shape = RoundedCornerShape(8.dp),
-                contentPadding = PaddingValues(horizontal = 8.dp, vertical = 2.dp)
+                shape = RoundedCornerShape(14.dp),
+                border = BorderStroke(1.dp, AdminBorder),
+                modifier = Modifier.defaultMinSize(minHeight = 48.dp),
+                contentPadding = PaddingValues(horizontal = 10.dp, vertical = 6.dp)
               ) {
-                Icon(Icons.Default.Sync, contentDescription = null, tint = GoldPrimary, modifier = Modifier.size(14.dp))
-                Spacer(modifier = Modifier.width(3.dp))
-                Text("Change", fontSize = 11.sp, color = GoldLight)
+                Icon(Icons.Default.Sync, contentDescription = null, tint = ChampagneGold, modifier = Modifier.size(14.dp))
+                Spacer(modifier = Modifier.width(4.dp))
+                Text("Change", fontFamily = MontserratFamily, fontWeight = FontWeight.SemiBold, fontSize = 12.sp, color = ChampagneGold)
               }
             }
           }
@@ -180,10 +204,12 @@ fun AdminClassMonitorScreen(
         FilterChip(
           selected = monitorState.activeTab == tab,
           onClick = { monitorVm.selectTab(tab) },
-          label = { Text("${tab.label}$badge", fontSize = 12.sp) },
+          modifier = Modifier.defaultMinSize(minHeight = 48.dp),
+          label = { Text("${tab.label}$badge", style = AdminNavLabelStyle) },
+          border = FilterChipDefaults.filterChipBorder(enabled = true, selected = monitorState.activeTab == tab, borderColor = AdminBorder, selectedBorderColor = ChampagneGold),
           colors = FilterChipDefaults.filterChipColors(
-            selectedContainerColor = GoldPrimary, selectedLabelColor = DarkTextOnGold,
-            containerColor = AdminSurface, labelColor = TextSecondary
+            selectedContainerColor = ChampagneGold, selectedLabelColor = DarkTextOnGold,
+            containerColor = AdminSurface, labelColor = Lavender
           )
         )
       }
@@ -223,6 +249,7 @@ fun AdminClassMonitorScreen(
         extraVm = extraVm,
         onOpenClassRisk = { onOpenClassRisk(monitorState.selectedClassId.orEmpty(), className) }
       )
+      MonitorTab.EXAMS -> AdminMonitorExamsTab(className = className, extraState = extraState, extraVm = extraVm)
       MonitorTab.POLLS -> AdminMonitorPollsTab(extraState, extraVm)
       MonitorTab.GROUPS -> AdminMonitorGroupsTab(extraState, extraVm)
     }

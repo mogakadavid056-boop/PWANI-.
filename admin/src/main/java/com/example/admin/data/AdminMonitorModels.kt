@@ -177,3 +177,36 @@ data class AdminGroupMember(
   val admissionNumber: String = "-",
   val isOwner: Boolean = false
 )
+
+data class AdminQuizSummary(
+  val id: String,
+  val title: String,
+  val unitCode: String = "",
+  val status: String = "open",
+  val isExam: Boolean = false,
+  val answerFormat: String = "choices",
+  val questionCount: Int = 0,
+  val totalMarks: Double = 0.0,
+  val attemptsCount: Int = 0,
+  val timeLimitSeconds: Long? = null,
+  val oneWayNavigation: Boolean = false,
+  val noCopyPaste: Boolean = false,
+  val opensAt: String = "",
+  val closesAt: String = ""
+)
+
+data class AdminQuizResultRow(
+  val studentId: String,
+  val fullName: String,
+  val admissionNumber: String,
+  val score: Double?,
+  val total: Double,
+  val submittedAt: String = "",
+  val markingStatus: String = "auto",
+  val late: Boolean = false,
+  val mcqMarks: Double? = null,
+  val writtenMarks: Double? = null,
+  val focusLossCount: Int = 0,
+  val autoSubmittedReason: String = ""
+)
+

@@ -33,6 +33,11 @@ import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.interaction.collectIsFocusedAsState
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
+import androidx.compose.ui.draw.shadow
 import com.example.data.AdminUserItem
 import com.example.ui.components.AdminTopBar
 import com.example.ui.components.AdminUserRow
@@ -41,16 +46,18 @@ import com.example.ui.components.AssignRoleDialog
 import com.example.ui.components.ClassRepPullToRefresh
 import com.example.ui.components.ErrorBanner
 import com.example.ui.components.LoadingSkeleton
-import com.example.ui.theme.DarkBackground
-import com.example.ui.theme.DarkBorder
-import com.example.ui.theme.DarkCard
-import com.example.ui.theme.DarkSurface
-import com.example.ui.theme.GoldLight
-import com.example.ui.theme.GoldPrimary
-import com.example.ui.theme.SuccessContainer
-import com.example.ui.theme.SuccessGreen
-import com.example.ui.theme.TextPrimary
-import com.example.ui.theme.TextSecondary
+import com.example.ui.components.RoyalCard
+import com.example.ui.components.royalOutlinedTextFieldColors
+import com.example.ui.theme.ButtonRadius
+import com.example.ui.theme.CaptionStyle
+import com.example.ui.theme.ChampagneGold
+import com.example.ui.theme.ElectricViolet
+import com.example.ui.theme.Lavender
+import com.example.ui.theme.MetallicGold
+import com.example.ui.theme.RoyalSuccessContainer
+import com.example.ui.theme.SectionHeadingStyle
+import com.example.ui.theme.SilverWhite
+import com.example.ui.theme.SuccessColor
 
 @Composable
 fun ManageUsersScreen(
@@ -84,7 +91,6 @@ fun ManageUsersScreen(
   Box(
     modifier = Modifier
       .fillMaxSize()
-      .background(DarkBackground)
       .testTag("manage_users_screen")
   ) {
     Column(
@@ -96,35 +102,32 @@ fun ManageUsersScreen(
 
       Spacer(modifier = Modifier.height(12.dp))
 
+      val searchInteraction = remember { MutableInteractionSource() }
+      val isSearchFocused by searchInteraction.collectIsFocusedAsState()
       OutlinedTextField(
         value = searchQuery,
         onValueChange = onSearchQueryChanged,
+        interactionSource = searchInteraction,
         modifier = Modifier
           .fillMaxWidth()
+          .then(if (isSearchFocused) Modifier.shadow(10.dp, RoundedCornerShape(ButtonRadius), ambientColor = ElectricViolet, spotColor = ElectricViolet) else Modifier)
           .testTag("admin_search_input"),
         placeholder = {
-          Text("Search by name, email, or admission no...", color = TextSecondary, fontSize = 13.sp)
+          Text("Search by name, email, or admission no...", style = CaptionStyle.copy(color = Lavender.copy(alpha = 0.7f)))
         },
         leadingIcon = {
-          Icon(Icons.Default.Search, contentDescription = null, tint = GoldPrimary, modifier = Modifier.size(18.dp))
+          Icon(Icons.Default.Search, contentDescription = null, tint = if (isSearchFocused) ChampagneGold else MetallicGold, modifier = Modifier.size(18.dp))
         },
         trailingIcon = {
           if (searchQuery.isNotEmpty()) {
-            IconButton(onClick = { onSearchQueryChanged("") }) {
-              Icon(Icons.Default.Clear, contentDescription = "Clear", tint = TextSecondary, modifier = Modifier.size(16.dp))
+            IconButton(onClick = { onSearchQueryChanged("") }, modifier = Modifier.size(48.dp)) {
+              Icon(Icons.Default.Clear, contentDescription = "Clear", tint = Lavender, modifier = Modifier.size(18.dp))
             }
           }
         },
         singleLine = true,
-        shape = RoundedCornerShape(12.dp),
-        colors = OutlinedTextFieldDefaults.colors(
-          focusedContainerColor = DarkSurface,
-          unfocusedContainerColor = DarkSurface,
-          focusedBorderColor = GoldPrimary,
-          unfocusedBorderColor = DarkBorder,
-          focusedTextColor = TextPrimary,
-          unfocusedTextColor = TextPrimary
-        )
+        shape = RoundedCornerShape(ButtonRadius),
+        colors = royalOutlinedTextFieldColors()
       )
 
       Spacer(modifier = Modifier.height(12.dp))
@@ -138,19 +141,19 @@ fun ManageUsersScreen(
         Box(
           modifier = Modifier
             .fillMaxWidth()
-            .clip(RoundedCornerShape(10.dp))
-            .background(SuccessContainer)
-            .border(1.dp, SuccessGreen.copy(alpha = 0.5f), RoundedCornerShape(10.dp))
-            .padding(12.dp)
+            .clip(RoundedCornerShape(ButtonRadius))
+            .background(RoyalSuccessContainer)
+            .border(1.dp, SuccessColor.copy(alpha = 0.55f), RoundedCornerShape(ButtonRadius))
+            .padding(start = 12.dp, end = 4.dp, top = 6.dp, bottom = 6.dp)
         ) {
           Row(
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically
           ) {
-            Text(text = successMessage, color = SuccessGreen, fontSize = 13.sp, modifier = Modifier.weight(1f))
-            IconButton(onClick = onDismissSuccess, modifier = Modifier.size(24.dp)) {
-              Icon(Icons.Default.Clear, contentDescription = "Dismiss", tint = SuccessGreen, modifier = Modifier.size(14.dp))
+            Text(text = successMessage, style = CaptionStyle.copy(color = SuccessColor), modifier = Modifier.weight(1f))
+            IconButton(onClick = onDismissSuccess, modifier = Modifier.size(48.dp)) {
+              Icon(Icons.Default.Clear, contentDescription = "Dismiss", tint = SuccessColor, modifier = Modifier.size(16.dp))
             }
           }
         }
@@ -164,11 +167,9 @@ fun ManageUsersScreen(
       ) {
         Text(
           text = if (searchQuery.isBlank()) "Users" else "Search Results",
-          fontSize = 14.sp,
-          fontWeight = FontWeight.SemiBold,
-          color = GoldLight
+          style = SectionHeadingStyle.copy(fontSize = 18.sp, color = SilverWhite)
         )
-        Text(text = "${users.size} shown", fontSize = 12.sp, color = TextSecondary)
+        Text(text = "${users.size} shown", style = CaptionStyle.copy(color = Lavender))
       }
 
       Spacer(modifier = Modifier.height(8.dp))
@@ -185,24 +186,18 @@ fun ManageUsersScreen(
             LoadingSkeleton(height = 65)
           }
         } else if (users.isEmpty()) {
-          Box(
-            modifier = Modifier
-              .fillMaxWidth()
-              .clip(RoundedCornerShape(14.dp))
-              .background(DarkCard)
-              .border(1.dp, DarkBorder, RoundedCornerShape(14.dp))
-              .padding(32.dp),
-            contentAlignment = Alignment.Center
-          ) {
-            Column(horizontalAlignment = Alignment.CenterHorizontally) {
-              Icon(Icons.Default.People, contentDescription = null, tint = TextSecondary, modifier = Modifier.size(44.dp))
+          RoyalCard {
+            Column(
+              modifier = Modifier.fillMaxWidth().padding(vertical = 16.dp),
+              horizontalAlignment = Alignment.CenterHorizontally
+            ) {
+              Icon(Icons.Default.People, contentDescription = null, tint = ChampagneGold, modifier = Modifier.size(44.dp))
               Spacer(modifier = Modifier.height(10.dp))
-              Text("No users found", fontSize = 15.sp, fontWeight = FontWeight.SemiBold, color = GoldLight)
+              Text("No users found", style = SectionHeadingStyle.copy(fontSize = 18.sp))
               Spacer(modifier = Modifier.height(4.dp))
               Text(
                 text = if (searchQuery.isNotBlank()) "No users match '$searchQuery'" else "Pull down to refresh users",
-                fontSize = 12.sp,
-                color = TextSecondary
+                style = CaptionStyle.copy(color = Lavender)
               )
             }
           }

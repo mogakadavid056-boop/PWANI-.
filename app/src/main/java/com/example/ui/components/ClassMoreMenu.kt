@@ -17,7 +17,9 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowForwardIos
 import androidx.compose.material.icons.filled.Alarm
 import androidx.compose.material.icons.filled.Description
+import androidx.compose.material.icons.filled.EmojiEvents
 import androidx.compose.material.icons.filled.Favorite
+import androidx.compose.material.icons.filled.Leaderboard
 import androidx.compose.material.icons.filled.People
 import androidx.compose.material.icons.filled.Poll
 import androidx.compose.material3.Icon
@@ -48,10 +50,15 @@ fun ClassMoreMenu(
   isStaff: Boolean,
   materialsCount: Int,
   pollsCount: Int,
+  openChallengesCount: Int = 0,
+  totalChallengesCount: Int = 0,
+  weekPoints: Int = 0,
   alarmsEnabled: Boolean = true,
   alarmReminderMinutes: Int = 15,
   onOpenMaterials: () -> Unit,
   onOpenPolls: () -> Unit,
+  onOpenChallenges: () -> Unit = {},
+  onOpenLeaderboard: () -> Unit = {},
   onOpenAlarmSettings: () -> Unit = {},
   onOpenManageMembers: () -> Unit,
   modifier: Modifier = Modifier
@@ -63,6 +70,11 @@ fun ClassMoreMenu(
   } else {
     "Active • At class start time"
   }
+  val challengesSubtitle = when {
+    openChallengesCount > 0 -> "$openChallengesCount open right now • $totalChallengesCount total"
+    totalChallengesCount > 0 -> "$totalChallengesCount timed revision quizzes"
+    else -> "Timed quizzes, scores & explanations"
+  }
 
   Column(
     modifier = modifier.fillMaxWidth().testTag("class_more_menu"),
@@ -73,6 +85,22 @@ fun ClassMoreMenu(
       style = SectionHeadingStyle,
       color = GoldLight,
       modifier = Modifier.padding(bottom = 4.dp)
+    )
+
+    MoreMenuItem(
+      title = "Challenges",
+      subtitle = challengesSubtitle,
+      icon = Icons.Default.EmojiEvents,
+      onClick = onOpenChallenges,
+      tag = "more_item_challenges"
+    )
+
+    MoreMenuItem(
+      title = "Leaderboard",
+      subtitle = if (weekPoints > 0) "$weekPoints pts this week • Streaks & rankings" else "Weekly points, streaks & top students",
+      icon = Icons.Default.Leaderboard,
+      onClick = onOpenLeaderboard,
+      tag = "more_item_leaderboard"
     )
 
     MoreMenuItem(

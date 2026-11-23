@@ -1,15 +1,22 @@
 package com.example.admin.ui.components
 
+import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.defaultMinSize
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.navigationBars
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.safeDrawing
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.AccountBalance
@@ -35,6 +42,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.admin.notifications.AdminNotificationDeepLink
@@ -46,12 +54,17 @@ import com.example.admin.ui.AdminRiskViewModel
 import com.example.admin.ui.AdminTab
 import com.example.admin.ui.ApprovalsSubTab
 import com.example.admin.ui.MonitorTab
-import com.example.admin.ui.theme.AdminSurface
+import com.example.admin.ui.theme.AdminNavLabelStyle
+import com.example.admin.ui.theme.ChampagneGold
 import com.example.admin.ui.theme.CrimsonError
-import com.example.admin.ui.theme.DarkTextOnGold
-import com.example.admin.ui.theme.GoldPrimary
-import com.example.admin.ui.theme.TextPrimary
-import com.example.admin.ui.theme.TextSecondary
+import com.example.admin.ui.theme.ElectricViolet
+import com.example.admin.ui.theme.Lavender
+import com.example.admin.ui.theme.MetallicGold
+import com.example.admin.ui.theme.Midnight
+import com.example.admin.ui.theme.MontserratFamily
+import com.example.admin.ui.theme.RoyalNavSurface
+import com.example.admin.ui.theme.RoyalSurfaceHigh
+import com.example.admin.ui.theme.SilverWhite
 
 private data class NavSpec(val tab: AdminTab, val label: String, val icon: ImageVector)
 
@@ -82,20 +95,24 @@ fun AdminShell(
     BoxWithConstraints(modifier = Modifier.fillMaxSize()) {
       if (maxWidth >= 600.dp) {
         Row(modifier = Modifier.fillMaxSize().windowInsetsPadding(WindowInsets.safeDrawing)) {
-          NavigationRail(containerColor = AdminSurface) {
+          NavigationRail(containerColor = RoyalNavSurface) {
             railItems.forEach { item ->
               NavigationRailItem(
                 selected = activeTab == item.tab,
                 onClick = { onSelectTab(item.tab) },
                 icon = { NavIconWithBadge(item, if (item.tab == AdminTab.APPROVALS) pendingApprovalsCount else 0) },
-                label = { Text(item.label, fontSize = 11.sp) },
+                label = { Text(item.label, style = AdminNavLabelStyle, maxLines = 1, softWrap = false) },
                 colors = NavigationRailItemDefaults.colors(
-                  selectedIconColor = DarkTextOnGold, selectedTextColor = GoldPrimary,
-                  indicatorColor = GoldPrimary, unselectedIconColor = TextSecondary, unselectedTextColor = TextSecondary
+                  selectedIconColor = ChampagneGold,
+                  selectedTextColor = ChampagneGold,
+                  indicatorColor = ElectricViolet.copy(alpha = 0.28f),
+                  unselectedIconColor = Lavender.copy(alpha = 0.78f),
+                  unselectedTextColor = Lavender.copy(alpha = 0.78f)
                 )
               )
             }
           }
+          Box(modifier = Modifier.width(1.dp).fillMaxHeight().background(MetallicGold.copy(alpha = 0.25f)))
           content(Modifier.weight(1f))
         }
       } else {
@@ -103,19 +120,25 @@ fun AdminShell(
           containerColor = Color.Transparent,
           contentWindowInsets = WindowInsets.safeDrawing,
           bottomBar = {
-            NavigationBar(containerColor = AdminSurface, windowInsets = WindowInsets.navigationBars) {
-              phoneItems.forEach { item ->
-                val isSelected = activeTab == item.tab || (item.tab == AdminTab.USERS && activeTab == AdminTab.UNIVERSITY)
-                NavigationBarItem(
-                  selected = isSelected,
-                  onClick = { onSelectTab(item.tab) },
-                  icon = { NavIconWithBadge(item, if (item.tab == AdminTab.APPROVALS) pendingApprovalsCount else 0) },
-                  label = { Text(item.label, fontSize = 11.sp, maxLines = 1) },
-                  colors = NavigationBarItemDefaults.colors(
-                    selectedIconColor = DarkTextOnGold, selectedTextColor = GoldPrimary,
-                    indicatorColor = GoldPrimary, unselectedIconColor = TextSecondary, unselectedTextColor = TextSecondary
+            Column {
+              Box(modifier = Modifier.fillMaxWidth().height(1.dp).background(MetallicGold.copy(alpha = 0.25f)))
+              NavigationBar(containerColor = RoyalNavSurface, windowInsets = WindowInsets.navigationBars) {
+                phoneItems.forEach { item ->
+                  val isSelected = activeTab == item.tab || (item.tab == AdminTab.USERS && activeTab == AdminTab.UNIVERSITY)
+                  NavigationBarItem(
+                    selected = isSelected,
+                    onClick = { onSelectTab(item.tab) },
+                    icon = { NavIconWithBadge(item, if (item.tab == AdminTab.APPROVALS) pendingApprovalsCount else 0) },
+                    label = { Text(item.label, style = AdminNavLabelStyle, maxLines = 1, softWrap = false) },
+                    colors = NavigationBarItemDefaults.colors(
+                      selectedIconColor = ChampagneGold,
+                      selectedTextColor = ChampagneGold,
+                      indicatorColor = ElectricViolet.copy(alpha = 0.28f),
+                      unselectedIconColor = Lavender.copy(alpha = 0.78f),
+                      unselectedTextColor = Lavender.copy(alpha = 0.78f)
+                    )
                   )
-                )
+                }
               }
             }
           }
@@ -129,14 +152,28 @@ fun AdminShell(
                 FilterChip(
                   selected = activeTab == AdminTab.USERS,
                   onClick = { onSelectTab(AdminTab.USERS) },
-                  label = { Text("Users & Roles", fontSize = 12.sp) },
-                  colors = FilterChipDefaults.filterChipColors(selectedContainerColor = GoldPrimary, selectedLabelColor = DarkTextOnGold, containerColor = AdminSurface, labelColor = TextSecondary)
+                  modifier = Modifier.defaultMinSize(minHeight = 48.dp),
+                  border = BorderStroke(1.dp, if (activeTab == AdminTab.USERS) ChampagneGold else MetallicGold.copy(alpha = 0.4f)),
+                  label = { Text("Users & Roles", fontFamily = MontserratFamily, fontSize = 13.sp, fontWeight = FontWeight.SemiBold) },
+                  colors = FilterChipDefaults.filterChipColors(
+                    selectedContainerColor = MetallicGold,
+                    selectedLabelColor = Midnight,
+                    containerColor = RoyalSurfaceHigh,
+                    labelColor = Lavender
+                  )
                 )
                 FilterChip(
                   selected = activeTab == AdminTab.UNIVERSITY,
                   onClick = { onSelectTab(AdminTab.UNIVERSITY) },
-                  label = { Text("University", fontSize = 12.sp) },
-                  colors = FilterChipDefaults.filterChipColors(selectedContainerColor = GoldPrimary, selectedLabelColor = DarkTextOnGold, containerColor = AdminSurface, labelColor = TextSecondary)
+                  modifier = Modifier.defaultMinSize(minHeight = 48.dp),
+                  border = BorderStroke(1.dp, if (activeTab == AdminTab.UNIVERSITY) ChampagneGold else MetallicGold.copy(alpha = 0.4f)),
+                  label = { Text("University", fontFamily = MontserratFamily, fontSize = 13.sp, fontWeight = FontWeight.SemiBold) },
+                  colors = FilterChipDefaults.filterChipColors(
+                    selectedContainerColor = MetallicGold,
+                    selectedLabelColor = Midnight,
+                    containerColor = RoyalSurfaceHigh,
+                    labelColor = Lavender
+                  )
                 )
               }
             }
@@ -151,7 +188,7 @@ fun AdminShell(
 @Composable
 private fun NavIconWithBadge(item: NavSpec, badgeCount: Int) {
   if (badgeCount > 0) {
-    BadgedBox(badge = { Badge(containerColor = CrimsonError, contentColor = TextPrimary) { Text(if (badgeCount > 99) "99+" else "$badgeCount") } }) {
+    BadgedBox(badge = { Badge(containerColor = CrimsonError, contentColor = SilverWhite) { Text(if (badgeCount > 99) "99+" else "$badgeCount", fontFamily = MontserratFamily, fontWeight = FontWeight.Bold) } }) {
       Icon(item.icon, contentDescription = item.label)
     }
   } else {

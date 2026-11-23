@@ -45,6 +45,9 @@ fun MainContainerRoute(
   noticesViewModel: NoticesViewModel,
   universityViewModel: UniversityViewModel,
   adminViewModel: AdminViewModel,
+  challengesUiState: com.example.ui.ChallengesUiState = com.example.ui.ChallengesUiState(),
+  challengesViewModel: com.example.ui.ChallengesViewModel? = null,
+  onOpenPaperToMark: (com.example.data.PaperToMarkItem) -> Unit = {},
   onNavigateToJoinClass: () -> Unit,
   onNavigateToCreateClass: () -> Unit,
   onNavigateToFindClasses: () -> Unit = {},
@@ -55,6 +58,8 @@ fun MainContainerRoute(
   onDismissAuthInfo: () -> Unit = {},
   unreadNotificationCount: Int = 0,
   onOpenNotifications: () -> Unit = {},
+  isOnline: Boolean = true,
+  onOpenAssistant: () -> Unit = {},
   onLogout: () -> Unit
 ) {
   var selectedTab by remember { mutableStateOf(MainTab.Home) }
@@ -69,6 +74,9 @@ fun MainContainerRoute(
       if (isStaff) {
         classesViewModel.loadClassesWaitingForRep(session)
       }
+      if (isLecturer || isAdmin) {
+        challengesViewModel?.loadPapersToMark(session)
+      }
     }
   }
 
@@ -79,7 +87,6 @@ fun MainContainerRoute(
   Box(
     modifier = Modifier
       .fillMaxSize()
-      .background(DarkBackground)
   ) {
     Column(modifier = Modifier.fillMaxSize()) {
       Box(modifier = Modifier.weight(1f)) {
@@ -101,10 +108,15 @@ fun MainContainerRoute(
               classesError = classesUiState.errorMessage,
               classesWaitingForRep = classesUiState.classesWaitingForRep,
               isWaitingLoading = classesUiState.isWaitingLoading,
+              papersToMark = challengesUiState.papersToMark,
+              isPapersToMarkLoading = challengesUiState.isLoadingPapersToMark,
+              onOpenPaperToMark = onOpenPaperToMark,
               authInfoMessage = authInfoMessage,
               onDismissAuthInfo = onDismissAuthInfo,
               unreadNotificationCount = unreadNotificationCount,
               onOpenNotifications = onOpenNotifications,
+              isOnline = isOnline,
+              onOpenAssistant = onOpenAssistant,
               onAppointPrefectClick = { waitingItem ->
                 onOpenManageMembersForClass(waitingItem.classId, waitingItem.className)
               },
@@ -114,6 +126,9 @@ fun MainContainerRoute(
                 noticesViewModel.loadLatestAnnouncements(session)
                 if (isStaff) {
                   classesViewModel.loadClassesWaitingForRep(session)
+                }
+                if (isLecturer || isAdmin) {
+                  challengesViewModel?.loadPapersToMark(session)
                 }
               },
               onNavigateToJoinClass = onNavigateToJoinClass,
@@ -140,6 +155,8 @@ fun MainContainerRoute(
                   isAdmin = true,
                   unreadNotificationCount = unreadNotificationCount,
                   onOpenNotifications = onOpenNotifications,
+                  isOnline = isOnline,
+                  onOpenAssistant = onOpenAssistant,
                   onBack = null,
                   onOpenClass = onSelectClass
                 )
@@ -154,6 +171,8 @@ fun MainContainerRoute(
                   errorMessage = classesUiState.errorMessage,
                   unreadNotificationCount = unreadNotificationCount,
                   onOpenNotifications = onOpenNotifications,
+                  isOnline = isOnline,
+                  onOpenAssistant = onOpenAssistant,
                   onDismissError = { classesViewModel.clearError() },
                   onRefresh = { classesViewModel.loadClasses(session) },
                   onSelectClass = onSelectClass,

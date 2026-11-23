@@ -23,19 +23,20 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.platform.testTag
-import androidx.compose.ui.text.font.FontFamily
-import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.data.GroupMemberItem
+import com.example.ui.theme.CaptionStyle
+import com.example.ui.theme.CardTitleStyle
+import com.example.ui.theme.ChampagneGold
 import com.example.ui.theme.DarkBorder
-import com.example.ui.theme.DarkSurface
-import com.example.ui.theme.DarkSurfaceVariant
-import com.example.ui.theme.DarkTextOnGold
 import com.example.ui.theme.ErrorRed
-import com.example.ui.theme.GoldPrimary
-import com.example.ui.theme.TextPrimary
-import com.example.ui.theme.TextSecondary
+import com.example.ui.theme.FieldLabelStyle
+import com.example.ui.theme.Lavender
+import com.example.ui.theme.Midnight
+import com.example.ui.theme.RoyalSurface
+import com.example.ui.theme.RoyalSurfaceHigh
+import com.example.ui.theme.SilverWhite
 
 @Composable
 fun GroupMemberCard(
@@ -47,9 +48,9 @@ fun GroupMemberCard(
   Box(
     modifier = Modifier
       .fillMaxWidth()
-      .clip(RoundedCornerShape(10.dp))
-      .background(DarkSurface)
-      .border(1.dp, DarkBorder, RoundedCornerShape(10.dp))
+      .clip(RoundedCornerShape(14.dp))
+      .background(RoyalSurface)
+      .border(1.dp, DarkBorder, RoundedCornerShape(14.dp))
       .padding(12.dp)
       .testTag("group_member_${member.userId}")
   ) {
@@ -59,38 +60,38 @@ fun GroupMemberCard(
     ) {
       Box(
         modifier = Modifier
-          .size(34.dp)
+          .size(38.dp)
           .clip(CircleShape)
-          .background(DarkSurfaceVariant),
+          .background(RoyalSurfaceHigh),
         contentAlignment = Alignment.Center
       ) {
-        Icon(Icons.Default.Person, contentDescription = null, tint = TextSecondary, modifier = Modifier.size(18.dp))
+        Icon(Icons.Default.Person, contentDescription = null, tint = Lavender, modifier = Modifier.size(18.dp))
       }
       Spacer(modifier = Modifier.width(10.dp))
       Column(modifier = Modifier.weight(1f)) {
         Row(verticalAlignment = Alignment.CenterVertically) {
-          Text(member.fullName, fontSize = 14.sp, fontWeight = FontWeight.Bold, color = TextPrimary)
+          Text(member.fullName, style = CardTitleStyle.copy(fontSize = 16.sp, color = SilverWhite))
           if (member.isOwner) {
-            Spacer(modifier = Modifier.width(6.dp))
+            Spacer(modifier = Modifier.width(8.dp))
             Box(
               modifier = Modifier
-                .clip(RoundedCornerShape(4.dp))
-                .background(GoldPrimary)
-                .padding(horizontal = 5.dp, vertical = 2.dp)
+                .clip(RoundedCornerShape(6.dp))
+                .background(ChampagneGold)
+                .padding(horizontal = 6.dp, vertical = 2.dp)
             ) {
-              Text("Owner", fontSize = 9.sp, fontWeight = FontWeight.ExtraBold, color = DarkTextOnGold)
+              Text("Owner", style = FieldLabelStyle.copy(fontSize = 11.sp, color = Midnight))
             }
           }
         }
         if (member.admissionNumber.isNotBlank()) {
-          Text(member.admissionNumber, fontSize = 13.sp, color = TextSecondary)
+          Text(member.admissionNumber, style = CaptionStyle.copy(color = Lavender))
         }
       }
 
       if (canManageGroup && !isSelf) {
         IconButton(
           onClick = onRemove,
-          modifier = Modifier.size(32.dp).testTag("remove_group_member_btn_${member.userId}")
+          modifier = Modifier.size(40.dp).testTag("remove_group_member_btn_${member.userId}")
         ) {
           Icon(Icons.Default.PersonRemove, contentDescription = "Remove", tint = ErrorRed, modifier = Modifier.size(18.dp))
         }

@@ -42,13 +42,18 @@ import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.data.ScheduleItem
-import com.example.ui.theme.DarkBorder
-import com.example.ui.theme.DarkSurface
+import com.example.ui.theme.CaptionStyle
+import com.example.ui.theme.CardTitleStyle
+import com.example.ui.theme.ChampagneGold
 import com.example.ui.theme.DarkSurfaceVariant
+import com.example.ui.theme.ElectricViolet
 import com.example.ui.theme.ErrorRed
 import com.example.ui.theme.GoldLight
 import com.example.ui.theme.GoldPrimary
-import com.example.ui.theme.PoppinsFamily
+import com.example.ui.theme.MontserratFamily
+import com.example.ui.theme.RoyalSurfaceHigh
+import com.example.ui.theme.SectionHeadingStyle
+import com.example.ui.theme.SilverWhite
 import com.example.ui.theme.TextPrimary
 import com.example.ui.theme.TextSecondary
 
@@ -82,8 +87,8 @@ fun ScheduleCard(
           )
           if (schedule.isCancelled || schedule.isMoved) {
             Spacer(modifier = Modifier.width(8.dp))
-            val badgeBg = if (schedule.isCancelled) ErrorRed.copy(alpha = 0.16f) else Color(0x22FFB300)
-            val badgeBorder = if (schedule.isCancelled) ErrorRed else Color(0xFFFFB300)
+            val badgeBg = if (schedule.isCancelled) ErrorRed.copy(alpha = 0.16f) else ElectricViolet.copy(alpha = 0.22f)
+            val badgeBorder = if (schedule.isCancelled) ErrorRed else ChampagneGold
             val badgeText = if (schedule.isCancelled) "CANCELLED" else "MOVED"
             Box(
               modifier = Modifier
@@ -93,7 +98,7 @@ fun ScheduleCard(
                 .padding(horizontal = 6.dp, vertical = 2.dp)
                 .testTag("schedule_status_badge_${schedule.id}")
             ) {
-              Text(badgeText, fontSize = 10.sp, fontWeight = FontWeight.ExtraBold, color = badgeBorder)
+              Text(badgeText, fontFamily = MontserratFamily, fontSize = 11.sp, fontWeight = FontWeight.SemiBold, color = badgeBorder)
             }
           }
         }
@@ -102,20 +107,20 @@ fun ScheduleCard(
           Box {
             IconButton(
               onClick = { showMenu = true },
-              modifier = Modifier.size(28.dp).testTag("schedule_more_btn_${schedule.id}")
+              modifier = Modifier.size(48.dp).testTag("schedule_more_btn_${schedule.id}")
             ) {
-              Icon(Icons.Default.MoreVert, contentDescription = "Options", tint = TextSecondary, modifier = Modifier.size(16.dp))
+              Icon(Icons.Default.MoreVert, contentDescription = "Options", tint = TextSecondary, modifier = Modifier.size(18.dp))
             }
             if (showMenu) {
               val isOnline by com.example.data.NetworkMonitor.isOnline.collectAsStateWithLifecycle()
               val context = LocalContext.current
               androidx.compose.ui.window.Dialog(onDismissRequest = { showMenu = false }) {
                 Column(
-                  modifier = Modifier.fillMaxWidth().clip(RoundedCornerShape(16.dp))
-                    .background(androidx.compose.ui.graphics.Color(0xFF0B2A1E))
-                    .border(1.dp, GoldPrimary.copy(alpha = 0.6f), RoundedCornerShape(16.dp)).padding(16.dp)
+                  modifier = Modifier.fillMaxWidth().clip(RoundedCornerShape(18.dp))
+                    .background(RoyalSurfaceHigh)
+                    .border(1.dp, GoldPrimary.copy(alpha = 0.6f), RoundedCornerShape(18.dp)).padding(16.dp)
                 ) {
-                  Text("Class Options", fontSize = 16.sp, fontWeight = FontWeight.Bold, color = GoldLight)
+                  Text("Class Options", style = SectionHeadingStyle)
                   Spacer(modifier = Modifier.height(10.dp))
                   Row(
                     modifier = Modifier.fillMaxWidth().clip(RoundedCornerShape(10.dp)).clickable {
@@ -125,7 +130,7 @@ fun ScheduleCard(
                   ) {
                     Icon(Icons.Default.EventBusy, contentDescription = null, tint = GoldLight, modifier = Modifier.size(18.dp))
                     Spacer(modifier = Modifier.width(12.dp))
-                    Text("Mark Cancelled / Moved", color = GoldLight, fontSize = 14.sp)
+                    Text("Mark Cancelled / Moved", color = GoldLight, fontSize = 15.sp)
                   }
                   Row(
                     modifier = Modifier.fillMaxWidth().clip(RoundedCornerShape(10.dp)).clickable {
@@ -135,7 +140,7 @@ fun ScheduleCard(
                   ) {
                     Icon(Icons.Default.Edit, contentDescription = null, tint = GoldPrimary, modifier = Modifier.size(18.dp))
                     Spacer(modifier = Modifier.width(12.dp))
-                    Text("Edit Class", color = TextPrimary, fontSize = 14.sp)
+                    Text("Edit Class", color = TextPrimary, fontSize = 15.sp)
                   }
                   Row(
                     modifier = Modifier.fillMaxWidth().clip(RoundedCornerShape(10.dp)).clickable {
@@ -145,7 +150,7 @@ fun ScheduleCard(
                   ) {
                     Icon(Icons.Default.Delete, contentDescription = null, tint = ErrorRed, modifier = Modifier.size(18.dp))
                     Spacer(modifier = Modifier.width(12.dp))
-                    Text("Delete Class", color = ErrorRed, fontSize = 14.sp)
+                    Text("Delete Class", color = ErrorRed, fontSize = 15.sp)
                   }
                 }
               }
@@ -158,20 +163,20 @@ fun ScheduleCard(
 
       Text(
         text = schedule.title,
-        fontFamily = PoppinsFamily,
-        fontWeight = FontWeight.Bold,
-        fontSize = 16.sp,
-        color = if (schedule.isCancelled) TextSecondary else TextPrimary,
-        textDecoration = if (schedule.isCancelled) TextDecoration.LineThrough else TextDecoration.None
+        style = CardTitleStyle.copy(
+          color = if (schedule.isCancelled) TextSecondary else SilverWhite,
+          textDecoration = if (schedule.isCancelled) TextDecoration.LineThrough else TextDecoration.None
+        )
       )
 
       if ((schedule.isCancelled || schedule.isMoved) && schedule.statusNote.isNotBlank()) {
         Spacer(modifier = Modifier.height(6.dp))
         Text(
           text = schedule.statusNote,
-          fontSize = 12.sp,
-          color = if (schedule.isCancelled) ErrorRed else Color(0xFFFFD54F),
-          fontWeight = FontWeight.Medium
+          style = CaptionStyle.copy(
+            color = if (schedule.isCancelled) ErrorRed else ChampagneGold,
+            fontWeight = FontWeight.Medium
+          )
         )
       }
 

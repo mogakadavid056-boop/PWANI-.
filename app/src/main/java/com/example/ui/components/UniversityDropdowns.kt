@@ -39,12 +39,20 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
+import androidx.compose.foundation.layout.defaultMinSize
+import com.example.ui.theme.ButtonRadius
+import com.example.ui.theme.ButtonTextStyle
+import com.example.ui.theme.CardRadius
+import com.example.ui.theme.ChampagneGold
 import com.example.ui.theme.DarkBorder
-import com.example.ui.theme.DarkSurfaceVariant
-import com.example.ui.theme.GoldLight
-import com.example.ui.theme.GoldPrimary
-import com.example.ui.theme.TextPrimary
-import com.example.ui.theme.TextSecondary
+import com.example.ui.theme.ElectricViolet
+import com.example.ui.theme.FieldLabelStyle
+import com.example.ui.theme.Lavender
+import com.example.ui.theme.MetallicGold
+import com.example.ui.theme.RoyalSurface
+import com.example.ui.theme.RoyalSurfaceHigh
+import com.example.ui.theme.SectionHeadingStyle
+import com.example.ui.theme.SilverWhite
 
 @Composable
 fun <T> AppDropdownField(
@@ -63,18 +71,17 @@ fun <T> AppDropdownField(
   Column(modifier = modifier.fillMaxWidth()) {
     Text(
       text = label,
-      color = TextSecondary,
-      fontSize = 13.sp,
-      fontWeight = FontWeight.Medium,
+      style = FieldLabelStyle,
       modifier = Modifier.padding(bottom = 6.dp)
     )
 
     Box(
       modifier = Modifier
         .fillMaxWidth()
-        .clip(RoundedCornerShape(12.dp))
-        .background(DarkSurfaceVariant)
-        .border(1.dp, if (showPicker) GoldPrimary else DarkBorder, RoundedCornerShape(12.dp))
+        .defaultMinSize(minHeight = 52.dp)
+        .clip(RoundedCornerShape(ButtonRadius))
+        .background(RoyalSurface)
+        .border(1.dp, if (showPicker) ElectricViolet else DarkBorder, RoundedCornerShape(ButtonRadius))
         .clickable { showPicker = true }
         .padding(horizontal = 14.dp, vertical = 14.dp)
         .testTag(testTag)
@@ -87,7 +94,7 @@ fun <T> AppDropdownField(
           Icon(
             imageVector = leadingIcon,
             contentDescription = null,
-            tint = if (selectedValueText.isNotBlank()) GoldPrimary else TextSecondary,
+            tint = if (selectedValueText.isNotBlank()) ChampagneGold else Lavender,
             modifier = Modifier.size(20.dp)
           )
           Spacer(modifier = Modifier.size(10.dp))
@@ -95,15 +102,17 @@ fun <T> AppDropdownField(
 
         Text(
           text = if (selectedValueText.isNotBlank()) selectedValueText else placeholder,
-          color = if (selectedValueText.isNotBlank()) TextPrimary else TextSecondary,
-          fontSize = 15.sp,
+          style = com.example.ui.theme.BodyStyle.copy(
+            color = if (selectedValueText.isNotBlank()) SilverWhite else Lavender.copy(alpha = 0.7f),
+            fontSize = 15.sp
+          ),
           modifier = Modifier.weight(1f)
         )
 
         Icon(
           imageVector = Icons.Default.ArrowDropDown,
           contentDescription = "Dropdown",
-          tint = GoldLight
+          tint = ChampagneGold
         )
       }
     }
@@ -138,16 +147,14 @@ fun <T> AppOptionPickerDialog(
     Column(
       modifier = Modifier
         .fillMaxWidth()
-        .clip(RoundedCornerShape(18.dp))
-        .background(Color(0xFF0B2A1E))
-        .border(1.dp, GoldPrimary.copy(alpha = 0.6f), RoundedCornerShape(18.dp))
+        .clip(RoundedCornerShape(CardRadius))
+        .background(RoyalSurfaceHigh)
+        .border(1.dp, RoyalCardBorderBrush, RoundedCornerShape(CardRadius))
         .padding(18.dp)
     ) {
       Text(
         text = title,
-        fontSize = 17.sp,
-        fontWeight = FontWeight.Bold,
-        color = GoldLight
+        style = SectionHeadingStyle
       )
       Spacer(modifier = Modifier.height(10.dp))
       HorizontalDivider(color = DarkBorder)
@@ -155,8 +162,7 @@ fun <T> AppOptionPickerDialog(
       if (items.isEmpty()) {
         Text(
           text = emptyMessage,
-          color = TextSecondary,
-          fontSize = 14.sp,
+          style = com.example.ui.theme.SecondaryTextStyle,
           modifier = Modifier.padding(vertical = 20.dp)
         )
       } else {
@@ -174,7 +180,7 @@ fun <T> AppOptionPickerDialog(
               modifier = Modifier
                 .fillMaxWidth()
                 .clip(RoundedCornerShape(10.dp))
-                .background(if (isSelected) GoldPrimary.copy(alpha = 0.14f) else Color.Transparent)
+                .background(if (isSelected) ElectricViolet.copy(alpha = 0.18f) else Color.Transparent)
                 .clickable { onItemSelected(item) }
                 .padding(horizontal = 12.dp, vertical = 12.dp),
               verticalAlignment = Alignment.CenterVertically,
@@ -182,14 +188,16 @@ fun <T> AppOptionPickerDialog(
             ) {
               Text(
                 text = label,
-                color = if (isSelected) GoldLight else TextPrimary,
-                fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal,
-                fontSize = 14.sp,
+                style = com.example.ui.theme.BodyStyle.copy(
+                  color = if (isSelected) ChampagneGold else SilverWhite,
+                  fontWeight = if (isSelected) FontWeight.SemiBold else FontWeight.Normal,
+                  fontSize = 15.sp
+                ),
                 modifier = Modifier.weight(1f)
               )
               if (isSelected) {
                 Spacer(modifier = Modifier.width(8.dp))
-                Icon(Icons.Default.Check, contentDescription = "Selected", tint = GoldPrimary, modifier = Modifier.size(18.dp))
+                Icon(Icons.Default.Check, contentDescription = "Selected", tint = ChampagneGold, modifier = Modifier.size(18.dp))
               }
             }
           }
@@ -201,8 +209,8 @@ fun <T> AppOptionPickerDialog(
         modifier = Modifier.fillMaxWidth().padding(top = 6.dp),
         horizontalArrangement = Arrangement.End
       ) {
-        TextButton(onClick = onDismiss) {
-          Text("Close", color = GoldPrimary, fontWeight = FontWeight.SemiBold)
+        TextButton(onClick = onDismiss, modifier = Modifier.defaultMinSize(minHeight = 48.dp)) {
+          Text("Close", style = ButtonTextStyle.copy(color = ChampagneGold, fontSize = 14.sp))
         }
       }
     }

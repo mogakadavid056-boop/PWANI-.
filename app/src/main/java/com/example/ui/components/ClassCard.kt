@@ -32,13 +32,15 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.data.ClassItem
-import com.example.ui.theme.DarkBorder
+import com.example.ui.theme.CaptionStyle
+import com.example.ui.theme.CardTitleStyle
+import com.example.ui.theme.ChampagneGold
 import com.example.ui.theme.DarkSurfaceVariant
 import com.example.ui.theme.GoldDark
 import com.example.ui.theme.GoldLight
 import com.example.ui.theme.GoldPrimary
-import com.example.ui.theme.PoppinsFamily
-import com.example.ui.theme.TextPrimary
+import com.example.ui.theme.Lavender
+import com.example.ui.theme.MontserratFamily
 import com.example.ui.theme.TextSecondary
 
 @Composable
@@ -72,25 +74,18 @@ fun ClassCard(
       Column(modifier = Modifier.weight(1f)) {
         Text(
           text = item.name.ifBlank { "Untitled Class" },
-          fontFamily = PoppinsFamily,
-          fontSize = 15.sp,
-          fontWeight = FontWeight.Bold,
-          color = TextPrimary
+          style = CardTitleStyle
         )
         if (!item.programmeName.isNullOrBlank()) {
           Text(
             text = item.programmeName,
-            fontSize = 12.sp,
-            color = GoldLight,
-            fontWeight = FontWeight.Normal
+            style = CaptionStyle.copy(color = ChampagneGold)
           )
         }
         Spacer(modifier = Modifier.height(2.dp))
         Text(
           text = "Code: ${item.code.ifBlank { "N/A" }}",
-          fontSize = 12.sp,
-          color = TextSecondary,
-          fontWeight = FontWeight.Medium
+          style = CaptionStyle.copy(color = Lavender, fontWeight = FontWeight.Medium)
         )
       }
 
@@ -105,8 +100,9 @@ fun ClassCard(
           ) {
             Text(
               text = item.joinCode,
+              fontFamily = MontserratFamily,
               fontSize = 13.sp,
-              fontWeight = FontWeight.Bold,
+              fontWeight = FontWeight.SemiBold,
               color = GoldLight
             )
           }
@@ -115,9 +111,9 @@ fun ClassCard(
               clipboardManager.setText(AnnotatedString(item.joinCode))
               Toast.makeText(context, "Join code copied!", Toast.LENGTH_SHORT).show()
             },
-            modifier = Modifier.size(32.dp)
+            modifier = Modifier.size(48.dp)
           ) {
-            Icon(Icons.Default.ContentCopy, contentDescription = "Copy join code", tint = GoldLight, modifier = Modifier.size(16.dp))
+            Icon(Icons.Default.ContentCopy, contentDescription = "Copy join code", tint = GoldLight, modifier = Modifier.size(18.dp))
           }
         }
       }

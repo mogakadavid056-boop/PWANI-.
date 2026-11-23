@@ -17,6 +17,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.AutoAwesome
 import androidx.compose.material.icons.filled.Class
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material3.FloatingActionButton
@@ -35,14 +36,15 @@ import com.example.ui.components.ClassRepPullToRefresh
 import com.example.ui.components.EmptyState
 import com.example.ui.components.FriendlyErrorSnackbar
 import com.example.ui.components.LoadingSkeleton
-import com.example.ui.theme.DarkBackground
-import com.example.ui.theme.GoldLight
-import com.example.ui.theme.GoldPrimary
+import com.example.ui.components.MetallicGoldText
+import com.example.ui.theme.ChampagneGold
 import com.example.ui.theme.ItemSpacing
+import com.example.ui.theme.Lavender
+import com.example.ui.theme.MetallicGold
+import com.example.ui.theme.Midnight
 import com.example.ui.theme.ScreenPadding
+import com.example.ui.theme.ScreenTitleStyle
 import com.example.ui.theme.SectionHeadingStyle
-import com.example.ui.theme.TextSecondary
-import com.example.ui.theme.TitleStyle
 
 @Composable
 fun ClassesListScreen(
@@ -55,6 +57,8 @@ fun ClassesListScreen(
   errorMessage: String?,
   unreadNotificationCount: Int = 0,
   onOpenNotifications: () -> Unit = {},
+  isOnline: Boolean = true,
+  onOpenAssistant: () -> Unit = {},
   onDismissError: () -> Unit,
   onRefresh: () -> Unit,
   onSelectClass: (ClassItem) -> Unit,
@@ -65,7 +69,6 @@ fun ClassesListScreen(
   Box(
     modifier = Modifier
       .fillMaxSize()
-      .background(DarkBackground)
       .testTag("classes_list_screen")
   ) {
     ClassRepPullToRefresh(
@@ -85,28 +88,36 @@ fun ClassesListScreen(
         verticalAlignment = Alignment.CenterVertically
       ) {
         Row(verticalAlignment = Alignment.CenterVertically) {
-          Text(
+          MetallicGoldText(
             text = "My Classes",
-            style = TitleStyle,
+            style = ScreenTitleStyle,
             modifier = Modifier.testTag("classes_list_title")
           )
           Spacer(modifier = Modifier.width(8.dp))
           Text(
             text = "(${classes.size})",
-            style = SectionHeadingStyle.copy(color = TextSecondary, fontSize = 16.sp)
+            style = SectionHeadingStyle.copy(color = Lavender, fontSize = 18.sp)
           )
         }
 
         Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+          if (isOnline) {
+            IconButton(
+              onClick = onOpenAssistant,
+              modifier = Modifier.size(48.dp).testTag("classes_assistant_button")
+            ) {
+              Icon(Icons.Default.AutoAwesome, contentDescription = "Assistant", tint = ChampagneGold, modifier = Modifier.size(22.dp))
+            }
+          }
           com.example.ui.components.NotificationBellButton(
             unreadCount = unreadNotificationCount,
             onClick = onOpenNotifications
           )
           IconButton(
             onClick = onRefresh,
-            modifier = Modifier.size(40.dp).testTag("classes_refresh_button")
+            modifier = Modifier.size(48.dp).testTag("classes_refresh_button")
           ) {
-            Icon(Icons.Default.Refresh, contentDescription = "Refresh", tint = GoldLight, modifier = Modifier.size(22.dp))
+            Icon(Icons.Default.Refresh, contentDescription = "Refresh", tint = ChampagneGold, modifier = Modifier.size(22.dp))
           }
         }
       }
@@ -159,8 +170,8 @@ fun ClassesListScreen(
     if (isAdmin) {
       FloatingActionButton(
         onClick = onNavigateToCreateClass,
-        containerColor = GoldPrimary,
-        contentColor = com.example.ui.theme.DarkTextOnGold,
+        containerColor = MetallicGold,
+        contentColor = Midnight,
         shape = CircleShape,
         modifier = Modifier
           .align(Alignment.BottomEnd)

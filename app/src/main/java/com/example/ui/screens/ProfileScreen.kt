@@ -46,6 +46,7 @@ fun ProfileScreen(
   onDismissSuccess: () -> Unit,
   onSchoolSelected: (SchoolItem) -> Unit,
   onSaveProfile: (fullName: String, school: SchoolItem?, programme: ProgrammeItem?, yearOfStudy: Int?) -> Unit,
+  onToggleLeaderboardVisibility: (Boolean) -> Unit = {},
   onBecomeLecturer: (passcode: String, onResult: (Result<String>) -> Unit) -> Unit = { _, cb -> cb(Result.failure(Exception("Unavailable"))) },
   onShowError: (String) -> Unit = {},
   onShowSuccess: (String) -> Unit = {},
@@ -75,17 +76,17 @@ fun ProfileScreen(
     }
   }
 
-  Box(modifier = Modifier.fillMaxSize().background(DarkBackground).testTag("profile_screen")) {
+  Box(modifier = Modifier.fillMaxSize().testTag("profile_screen")) {
     Column(
       modifier = Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(horizontal = 24.dp, vertical = 20.dp)
     ) {
       Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.SpaceBetween, modifier = Modifier.fillMaxWidth()) {
         Row(verticalAlignment = Alignment.CenterVertically) {
-          IconButton(onClick = onBack, modifier = Modifier.size(40.dp)) {
-            Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back", tint = GoldLight)
+          IconButton(onClick = onBack, modifier = Modifier.size(48.dp)) {
+            Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back", tint = ChampagneGold)
           }
-          Spacer(modifier = Modifier.width(8.dp))
-          Text("Profile", fontSize = 22.sp, fontWeight = FontWeight.Bold, color = GoldLight)
+          Spacer(modifier = Modifier.width(6.dp))
+          MetallicGoldText("Profile", style = ScreenTitleStyle)
         }
         NotificationBellButton(unreadCount = unreadNotificationCount, onClick = onOpenNotifications)
       }
@@ -98,20 +99,42 @@ fun ProfileScreen(
       }
       if (!successMessage.isNullOrBlank()) {
         Box(
-          modifier = Modifier.fillMaxWidth().clip(RoundedCornerShape(10.dp)).background(SuccessGreen.copy(alpha = 0.15f))
-            .border(1.dp, SuccessGreen.copy(alpha = 0.5f), RoundedCornerShape(10.dp)).padding(12.dp)
+          modifier = Modifier.fillMaxWidth().clip(RoundedCornerShape(14.dp)).background(RoyalSuccessContainer)
+            .border(1.dp, SuccessColor.copy(alpha = 0.5f), RoundedCornerShape(14.dp)).padding(14.dp)
         ) {
-          Text(text = successMessage, color = SuccessGreen, fontSize = 13.sp, fontWeight = FontWeight.Medium)
+          Text(text = successMessage, style = BodyStyle.copy(color = SuccessColor, fontSize = 14.sp, fontWeight = FontWeight.Medium))
         }
         Spacer(modifier = Modifier.height(14.dp))
       }
 
       if (isLoading && profile == null) {
         Box(modifier = Modifier.fillMaxWidth().padding(vertical = 40.dp), contentAlignment = Alignment.Center) {
-          CircularProgressIndicator(color = GoldPrimary, strokeWidth = 2.5.dp, modifier = Modifier.size(32.dp))
+          CircularProgressIndicator(color = MetallicGold, strokeWidth = 2.5.dp, modifier = Modifier.size(32.dp))
         }
       } else {
         if (!isEditing) {
+          RoyalCard(isHero = true) {
+            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.SpaceBetween, modifier = Modifier.fillMaxWidth()) {
+              Column(modifier = Modifier.weight(1f)) {
+                Text(
+                  text = JsonHelper.orDash(profile?.fullName),
+                  style = ProfileNameStyle
+                )
+                Spacer(modifier = Modifier.height(2.dp))
+                Text(
+                  text = JsonHelper.orDash(profile?.email),
+                  style = SubtitleItalicStyle.copy(fontSize = 14.sp, color = Lavender)
+                )
+              }
+              Spacer(modifier = Modifier.width(10.dp))
+              RoleBadge(roleText = RoleHelper.formatDisplayName(effectiveRole), isGoldFilled = true)
+            }
+          }
+
+          Spacer(modifier = Modifier.height(14.dp))
+          RoyalDivider()
+          Spacer(modifier = Modifier.height(14.dp))
+
           Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
             ProfileFieldCard(Icons.Default.Person, "Full Name", JsonHelper.orDash(profile?.fullName))
             ProfileFieldCard(Icons.Default.Email, "Email", JsonHelper.orDash(profile?.email))
@@ -125,15 +148,52 @@ fun ProfileScreen(
             ProfileFieldCard(Icons.Default.School, "Programme", JsonHelper.orDash(profile?.programmeName))
           }
 
+          if (!isStaff) {
+            Spacer(modifier = Modifier.height(14.dp))
+            val visibleOnBoard = profile?.showOnLeaderboard ?: true
+            RoyalCard {
+              Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+              ) {
+                Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.weight(1f)) {
+                  Icon(
+                    imageVector = if (visibleOnBoard) Icons.Default.Visibility else Icons.Default.VisibilityOff,
+                    contentDescription = null,
+                    tint = ChampagneGold,
+                    modifier = Modifier.size(20.dp)
+                  )
+                  Spacer(modifier = Modifier.width(10.dp))
+                  Column {
+                    Text("Show my name on leaderboard", style = FieldLabelStyle.copy(color = SilverWhite))
+                    Text(
+                      text = if (visibleOnBoard) "Visible to classmates on leaderboard" else "Shown as Anonymous on leaderboard",
+                      style = CaptionStyle
+                    )
+                  }
+                }
+                Switch(
+                  checked = visibleOnBoard,
+                  onCheckedChange = onToggleLeaderboardVisibility,
+                  modifier = Modifier.testTag("profile_leaderboard_visibility_switch"),
+                  colors = SwitchDefaults.colors(
+                    checkedThumbColor = Midnight,
+                    checkedTrackColor = ChampagneGold,
+                    uncheckedThumbColor = Lavender,
+                    uncheckedTrackColor = RoyalSurfaceHigh
+                  )
+                )
+              }
+            }
+          }
+
           if (!isStaff && isStudentInClass) {
-            Spacer(modifier = Modifier.height(10.dp))
-            Box(
-              modifier = Modifier.fillMaxWidth().clip(RoundedCornerShape(10.dp)).background(DarkSurface)
-                .border(1.dp, DarkBorder, RoundedCornerShape(10.dp)).padding(12.dp)
-            ) {
+            Spacer(modifier = Modifier.height(12.dp))
+            RoyalCard {
               Text(
                 text = "Note: To change class, ask your class prefect or lecturer",
-                fontSize = 12.sp, color = GoldLight, fontWeight = FontWeight.Medium
+                style = CaptionStyle.copy(color = ChampagneGold, fontWeight = FontWeight.Medium)
               )
             }
           }
@@ -162,7 +222,7 @@ fun ProfileScreen(
             )
           }
         } else {
-          Text("Edit Profile Details", fontSize = 16.sp, fontWeight = FontWeight.SemiBold, color = GoldLight)
+          Text("Edit Profile Details", style = SectionHeadingStyle)
           Spacer(modifier = Modifier.height(14.dp))
 
           DarkTextField(
@@ -215,7 +275,8 @@ fun ProfileScreen(
               ProfileFieldCard(Icons.Default.CalendarMonth, "Year of Study", profile?.yearOfStudy?.let { "Year $it" } ?: "-")
               Text(
                 text = "To change class, ask your class prefect or lecturer",
-                fontSize = 12.sp, color = GoldLight, modifier = Modifier.padding(start = 4.dp, top = 2.dp)
+                style = CaptionStyle.copy(color = ChampagneGold),
+                modifier = Modifier.padding(start = 4.dp, top = 2.dp)
               )
             }
           }
@@ -224,9 +285,11 @@ fun ProfileScreen(
 
           Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
             OutlinedButton(
-              onClick = { isEditing = false }, modifier = Modifier.weight(1f).height(46.dp),
-              shape = RoundedCornerShape(12.dp)
-            ) { Text("Cancel", color = TextSecondary) }
+              onClick = { isEditing = false },
+              modifier = Modifier.weight(1f).defaultMinSize(minHeight = 52.dp),
+              shape = RoundedCornerShape(ButtonRadius),
+              border = androidx.compose.foundation.BorderStroke(1.5.dp, MetallicGold.copy(alpha = 0.6f))
+            ) { Text("Cancel", style = ButtonTextStyle.copy(color = Lavender)) }
 
             GoldButton(
               text = "Save",
@@ -248,14 +311,14 @@ fun ProfileScreen(
 
         OutlinedButton(
           onClick = { showLogoutConfirmDialog = true },
-          modifier = Modifier.fillMaxWidth().height(48.dp).testTag("profile_logout_button"),
+          modifier = Modifier.fillMaxWidth().defaultMinSize(minHeight = 52.dp).testTag("profile_logout_button"),
           shape = RoundedCornerShape(ButtonRadius),
-          colors = ButtonDefaults.outlinedButtonColors(contentColor = ErrorRed),
-          border = androidx.compose.foundation.BorderStroke(1.5.dp, ErrorRed.copy(alpha = 0.8f))
+          colors = ButtonDefaults.outlinedButtonColors(contentColor = ErrorColor),
+          border = androidx.compose.foundation.BorderStroke(1.5.dp, ErrorColor.copy(alpha = 0.8f))
         ) {
-          Icon(Icons.AutoMirrored.Filled.Logout, contentDescription = null, modifier = Modifier.size(18.dp), tint = ErrorRed)
+          Icon(Icons.AutoMirrored.Filled.Logout, contentDescription = null, modifier = Modifier.size(18.dp), tint = ErrorColor)
           Spacer(modifier = Modifier.width(8.dp))
-          Text("Log Out", fontSize = 14.sp, fontWeight = FontWeight.Bold, color = ErrorRed)
+          Text("Log Out", style = ButtonTextStyle.copy(color = ErrorColor))
         }
       }
       Spacer(modifier = Modifier.height(24.dp))
@@ -280,7 +343,7 @@ fun ProfileScreen(
   if (showLogoutConfirmDialog) {
     ConfirmActionDialog(
       title = "Confirm Logout", message = "Are you sure you want to log out of ClassRep?",
-      confirmButtonText = "Log Out", confirmButtonColor = ErrorRed,
+      confirmButtonText = "Log Out", confirmButtonColor = ErrorColor,
       onConfirm = { showLogoutConfirmDialog = false; onLogout() }, onDismiss = { showLogoutConfirmDialog = false }
     )
   }

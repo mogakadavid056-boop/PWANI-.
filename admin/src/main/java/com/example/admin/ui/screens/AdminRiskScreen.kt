@@ -1,8 +1,8 @@
 package com.example.admin.ui.screens
 
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -10,6 +10,7 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.defaultMinSize
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -50,8 +51,10 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.example.admin.assistant.AdminAssistantSparkleButton
 import com.example.admin.data.AdminAtRiskStudentItem
 import com.example.admin.data.AdminAttendancePdfExporter
 import com.example.admin.data.AdminClassRiskSummary
@@ -60,26 +63,35 @@ import com.example.admin.ui.AdminRiskState
 import com.example.admin.ui.components.AdminConfirmDialog
 import com.example.admin.ui.components.AdminEmptyState
 import com.example.admin.ui.components.AdminGlassCard
+import com.example.admin.ui.components.AdminMetallicGoldText
 import com.example.admin.ui.components.AdminNotificationBellButton
 import com.example.admin.ui.components.AdminSearchField
 import com.example.admin.ui.components.AdminStatusPill
+import com.example.admin.ui.theme.AdminBorder
+import com.example.admin.ui.theme.AdminCaptionStyle
+import com.example.admin.ui.theme.AdminCardTitleStyle
+import com.example.admin.ui.theme.AdminNavLabelStyle
+import com.example.admin.ui.theme.AdminScreenTitleStyle
 import com.example.admin.ui.theme.AdminSurface
 import com.example.admin.ui.theme.AmberWarning
+import com.example.admin.ui.theme.ChampagneGold
 import com.example.admin.ui.theme.CrimsonError
 import com.example.admin.ui.theme.DarkTextOnGold
+import com.example.admin.ui.theme.ElectricViolet
 import com.example.admin.ui.theme.EmeraldSuccess
 import com.example.admin.ui.theme.GoldLight
 import com.example.admin.ui.theme.GoldPrimary
 import com.example.admin.ui.theme.InfoBlue
-import com.example.admin.ui.theme.TextMuted
-import com.example.admin.ui.theme.TextPrimary
-import com.example.admin.ui.theme.TextSecondary
+import com.example.admin.ui.theme.Lavender
+import com.example.admin.ui.theme.MontserratFamily
+import com.example.admin.ui.theme.SilverWhite
 import java.util.Locale
 
 @Composable
 fun AdminRiskScreen(
   state: AdminRiskState,
   unreadNotifications: Int,
+  isOnline: Boolean = true,
   onRefresh: () -> Unit,
   onSetMinLevel: (AdminRiskLevel) -> Unit,
   onSearchChanged: (String) -> Unit,
@@ -90,6 +102,7 @@ fun AdminRiskScreen(
   onCloseStudent: () -> Unit,
   onSetExcuse: (String, Boolean, String?) -> Unit,
   onRunWarningsNow: () -> Unit,
+  onOpenAssistant: () -> Unit = {},
   onOpenNotifications: () -> Unit
 ) {
   state.selectedStudent?.let { student ->
@@ -111,11 +124,14 @@ fun AdminRiskScreen(
   Column(modifier = Modifier.fillMaxSize().padding(horizontal = 16.dp, vertical = 14.dp).testTag("admin_risk_screen")) {
     Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
       Column(modifier = Modifier.weight(1f)) {
-        Text("Attendance Risk", fontSize = 22.sp, fontWeight = FontWeight.Bold, color = TextPrimary)
-        Text("Early intervention & absence tracking", fontSize = 12.sp, color = TextSecondary)
+        AdminMetallicGoldText(text = "Attendance Risk", style = AdminScreenTitleStyle)
+        Text("Early intervention & absence tracking", style = AdminCaptionStyle)
       }
       Row {
-        IconButton(onClick = onRefresh) { Icon(Icons.Default.Refresh, contentDescription = "Refresh risk", tint = GoldPrimary) }
+        AdminAssistantSparkleButton(isOnline = isOnline, onClick = onOpenAssistant)
+        IconButton(onClick = onRefresh, modifier = Modifier.size(48.dp)) {
+          Icon(Icons.Default.Refresh, contentDescription = "Refresh risk", tint = ChampagneGold)
+        }
         AdminNotificationBellButton(unreadCount = unreadNotifications, onClick = onOpenNotifications)
       }
     }
@@ -123,14 +139,14 @@ fun AdminRiskScreen(
     Spacer(modifier = Modifier.height(8.dp))
     AdminGlassCard(onClick = { showRules = !showRules }) {
       Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
-        Text("How risk levels work", fontSize = 13.sp, fontWeight = FontWeight.SemiBold, color = GoldLight)
-        Icon(if (showRules) Icons.Default.ExpandLess else Icons.Default.ExpandMore, contentDescription = null, tint = GoldLight)
+        Text("How risk levels work", style = AdminCardTitleStyle.copy(color = ChampagneGold))
+        Icon(if (showRules) Icons.Default.ExpandLess else Icons.Default.ExpandMore, contentDescription = null, tint = ChampagneGold)
       }
       AnimatedVisibility(visible = showRules) {
-        Column(modifier = Modifier.padding(top = 6.dp), verticalArrangement = Arrangement.spacedBy(2.dp)) {
-          Text("• Critical: < 60% attendance or 4+ consecutive misses", fontSize = 12.sp, color = CrimsonError)
-          Text("• High: < 75% attendance or 3 consecutive misses", fontSize = 12.sp, color = AmberWarning)
-          Text("• Watch: < 85% attendance or 2 consecutive misses", fontSize = 12.sp, color = InfoBlue)
+        Column(modifier = Modifier.padding(top = 6.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+          Text("• Critical: < 60% attendance or 4+ consecutive misses", style = AdminCaptionStyle.copy(color = CrimsonError))
+          Text("• High: < 75% attendance or 3 consecutive misses", style = AdminCaptionStyle.copy(color = AmberWarning))
+          Text("• Watch: < 85% attendance or 2 consecutive misses", style = AdminCaptionStyle.copy(color = InfoBlue))
         }
       }
     }
@@ -140,12 +156,13 @@ fun AdminRiskScreen(
       Button(
         onClick = { confirmWarnings = true },
         enabled = !state.isActionLoading,
-        modifier = Modifier.weight(1f), shape = RoundedCornerShape(10.dp),
+        modifier = Modifier.weight(1f).defaultMinSize(minHeight = 48.dp),
+        shape = RoundedCornerShape(14.dp),
         colors = ButtonDefaults.buttonColors(containerColor = GoldPrimary, contentColor = DarkTextOnGold)
       ) {
         Icon(Icons.Default.NotificationsActive, contentDescription = null, modifier = Modifier.size(16.dp))
-        Spacer(modifier = Modifier.width(5.dp))
-        Text("Run Warnings", fontSize = 12.sp, fontWeight = FontWeight.Bold)
+        Spacer(modifier = Modifier.width(6.dp))
+        Text("Run Warnings", fontFamily = MontserratFamily, fontSize = 14.sp, fontWeight = FontWeight.SemiBold)
       }
       OutlinedButton(
         onClick = {
@@ -153,11 +170,13 @@ fun AdminRiskScreen(
           AdminAttendancePdfExporter.shareRiskListPdf(context, label, state.students)
         },
         enabled = state.students.isNotEmpty(),
-        modifier = Modifier.weight(1f), shape = RoundedCornerShape(10.dp)
+        border = BorderStroke(1.5.dp, GoldPrimary),
+        modifier = Modifier.weight(1f).defaultMinSize(minHeight = 48.dp),
+        shape = RoundedCornerShape(14.dp)
       ) {
-        Icon(Icons.Default.Download, contentDescription = null, tint = GoldLight, modifier = Modifier.size(16.dp))
-        Spacer(modifier = Modifier.width(5.dp))
-        Text("Export PDF", fontSize = 12.sp, color = GoldLight)
+        Icon(Icons.Default.Download, contentDescription = null, tint = ChampagneGold, modifier = Modifier.size(16.dp))
+        Spacer(modifier = Modifier.width(6.dp))
+        Text("Export PDF", fontFamily = MontserratFamily, fontSize = 14.sp, fontWeight = FontWeight.SemiBold, color = ChampagneGold)
       }
     }
 
@@ -174,22 +193,27 @@ fun AdminRiskScreen(
             items(state.classSummaries, key = { it.classId }) { cls ->
               val selected = state.selectedClassIdFilter == cls.classId
               AdminGlassCard(
-                modifier = Modifier.width(220.dp),
-                borderColor = if (selected) GoldPrimary else GoldPrimary.copy(alpha = 0.25f),
+                modifier = Modifier.width(232.dp),
+                borderColor = if (selected) ElectricViolet else GoldPrimary.copy(alpha = 0.35f),
                 onClick = { onSelectClassFilter(if (selected) null else cls) }
               ) {
-                Text(cls.className, fontSize = 14.sp, fontWeight = FontWeight.Bold, color = TextPrimary, maxLines = 1)
-                Text("${cls.studentCount} students • ${cls.totalSessions} sessions", fontSize = 11.sp, color = TextMuted)
+                Text(cls.className, style = AdminCardTitleStyle, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                Text("${cls.studentCount} students • ${cls.totalSessions} sessions", style = AdminCaptionStyle)
                 Spacer(modifier = Modifier.height(8.dp))
                 RiskDistributionBar(cls)
                 Spacer(modifier = Modifier.height(6.dp))
-                Text("Crit ${cls.criticalCount} • High ${cls.highCount} • Watch ${cls.watchCount}", fontSize = 11.sp, color = TextSecondary)
+                Text("Crit ${cls.criticalCount} • High ${cls.highCount} • Watch ${cls.watchCount}", style = AdminCaptionStyle)
               }
             }
             if (state.hasMoreClasses) {
               item {
-                OutlinedButton(onClick = onLoadMoreClasses, shape = RoundedCornerShape(12.dp), modifier = Modifier.height(92.dp)) {
-                  Text("Load\nMore", color = GoldLight, fontSize = 12.sp)
+                OutlinedButton(
+                  onClick = onLoadMoreClasses,
+                  shape = RoundedCornerShape(14.dp),
+                  border = BorderStroke(1.dp, AdminBorder),
+                  modifier = Modifier.defaultMinSize(minHeight = 48.dp).height(104.dp)
+                ) {
+                  Text("Load\nMore", fontFamily = MontserratFamily, fontWeight = FontWeight.SemiBold, color = ChampagneGold, fontSize = 13.sp)
                 }
               }
             }
@@ -204,17 +228,20 @@ fun AdminRiskScreen(
               FilterChip(
                 selected = true,
                 onClick = { onSelectClassFilter(null) },
+                modifier = Modifier.defaultMinSize(minHeight = 48.dp),
                 trailingIcon = { Icon(Icons.Default.Close, contentDescription = "Clear class filter", modifier = Modifier.size(14.dp)) },
-                label = { Text(state.selectedClassNameFilter.ifBlank { "Filtered Class" }, fontSize = 12.sp) },
-                colors = FilterChipDefaults.filterChipColors(selectedContainerColor = InfoBlue, selectedLabelColor = DarkTextOnGold)
+                label = { Text(state.selectedClassNameFilter.ifBlank { "Filtered Class" }, style = AdminNavLabelStyle) },
+                colors = FilterChipDefaults.filterChipColors(selectedContainerColor = ElectricViolet, selectedLabelColor = SilverWhite)
               )
             }
             listOf(AdminRiskLevel.WATCH, AdminRiskLevel.HIGH, AdminRiskLevel.CRITICAL, AdminRiskLevel.ALL).forEach { lvl ->
               FilterChip(
                 selected = state.minLevel == lvl,
                 onClick = { onSetMinLevel(lvl) },
-                label = { Text(if (lvl == AdminRiskLevel.ALL) "All" else "${lvl.label}+", fontSize = 12.sp) },
-                colors = FilterChipDefaults.filterChipColors(selectedContainerColor = GoldPrimary, selectedLabelColor = DarkTextOnGold, containerColor = AdminSurface, labelColor = TextSecondary)
+                modifier = Modifier.defaultMinSize(minHeight = 48.dp),
+                label = { Text(if (lvl == AdminRiskLevel.ALL) "All" else "${lvl.label}+", style = AdminNavLabelStyle) },
+                border = FilterChipDefaults.filterChipBorder(enabled = true, selected = state.minLevel == lvl, borderColor = AdminBorder, selectedBorderColor = ChampagneGold),
+                colors = FilterChipDefaults.filterChipColors(selectedContainerColor = ChampagneGold, selectedLabelColor = DarkTextOnGold, containerColor = AdminSurface, labelColor = Lavender)
               )
             }
           }
@@ -228,13 +255,13 @@ fun AdminRiskScreen(
         items(state.students, key = { "${it.classId}_${it.studentId}" }) { stu ->
           val lvlColor = riskColor(stu.riskLevel)
           val pct = String.format(Locale.US, "%.1f%%", stu.percentage)
-          AdminGlassCard(borderColor = lvlColor.copy(alpha = 0.5f), onClick = { onOpenStudent(stu) }) {
+          AdminGlassCard(borderColor = lvlColor.copy(alpha = 0.55f), onClick = { onOpenStudent(stu) }) {
             Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
               Column(modifier = Modifier.weight(1f)) {
-                Text(stu.fullName, fontSize = 15.sp, fontWeight = FontWeight.SemiBold, color = TextPrimary)
-                Text("${stu.className} • Adm: ${stu.admissionNumber}", fontSize = 12.sp, color = TextMuted)
+                Text(stu.fullName, style = AdminCardTitleStyle)
+                Text("${stu.className} • Adm: ${stu.admissionNumber}", style = AdminCaptionStyle)
                 Spacer(modifier = Modifier.height(4.dp))
-                Text("${stu.attended}/${stu.totalSessions} ($pct) • Excused: ${stu.excused} • Streak: ${stu.missStreak}", fontSize = 12.sp, color = TextSecondary)
+                Text("${stu.attended}/${stu.totalSessions} ($pct) • Excused: ${stu.excused} • Streak: ${stu.missStreak}", style = AdminCaptionStyle.copy(color = SilverWhite.copy(alpha = 0.85f)))
               }
               AdminStatusPill(stu.riskLevel.label.uppercase(), lvlColor)
             }
@@ -242,8 +269,14 @@ fun AdminRiskScreen(
         }
         if (state.hasMoreStudents) {
           item {
-            OutlinedButton(onClick = onLoadMoreStudents, enabled = !state.isLoadingMore, modifier = Modifier.fillMaxWidth().height(46.dp), shape = RoundedCornerShape(10.dp)) {
-              Text(if (state.isLoadingMore) "Loading..." else "Load more students", color = GoldLight)
+            OutlinedButton(
+              onClick = onLoadMoreStudents,
+              enabled = !state.isLoadingMore,
+              border = BorderStroke(1.dp, GoldPrimary),
+              modifier = Modifier.fillMaxWidth().height(48.dp),
+              shape = RoundedCornerShape(14.dp)
+            ) {
+              Text(if (state.isLoadingMore) "Loading..." else "Load more students", fontFamily = MontserratFamily, fontWeight = FontWeight.SemiBold, color = ChampagneGold)
             }
           }
         }

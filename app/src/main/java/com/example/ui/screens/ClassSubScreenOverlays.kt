@@ -11,6 +11,7 @@ fun HandleClassSubScreenOverlay(
   attendanceUiState: AttendanceUiState,
   pollsUiState: PollsUiState,
   trackerUiState: com.example.ui.AttendanceTrackerUiState = com.example.ui.AttendanceTrackerUiState(),
+  challengesUiState: com.example.ui.ChallengesUiState = com.example.ui.ChallengesUiState(),
   isStaff: Boolean,
   session: UserSession? = null,
   className: String = "",
@@ -46,8 +47,153 @@ fun HandleClassSubScreenOverlay(
   onDismissDeletePoll: () -> Unit,
   onConfirmDeletePoll: () -> Unit,
   onDismissPollsError: () -> Unit,
-  onClosePollDetail: () -> Unit
+  onClosePollDetail: () -> Unit,
+  challengesCallbacks: ClassChallengesCallbacks = ClassChallengesCallbacks()
 ): Boolean {
+  val pdfFile = challengesUiState.pdfViewerFile
+  if (pdfFile != null) {
+    MarkedPaperViewerScreen(
+      pdfFile = pdfFile,
+      title = challengesUiState.pdfViewerTitle,
+      onBack = challengesCallbacks.onClosePdfViewer
+    )
+    return true
+  }
+
+  val activePaper = challengesUiState.activePaper
+  if (activePaper != null) {
+    val sortedList = challengesUiState.filteredSubmissions
+    val activeIdx = challengesUiState.activePaperIndex
+    HandMarkingScreen(
+      paper = activePaper,
+      draft = challengesUiState.markingDraft,
+      questionMarksMap = challengesUiState.questionMarksMap,
+      overallComment = challengesUiState.overallCommentInput,
+      isSavingDraft = challengesUiState.isSavingDraft,
+      isReleasing = challengesUiState.isReleasingPaper,
+      isLoadingPdf = challengesUiState.isLoadingPdf,
+      errorMessage = challengesUiState.errorMessage,
+      successMessage = challengesUiState.successMessage,
+      paperPosition = if (activeIdx >= 0) activeIdx + 1 else 0,
+      totalPapers = sortedList.size,
+      hasPrevPaper = challengesUiState.prevPaperSubmission != null,
+      hasNextPaper = challengesUiState.nextPaperSubmission != null,
+      onPrevPaper = challengesCallbacks.onOpenPrevPaper,
+      onNextPaper = challengesCallbacks.onOpenNextPaper,
+      onAddStroke = challengesCallbacks.onAddStroke,
+      onAddStamp = challengesCallbacks.onAddStamp,
+      onUndoLast = challengesCallbacks.onUndoAnnotation,
+      onClearQuestionInk = challengesCallbacks.onClearQuestionInk,
+      onUpdateMark = challengesCallbacks.onUpdateQuestionMark,
+      onUpdateComment = challengesCallbacks.onUpdateQuestionComment,
+      onUpdateOverallComment = challengesCallbacks.onUpdateOverallComment,
+      onSaveDraft = challengesCallbacks.onSaveMarkingDraft,
+      onReleasePaper = challengesCallbacks.onReleaseMarkedPaper,
+      onReopenPaper = challengesCallbacks.onReopenMarkedPaper,
+      onViewReleasedPdf = challengesCallbacks.onViewReleasedPdfForMarker,
+      onDismissError = challengesCallbacks.onDismissError,
+      onDismissSuccess = challengesCallbacks.onDismissSuccess,
+      onBack = challengesCallbacks.onClosePaperMarking
+    )
+    return true
+  }
+
+  val markingQuiz = challengesUiState.markingQuiz
+  if (markingQuiz != null) {
+    ExamSubmissionsScreen(
+      quiz = markingQuiz,
+      allSubmissions = challengesUiState.submissions,
+      displayedSubmissions = challengesUiState.filteredSubmissions,
+      selectedFilter = challengesUiState.submissionsFilter,
+      selectedSortOrder = challengesUiState.submissionsSortOrder,
+      waitingFirst = challengesUiState.submissionsWaitingFirst,
+      searchQuery = challengesUiState.submissionsSearchQuery,
+      isLoading = challengesUiState.isLoadingSubmissions || challengesUiState.isLoadingPaper,
+      readyToBatchReturnCount = challengesUiState.readyToBatchReturnCount,
+      isBatchReleasing = challengesUiState.isBatchReleasing,
+      batchReleaseDone = challengesUiState.batchReleaseDone,
+      batchReleaseTotal = challengesUiState.batchReleaseTotal,
+      isLoadingPdf = challengesUiState.isLoadingPdf,
+      errorMessage = challengesUiState.errorMessage,
+      successMessage = challengesUiState.successMessage,
+      onSelectFilter = challengesCallbacks.onSelectSubmissionFilter,
+      onSelectSortOrder = challengesCallbacks.onSelectSubmissionSortOrder,
+      onToggleWaitingFirst = challengesCallbacks.onToggleSubmissionsWaitingFirst,
+      onSearchQueryChange = challengesCallbacks.onUpdateSubmissionsSearch,
+      onRefresh = challengesCallbacks.onRefreshExamSubmissions,
+      onOpenStudentPaper = { row ->
+        challengesCallbacks.onOpenPaperForMarking(markingQuiz.quizId, row.studentId)
+      },
+      onReleaseAllReady = challengesCallbacks.onReleaseAllReady,
+      onExportRankedPdf = challengesCallbacks.onExportRankedPdfFromMarking,
+      onDismissError = challengesCallbacks.onDismissError,
+      onDismissSuccess = challengesCallbacks.onDismissSuccess,
+      onBack = challengesCallbacks.onCloseExamSubmissions
+    )
+    return true
+  }
+
+  val playingQuiz = challengesUiState.playingQuiz
+  if (playingQuiz != null) {
+    PlayChallengeScreen(
+      quiz = playingQuiz,
+      uiState = challengesUiState,
+      onSelectAnswer = challengesCallbacks.onSelectAnswer,
+      onUpdateWrittenAnswer = challengesCallbacks.onUpdateWrittenAnswer,
+      onGoToQuestion = challengesCallbacks.onGoToQuestion,
+      onSecurityViolation = challengesCallbacks.onSecurityViolation,
+      onDismissSecurityWarning = challengesCallbacks.onDismissSecurityWarning,
+      onSubmit = challengesCallbacks.onSubmitChallenge,
+      onOpenReview = { challengesCallbacks.onOpenReview(playingQuiz) },
+      onDismissError = challengesCallbacks.onDismissError,
+      onBack = challengesCallbacks.onClosePlay
+    )
+    return true
+  }
+
+  val reviewQuiz = challengesUiState.reviewQuiz
+  if (reviewQuiz != null) {
+    ChallengeReviewScreen(
+      quiz = reviewQuiz,
+      items = challengesUiState.reviewItems,
+      isLoading = challengesUiState.isLoadingReview,
+      errorMessage = challengesUiState.errorMessage,
+      isStaffPreview = isStaff && !reviewQuiz.attempted,
+      isLoadingPdf = challengesUiState.isLoadingPdf,
+      onOpenMarkedPaper = { challengesCallbacks.onViewMarkedPaperForStudent(reviewQuiz) },
+      onDismissError = challengesCallbacks.onDismissError,
+      onBack = challengesCallbacks.onCloseReview
+    )
+    return true
+  }
+
+  val resultsQuiz = challengesUiState.resultsQuiz
+  if (resultsQuiz != null) {
+    val canMark = com.example.util.RoleHelper.isAdmin(session?.role) ||
+      com.example.util.RoleHelper.isLecturer(session?.role)
+    ChallengeResultsScreen(
+      quiz = resultsQuiz,
+      rows = challengesUiState.resultsRows,
+      isLoading = challengesUiState.isLoadingResults,
+      errorMessage = challengesUiState.errorMessage,
+      canMarkPapers = canMark,
+      canExportRankedPdf = canMark,
+      isLoadingPdf = challengesUiState.isLoadingPdf,
+      onOpenAnswerKey = {
+        challengesCallbacks.onCloseResults()
+        challengesCallbacks.onOpenReview(resultsQuiz)
+      },
+      onOpenMarking = {
+        challengesCallbacks.onCloseResults()
+        challengesCallbacks.onOpenExamSubmissions(resultsQuiz)
+      },
+      onExportRankedPdf = challengesCallbacks.onExportRankedPdfFromResults,
+      onDismissError = challengesCallbacks.onDismissError,
+      onBack = challengesCallbacks.onCloseResults
+    )
+    return true
+  }
+
   if (attendanceUiState.currentSubScreen == AttendanceSubScreen.AttendanceRegister) {
     val canManageRole = com.example.util.RoleHelper.canManageClassContent(session?.role, isStaff)
     val canSignRole = com.example.util.RoleHelper.canSignAttendance(session?.role)

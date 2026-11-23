@@ -39,6 +39,8 @@ import com.example.alarms.TimetableAlarmSync
 import com.example.data.ScheduleItem
 import com.example.data.UserSession
 import com.example.ui.components.ClassRepCard
+import com.example.ui.components.OutlinedGoldButton
+import com.example.ui.components.RoyalButtonGradientBrush
 import com.example.ui.theme.*
 import com.example.util.JsonHelper
 import kotlinx.coroutines.launch
@@ -96,14 +98,13 @@ fun AlarmSettingsScreen(
         horizontalArrangement = Arrangement.SpaceBetween
       ) {
         Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.weight(1f)) {
-          Icon(Icons.Default.Alarm, contentDescription = null, tint = GoldPrimary, modifier = Modifier.size(24.dp))
+          Icon(Icons.Default.Alarm, contentDescription = null, tint = ChampagneGold, modifier = Modifier.size(24.dp))
           Spacer(modifier = Modifier.width(12.dp))
           Column {
-            Text("Class Alarms", fontSize = 16.sp, fontWeight = FontWeight.Bold, color = TextPrimary)
+            Text("Class Alarms", style = CardTitleStyle)
             Text(
               text = if (settingsState.masterEnabled) "Ringing alarms enabled (works offline & silent)" else "All class alarms paused",
-              fontSize = 12.sp,
-              color = TextSecondary
+              style = CaptionStyle.copy(color = Lavender)
             )
           }
         }
@@ -114,16 +115,16 @@ fun AlarmSettingsScreen(
             AlarmScheduler.rescheduleAll(context)
           },
           modifier = Modifier.testTag("alarm_master_switch"),
-          colors = SwitchDefaults.colors(checkedThumbColor = DarkTextOnGold, checkedTrackColor = GoldPrimary)
+          colors = SwitchDefaults.colors(checkedThumbColor = Midnight, checkedTrackColor = GoldPrimary)
         )
       }
     }
 
     ClassRepCard {
       Row(verticalAlignment = Alignment.CenterVertically) {
-        Icon(Icons.Default.Schedule, contentDescription = null, tint = GoldLight, modifier = Modifier.size(20.dp))
+        Icon(Icons.Default.Schedule, contentDescription = null, tint = ChampagneGold, modifier = Modifier.size(20.dp))
         Spacer(modifier = Modifier.width(8.dp))
-        Text("Reminder Time", fontSize = 15.sp, fontWeight = FontWeight.SemiBold, color = GoldLight)
+        Text("Reminder Time", style = CardTitleStyle.copy(color = ChampagneGold))
       }
       Text(
         text = if (settingsState.reminderMinutes > 0) {
@@ -131,8 +132,7 @@ fun AlarmSettingsScreen(
         } else {
           "Alarms ring at class start time."
         },
-        fontSize = 12.sp,
-        color = TextSecondary
+        style = CaptionStyle.copy(color = Lavender)
       )
       FlowRow(
         horizontalArrangement = Arrangement.spacedBy(8.dp),
@@ -143,21 +143,27 @@ fun AlarmSettingsScreen(
           val label = if (mins == 0) "At start" else "$mins min before"
           Box(
             modifier = Modifier
-              .clip(RoundedCornerShape(10.dp))
-              .background(if (selected) GoldPrimary else DarkSurfaceVariant)
-              .border(1.dp, if (selected) GoldPrimary else DarkBorder, RoundedCornerShape(10.dp))
+              .defaultMinSize(minHeight = 48.dp)
+              .clip(RoundedCornerShape(12.dp))
+              .then(
+                if (selected) Modifier.background(RoyalButtonGradientBrush)
+                else Modifier.background(RoyalSurfaceHigh)
+              )
+              .border(1.dp, if (selected) ChampagneGold else DarkBorder, RoundedCornerShape(12.dp))
               .clickable(enabled = settingsState.masterEnabled) {
                 AlarmPreferences.setReminderMinutes(context, mins)
                 AlarmScheduler.rescheduleAll(context)
               }
-              .padding(horizontal = 12.dp, vertical = 8.dp)
-              .testTag("alarm_offset_$mins")
+              .padding(horizontal = 14.dp, vertical = 10.dp)
+              .testTag("alarm_offset_$mins"),
+            contentAlignment = Alignment.Center
           ) {
             Text(
               text = label,
-              fontSize = 12.sp,
-              fontWeight = if (selected) FontWeight.Bold else FontWeight.Medium,
-              color = if (selected) DarkTextOnGold else TextPrimary
+              fontFamily = MontserratFamily,
+              fontSize = 13.sp,
+              fontWeight = if (selected) FontWeight.Bold else FontWeight.SemiBold,
+              color = if (selected) RoyalPurple else Lavender
             )
           }
         }
@@ -170,7 +176,7 @@ fun AlarmSettingsScreen(
         horizontalArrangement = Arrangement.SpaceBetween,
         verticalAlignment = Alignment.CenterVertically
       ) {
-        Text("Course Alarms (${mergedCourses.size})", fontSize = 15.sp, fontWeight = FontWeight.SemiBold, color = GoldLight)
+        Text("Course Alarms (${mergedCourses.size})", style = CardTitleStyle.copy(color = ChampagneGold))
         TextButton(
           onClick = {
             if (session != null && !isSyncing) {
@@ -182,20 +188,21 @@ fun AlarmSettingsScreen(
               }
             }
           },
-          enabled = !isSyncing
+          enabled = !isSyncing,
+          modifier = Modifier.defaultMinSize(minHeight = 48.dp)
         ) {
-          Icon(Icons.Default.Refresh, contentDescription = null, tint = GoldPrimary, modifier = Modifier.size(16.dp))
+          Icon(Icons.Default.Refresh, contentDescription = null, tint = ChampagneGold, modifier = Modifier.size(16.dp))
           Spacer(modifier = Modifier.width(4.dp))
-          Text(if (isSyncing) "Syncing..." else "Sync", color = GoldPrimary, fontSize = 12.sp, fontWeight = FontWeight.Bold)
+          Text(if (isSyncing) "Syncing..." else "Sync", style = FieldLabelStyle.copy(color = ChampagneGold))
         }
       }
 
       if (!statusBanner.isNullOrBlank()) {
-        Text(statusBanner!!, fontSize = 12.sp, color = SuccessGreen)
+        Text(statusBanner!!, style = CaptionStyle.copy(color = SuccessColor))
       }
 
       if (mergedCourses.isEmpty()) {
-        Text("No timetable courses found yet. Refresh your timetable to populate courses.", fontSize = 12.sp, color = TextSecondary)
+        Text("No timetable courses found yet. Refresh your timetable to populate courses.", style = CaptionStyle.copy(color = Lavender))
       } else {
         Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
           mergedCourses.forEach { (courseKey, items) ->
@@ -209,19 +216,19 @@ fun AlarmSettingsScreen(
             Row(
               modifier = Modifier
                 .fillMaxWidth()
-                .clip(RoundedCornerShape(10.dp))
-                .background(DarkSurfaceVariant)
-                .border(1.dp, DarkBorder, RoundedCornerShape(10.dp))
+                .clip(RoundedCornerShape(12.dp))
+                .background(RoyalSurfaceHigh)
+                .border(1.dp, DarkBorder, RoundedCornerShape(12.dp))
                 .padding(horizontal = 12.dp, vertical = 10.dp),
               verticalAlignment = Alignment.CenterVertically,
               horizontalArrangement = Arrangement.SpaceBetween
             ) {
               Column(modifier = Modifier.weight(1f).padding(end = 8.dp)) {
-                Text(header, fontSize = 14.sp, fontWeight = FontWeight.SemiBold, color = TextPrimary)
-                Text(summary, fontSize = 11.sp, color = TextSecondary)
+                Text(header, style = CardTitleStyle.copy(fontSize = 16.sp))
+                Text(summary, style = CaptionStyle.copy(color = Lavender))
                 if (first.lecturerName.isNotBlank() || first.room.isNotBlank()) {
                   val meta = listOfNotNull(first.room.ifBlank { null }, first.lecturerName.ifBlank { null }).joinToString(" • ")
-                  Text(meta, fontSize = 11.sp, color = GoldLight)
+                  Text(meta, style = CaptionStyle.copy(color = ChampagneGold))
                 }
               }
               Switch(
@@ -232,7 +239,7 @@ fun AlarmSettingsScreen(
                   AlarmScheduler.rescheduleAll(context)
                 },
                 modifier = Modifier.testTag("alarm_course_switch_$courseKey"),
-                colors = SwitchDefaults.colors(checkedThumbColor = DarkTextOnGold, checkedTrackColor = GoldPrimary)
+                colors = SwitchDefaults.colors(checkedThumbColor = Midnight, checkedTrackColor = GoldPrimary)
               )
             }
           }
@@ -241,38 +248,29 @@ fun AlarmSettingsScreen(
     }
 
     ClassRepCard {
-      Text("Alarm Reliability", fontSize = 14.sp, fontWeight = FontWeight.SemiBold, color = GoldLight)
+      Text("Alarm Reliability", style = CardTitleStyle.copy(color = ChampagneGold))
       if (!hasNotifPermission && Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-        OutlinedButton(
+        OutlinedGoldButton(
+          text = "Allow Notification Permission",
+          leadingIcon = Icons.Default.NotificationsActive,
           onClick = { notifLauncher.launch(Manifest.permission.POST_NOTIFICATIONS) },
-          modifier = Modifier.fillMaxWidth(),
-          border = BorderStroke(1.dp, GoldPrimary)
-        ) {
-          Icon(Icons.Default.NotificationsActive, contentDescription = null, tint = GoldPrimary, modifier = Modifier.size(16.dp))
-          Spacer(modifier = Modifier.width(6.dp))
-          Text("Allow Notification Permission", color = GoldLight, fontSize = 12.sp)
-        }
+          modifier = Modifier.fillMaxWidth()
+        )
       }
       if (!canExactAlarms && Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
-        OutlinedButton(
+        OutlinedGoldButton(
+          text = "Allow Exact Alarms",
+          leadingIcon = Icons.Default.Alarm,
           onClick = { AlarmNavigationHelper.openExactAlarmSettings(context) },
-          modifier = Modifier.fillMaxWidth(),
-          border = BorderStroke(1.dp, GoldPrimary)
-        ) {
-          Icon(Icons.Default.Alarm, contentDescription = null, tint = GoldPrimary, modifier = Modifier.size(16.dp))
-          Spacer(modifier = Modifier.width(6.dp))
-          Text("Allow Exact Alarms", color = GoldLight, fontSize = 12.sp)
-        }
+          modifier = Modifier.fillMaxWidth()
+        )
       }
-      OutlinedButton(
+      OutlinedGoldButton(
+        text = "Battery Optimization Settings",
+        leadingIcon = Icons.Default.BatterySaver,
         onClick = { AlarmNavigationHelper.openBatteryOptimizationSettings(context) },
-        modifier = Modifier.fillMaxWidth().testTag("alarm_battery_settings_btn"),
-        border = BorderStroke(1.dp, DarkBorder)
-      ) {
-        Icon(Icons.Default.BatterySaver, contentDescription = null, tint = GoldLight, modifier = Modifier.size(16.dp))
-        Spacer(modifier = Modifier.width(6.dp))
-        Text("Battery Optimization Settings", color = TextPrimary, fontSize = 12.sp)
-      }
+        modifier = Modifier.fillMaxWidth().testTag("alarm_battery_settings_btn")
+      )
     }
   }
 }

@@ -30,18 +30,21 @@ import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.foundation.layout.defaultMinSize
 import com.example.data.DiscussionGroupItem
+import com.example.ui.theme.ButtonRadius
+import com.example.ui.theme.ButtonTextStyle
+import com.example.ui.theme.CaptionStyle
 import com.example.ui.theme.CardRadius
-import com.example.ui.theme.DarkBackground
+import com.example.ui.theme.CardTitleStyle
+import com.example.ui.theme.ChampagneGold
 import com.example.ui.theme.DarkBorder
-import com.example.ui.theme.DarkSurfaceVariant
+import com.example.ui.theme.ElectricViolet
+import com.example.ui.theme.ErrorColor
 import com.example.ui.theme.ErrorContainer
-import com.example.ui.theme.ErrorRed
-import com.example.ui.theme.GoldLight
-import com.example.ui.theme.GoldPrimary
-import com.example.ui.theme.PoppinsFamily
-import com.example.ui.theme.TextPrimary
-import com.example.ui.theme.TextSecondary
+import com.example.ui.theme.FieldLabelStyle
+import com.example.ui.theme.MetallicGold
+import com.example.ui.theme.RoyalSurfaceHigh
 
 @Composable
 fun GroupCard(
@@ -51,7 +54,7 @@ fun GroupCard(
 ) {
   ClassRepCard(
     modifier = Modifier
-      .then(if (group.isMember) Modifier.border(1.dp, GoldPrimary.copy(alpha = 0.5f), RoundedCornerShape(CardRadius)) else Modifier)
+      .then(if (group.isMember) Modifier.border(1.dp, ElectricViolet.copy(alpha = 0.55f), RoundedCornerShape(CardRadius)) else Modifier)
       .testTag("group_card_${group.id}"),
     onClick = if (group.isMember) onOpenChat else null
   ) {
@@ -62,13 +65,13 @@ fun GroupCard(
       ) {
         Box(
           modifier = Modifier
-            .size(42.dp)
-            .clip(RoundedCornerShape(10.dp))
-            .background(DarkSurfaceVariant)
-            .border(1.dp, if (group.isMember) GoldPrimary else DarkBorder, RoundedCornerShape(10.dp)),
+            .size(44.dp)
+            .clip(RoundedCornerShape(12.dp))
+            .background(RoyalSurfaceHigh)
+            .border(1.dp, if (group.isMember) ElectricViolet else DarkBorder, RoundedCornerShape(12.dp)),
           contentAlignment = Alignment.Center
         ) {
-          Icon(Icons.Default.Groups, contentDescription = null, tint = GoldLight, modifier = Modifier.size(22.dp))
+          Icon(Icons.Default.Groups, contentDescription = null, tint = ChampagneGold, modifier = Modifier.size(22.dp))
         }
 
         Spacer(modifier = Modifier.width(10.dp))
@@ -77,29 +80,26 @@ fun GroupCard(
           Row(verticalAlignment = Alignment.CenterVertically) {
             Text(
               text = group.name,
-              fontFamily = PoppinsFamily,
-              fontSize = 15.sp,
-              fontWeight = FontWeight.Bold,
-              color = TextPrimary
+              style = CardTitleStyle,
+              modifier = Modifier.weight(1f, fill = false)
             )
             if (group.isFull) {
               Spacer(modifier = Modifier.width(6.dp))
               Box(
                 modifier = Modifier
-                  .clip(RoundedCornerShape(6.dp))
+                  .clip(RoundedCornerShape(8.dp))
                   .background(ErrorContainer)
-                  .padding(horizontal = 6.dp, vertical = 2.dp)
+                  .padding(horizontal = 8.dp, vertical = 2.dp)
                   .testTag("group_full_badge_${group.id}")
               ) {
-                Text("Full", fontSize = 10.sp, fontWeight = FontWeight.Bold, color = ErrorRed)
+                Text("Full", style = FieldLabelStyle.copy(fontSize = 12.sp, color = ErrorColor))
               }
             }
           }
 
           Text(
             text = "${group.memberCount}/${group.maxMembers} members",
-            fontSize = 13.sp,
-            color = TextSecondary
+            style = CaptionStyle
           )
         }
       }
@@ -108,9 +108,7 @@ fun GroupCard(
         Spacer(modifier = Modifier.height(8.dp))
         Text(
           text = group.description,
-          fontSize = 13.sp,
-          color = TextSecondary,
-          lineHeight = 18.sp,
+          style = CaptionStyle,
           maxLines = 2
         )
       }
@@ -126,19 +124,20 @@ fun GroupCard(
             text = "Open Chat",
             leadingIcon = Icons.AutoMirrored.Filled.Chat,
             onClick = onOpenChat,
-            modifier = Modifier.height(38.dp).testTag("open_chat_btn_${group.id}")
+            modifier = Modifier.testTag("open_chat_btn_${group.id}")
           )
         } else {
           Button(
             onClick = onJoinGroup,
             enabled = !group.isFull,
-            modifier = Modifier.height(38.dp).testTag("join_group_btn_${group.id}"),
-            shape = RoundedCornerShape(10.dp),
-            colors = ButtonDefaults.buttonColors(containerColor = DarkSurfaceVariant, contentColor = GoldLight)
+            modifier = Modifier.defaultMinSize(minHeight = 48.dp).testTag("join_group_btn_${group.id}"),
+            shape = RoundedCornerShape(ButtonRadius),
+            colors = ButtonDefaults.buttonColors(containerColor = RoyalSurfaceHigh, contentColor = ChampagneGold),
+            border = androidx.compose.foundation.BorderStroke(1.dp, MetallicGold.copy(alpha = 0.55f))
           ) {
-            Icon(Icons.Default.GroupAdd, contentDescription = null, modifier = Modifier.size(14.dp))
-            Spacer(modifier = Modifier.width(4.dp))
-            Text(if (group.isFull) "Group Full" else "Join", fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
+            Icon(Icons.Default.GroupAdd, contentDescription = null, modifier = Modifier.size(16.dp))
+            Spacer(modifier = Modifier.width(6.dp))
+            Text(if (group.isFull) "Group Full" else "Join", style = ButtonTextStyle.copy(fontSize = 14.sp, color = ChampagneGold))
           }
         }
       }

@@ -22,14 +22,15 @@ import androidx.compose.ui.platform.LocalClipboardManager
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.AnnotatedString
-import androidx.compose.ui.text.font.FontFamily
-import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import com.example.data.ClassItem
-import com.example.ui.theme.GoldLight
-import com.example.ui.theme.GoldPrimary
-import com.example.ui.theme.TextSecondary
+import com.example.ui.theme.CaptionStyle
+import com.example.ui.theme.ChampagneGold
+import com.example.ui.theme.FieldLabelStyle
+import com.example.ui.theme.Lavender
+import com.example.ui.theme.MetallicGold
+import com.example.ui.theme.SectionHeadingStyle
+import com.example.ui.theme.SilverWhite
 
 @Composable
 fun ClassHeaderBar(
@@ -44,37 +45,32 @@ fun ClassHeaderBar(
   val context = LocalContext.current
 
   Row(modifier = modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-    IconButton(onClick = onBack, modifier = Modifier.size(40.dp).testTag("class_screen_back_button")) {
-      Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back", tint = GoldLight)
+    IconButton(onClick = onBack, modifier = Modifier.size(48.dp).testTag("class_screen_back_button")) {
+      Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back", tint = ChampagneGold)
     }
     Spacer(modifier = Modifier.width(6.dp))
     Column(modifier = Modifier.weight(1f)) {
       Row(verticalAlignment = Alignment.CenterVertically) {
         Text(
           text = classItem.name.ifBlank { "Class Details" },
-          fontSize = 18.sp,
-          fontWeight = FontWeight.Bold,
-          color = GoldLight,
+          style = SectionHeadingStyle.copy(color = SilverWhite),
           modifier = Modifier.testTag("class_screen_title")
         )
         if (isStaff) {
           Spacer(modifier = Modifier.width(4.dp))
-          IconButton(onClick = onEditClassNameClick, modifier = Modifier.size(28.dp).testTag("edit_class_name_btn")) {
-            Icon(Icons.Default.Edit, contentDescription = "Edit name", tint = GoldPrimary, modifier = Modifier.size(16.dp))
+          IconButton(onClick = onEditClassNameClick, modifier = Modifier.size(36.dp).testTag("edit_class_name_btn")) {
+            Icon(Icons.Default.Edit, contentDescription = "Edit name", tint = MetallicGold, modifier = Modifier.size(16.dp))
           }
         }
       }
       if (classItem.code.isNotBlank()) {
-        Text("Code: ${classItem.code}", fontSize = 13.sp, color = TextSecondary)
+        Text("Code: ${classItem.code}", style = CaptionStyle.copy(color = Lavender))
       }
-      // Only staff see the join_code (with a Copy button) in the class header
       if (isStaff && !classItem.joinCode.isNullOrBlank()) {
         Row(verticalAlignment = Alignment.CenterVertically) {
           Text(
             text = "Join Code: ${classItem.joinCode}",
-            fontSize = 13.sp,
-            color = GoldLight,
-            fontWeight = FontWeight.SemiBold
+            style = FieldLabelStyle.copy(color = ChampagneGold)
           )
           Spacer(modifier = Modifier.width(4.dp))
           IconButton(
@@ -82,16 +78,16 @@ fun ClassHeaderBar(
               clipboardManager.setText(AnnotatedString(classItem.joinCode))
               Toast.makeText(context, "Join code copied to clipboard!", Toast.LENGTH_SHORT).show()
             },
-            modifier = Modifier.size(22.dp).testTag("copy_class_join_code_btn")
+            modifier = Modifier.size(32.dp).testTag("copy_class_join_code_btn")
           ) {
-            Icon(Icons.Default.ContentCopy, contentDescription = "Copy Join Code", tint = GoldPrimary, modifier = Modifier.size(14.dp))
+            Icon(Icons.Default.ContentCopy, contentDescription = "Copy Join Code", tint = ChampagneGold, modifier = Modifier.size(15.dp))
           }
         }
       }
     }
     if (isStaff) {
-      IconButton(onClick = onManageMembersClick, modifier = Modifier.size(38.dp).testTag("manage_members_btn")) {
-        Icon(Icons.Default.Group, contentDescription = "Manage Members", tint = GoldLight, modifier = Modifier.size(22.dp))
+      IconButton(onClick = onManageMembersClick, modifier = Modifier.size(48.dp).testTag("manage_members_btn")) {
+        Icon(Icons.Default.Group, contentDescription = "Manage Members", tint = ChampagneGold, modifier = Modifier.size(22.dp))
       }
     }
   }

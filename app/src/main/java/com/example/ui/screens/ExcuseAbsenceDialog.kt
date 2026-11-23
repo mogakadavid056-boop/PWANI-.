@@ -10,6 +10,7 @@ import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.example.ui.components.royalOutlinedTextFieldColors
 import com.example.ui.theme.*
 
 @Composable
@@ -24,16 +25,15 @@ fun ExcuseAbsenceDialog(
 
   AlertDialog(
     onDismissRequest = { if (!isActionLoading) onDismiss() },
-    containerColor = Color(0xFF0E3324),
+    containerColor = RoyalSurfaceHigh,
     title = {
-      Text("Excuse Absence", fontWeight = FontWeight.Bold, color = GoldLight)
+      Text("Excuse Absence", style = SectionHeadingStyle)
     },
     text = {
       Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
         Text(
           text = "Mark \"$sessionTitle\" as excused for this student.",
-          fontSize = 14.sp,
-          color = TextPrimary
+          style = BodyStyle.copy(fontSize = 14.sp)
         )
         OutlinedTextField(
           value = reason,
@@ -42,15 +42,8 @@ fun ExcuseAbsenceDialog(
           singleLine = false,
           maxLines = 3,
           modifier = Modifier.fillMaxWidth().testTag("excuse_reason_input"),
-          shape = RoundedCornerShape(10.dp),
-          colors = OutlinedTextFieldDefaults.colors(
-            focusedBorderColor = GoldPrimary,
-            unfocusedBorderColor = DarkBorder,
-            focusedTextColor = TextPrimary,
-            unfocusedTextColor = TextPrimary,
-            focusedLabelColor = GoldLight,
-            unfocusedLabelColor = TextSecondary
-          )
+          shape = RoundedCornerShape(ButtonRadius),
+          colors = royalOutlinedTextFieldColors()
         )
       }
     },
@@ -58,15 +51,16 @@ fun ExcuseAbsenceDialog(
       Button(
         onClick = { onSubmit(reason.trim()) },
         enabled = canSubmit,
-        colors = ButtonDefaults.buttonColors(containerColor = GoldPrimary, contentColor = DarkTextOnGold),
-        modifier = Modifier.testTag("confirm_excuse_btn")
+        shape = RoundedCornerShape(ButtonRadius),
+        colors = ButtonDefaults.buttonColors(containerColor = MetallicGold, contentColor = Midnight),
+        modifier = Modifier.defaultMinSize(minHeight = 48.dp).testTag("confirm_excuse_btn")
       ) {
-        Text(if (isActionLoading) "Saving..." else "Excuse", fontWeight = FontWeight.Bold, color = DarkTextOnGold)
+        Text(if (isActionLoading) "Saving..." else "Excuse", style = ButtonTextStyle.copy(color = Midnight, fontSize = 14.sp))
       }
     },
     dismissButton = {
-      TextButton(onClick = onDismiss, enabled = !isActionLoading) {
-        Text("Cancel", color = TextSecondary)
+      TextButton(onClick = onDismiss, enabled = !isActionLoading, modifier = Modifier.defaultMinSize(minHeight = 48.dp)) {
+        Text("Cancel", style = ButtonTextStyle.copy(color = Lavender, fontSize = 14.sp))
       }
     }
   )

@@ -1,6 +1,8 @@
 package com.example.ui.theme
 
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Shapes
 import androidx.compose.material3.Typography
 import androidx.compose.material3.darkColorScheme
 import androidx.compose.runtime.Composable
@@ -8,138 +10,239 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.Font
 import androidx.compose.ui.text.font.FontFamily
+import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.R
 
-// Single font family across the entire app with sans-serif fallback
-val PoppinsFamily: FontFamily = try {
+// Bundled local Google Font families with Serif/SansSerif fallbacks
+val CinzelDecorativeFamily: FontFamily = try {
   FontFamily(
-    Font(R.font.poppins, FontWeight.Normal),
-    Font(R.font.poppins, FontWeight.Medium),
-    Font(R.font.poppins, FontWeight.SemiBold),
-    Font(R.font.poppins, FontWeight.Bold)
+    Font(R.font.cinzel_decorative, FontWeight.Bold)
+  )
+} catch (_: Throwable) {
+  FontFamily.Serif
+}
+
+val PlayfairDisplayFamily: FontFamily = try {
+  FontFamily(
+    Font(R.font.playfair_display, FontWeight.Normal),
+    Font(R.font.playfair_display, FontWeight.SemiBold),
+    Font(R.font.playfair_display, FontWeight.Bold),
+    Font(R.font.playfair_display, FontWeight.Normal, FontStyle.Italic)
+  )
+} catch (_: Throwable) {
+  FontFamily.Serif
+}
+
+val GreatVibesFamily: FontFamily = try {
+  FontFamily(
+    Font(R.font.great_vibes, FontWeight.Normal)
+  )
+} catch (_: Throwable) {
+  FontFamily.Cursive
+}
+
+val MontserratFamily: FontFamily = try {
+  FontFamily(
+    Font(R.font.montserrat, FontWeight.Medium),
+    Font(R.font.montserrat, FontWeight.SemiBold),
+    Font(R.font.montserrat, FontWeight.Bold)
   )
 } catch (_: Throwable) {
   FontFamily.SansSerif
 }
 
-// Backward-compatible alias so existing references resolve to Poppins
-val InterFamily: FontFamily = PoppinsFamily
+val InterFamily: FontFamily = try {
+  FontFamily(
+    Font(R.font.inter, FontWeight.Normal),
+    Font(R.font.inter, FontWeight.Medium),
+    Font(R.font.inter, FontWeight.SemiBold)
+  )
+} catch (_: Throwable) {
+  FontFamily.SansSerif
+}
 
-// Design system type scale strictly matching typography guidelines:
-// Screen titles & top bar titles: 24sp, Bold
-val TitleStyle = TextStyle(
-  fontFamily = PoppinsFamily,
+// Royal Luxury Type Scale
+// Wordmark: 40-44sp Cinzel Decorative Bold
+val WordmarkStyle = TextStyle(
+  fontFamily = CinzelDecorativeFamily,
+  fontWeight = FontWeight.Bold,
+  fontSize = 42.sp,
+  lineHeight = 48.sp,
+  letterSpacing = 1.5.sp,
+  color = ChampagneGold
+)
+
+// Top-level screen titles (<= 3 words): 24sp Cinzel Decorative Bold, 1.5sp letter spacing
+val ScreenTitleStyle = TextStyle(
+  fontFamily = CinzelDecorativeFamily,
   fontWeight = FontWeight.Bold,
   fontSize = 24.sp,
   lineHeight = 32.sp,
-  color = TextPrimary
+  letterSpacing = 1.5.sp,
+  color = ChampagneGold
 )
 
-// Section headings (e.g. "Latest Announcements", "Timetable"): 20sp, Bold
+// Backward-compatible alias for screen titles
+val TitleStyle = ScreenTitleStyle
+
+// Section headings: 20sp Playfair Bold
 val SectionHeadingStyle = TextStyle(
-  fontFamily = PoppinsFamily,
+  fontFamily = PlayfairDisplayFamily,
   fontWeight = FontWeight.Bold,
   fontSize = 20.sp,
   lineHeight = 28.sp,
-  color = TextPrimary
+  color = ChampagneGold
 )
 
-// Card titles and list item titles: 18sp, Bold
+// Card titles: 18sp Playfair SemiBold
 val CardTitleStyle = TextStyle(
-  fontFamily = PoppinsFamily,
-  fontWeight = FontWeight.Bold,
+  fontFamily = PlayfairDisplayFamily,
+  fontWeight = FontWeight.SemiBold,
   fontSize = 18.sp,
   lineHeight = 24.sp,
-  color = TextPrimary
+  color = SilverWhite
 )
 
-// Body text: 16sp, Normal, line height 24sp
-val BodyStyle = TextStyle(
-  fontFamily = PoppinsFamily,
+// Profile names: Playfair Bold
+val ProfileNameStyle = TextStyle(
+  fontFamily = PlayfairDisplayFamily,
+  fontWeight = FontWeight.Bold,
+  fontSize = 24.sp,
+  lineHeight = 30.sp,
+  color = SilverWhite
+)
+
+// Subtitles: Playfair Italic
+val SubtitleItalicStyle = TextStyle(
+  fontFamily = PlayfairDisplayFamily,
   fontWeight = FontWeight.Normal,
+  fontStyle = FontStyle.Italic,
   fontSize = 16.sp,
-  lineHeight = 24.sp,
-  color = TextPrimary
+  lineHeight = 22.sp,
+  color = Lavender
 )
 
-// Secondary text and captions: 14sp, never smaller than 13sp
-val SecondaryTextStyle = TextStyle(
-  fontFamily = PoppinsFamily,
+// Decorative greetings & taglines: Great Vibes, never below 28sp (32sp default)
+val GreetingStyle = TextStyle(
+  fontFamily = GreatVibesFamily,
   fontWeight = FontWeight.Normal,
-  fontSize = 14.sp,
-  lineHeight = 20.sp,
-  color = TextSecondary
+  fontSize = 32.sp,
+  lineHeight = 38.sp,
+  color = ChampagneGold
 )
 
-val CaptionStyle = TextStyle(
-  fontFamily = PoppinsFamily,
-  fontWeight = FontWeight.Normal,
-  fontSize = 14.sp,
-  lineHeight = 20.sp,
-  color = TextSecondary
-)
-
-// Buttons and chips: 16sp, SemiBold
+// Buttons, tabs, chips: 16sp Montserrat SemiBold
 val ButtonTextStyle = TextStyle(
-  fontFamily = PoppinsFamily,
+  fontFamily = MontserratFamily,
   fontWeight = FontWeight.SemiBold,
   fontSize = 16.sp,
   lineHeight = 22.sp,
   color = Color.Unspecified
 )
 
-// Material 3 Typography mapping
+// Field labels, chips, badges, support footer: Montserrat SemiBold
+val FieldLabelStyle = TextStyle(
+  fontFamily = MontserratFamily,
+  fontWeight = FontWeight.SemiBold,
+  fontSize = 14.sp,
+  lineHeight = 20.sp,
+  color = ChampagneGold
+)
+
+// Bottom navigation labels: 12sp Montserrat SemiBold
+val NavLabelStyle = TextStyle(
+  fontFamily = MontserratFamily,
+  fontWeight = FontWeight.SemiBold,
+  fontSize = 12.sp,
+  lineHeight = 16.sp
+)
+
+// Body text: 16sp Inter with 24sp line height
+val BodyStyle = TextStyle(
+  fontFamily = InterFamily,
+  fontWeight = FontWeight.Normal,
+  fontSize = 16.sp,
+  lineHeight = 24.sp,
+  color = SilverWhite
+)
+
+// Secondary text and captions: 14sp Inter (never smaller)
+val SecondaryTextStyle = TextStyle(
+  fontFamily = InterFamily,
+  fontWeight = FontWeight.Normal,
+  fontSize = 14.sp,
+  lineHeight = 20.sp,
+  color = Lavender
+)
+
+val CaptionStyle = TextStyle(
+  fontFamily = InterFamily,
+  fontWeight = FontWeight.Normal,
+  fontSize = 14.sp,
+  lineHeight = 20.sp,
+  color = Lavender
+)
+
+// Material 3 Typography mapping so Text picks the right font automatically
 val AppTypography = Typography(
-  displayLarge = TitleStyle.copy(fontSize = 28.sp),
-  displayMedium = TitleStyle.copy(fontSize = 26.sp),
-  displaySmall = TitleStyle,
-  headlineLarge = TitleStyle,
+  displayLarge = WordmarkStyle,
+  displayMedium = ScreenTitleStyle.copy(fontSize = 28.sp, lineHeight = 34.sp),
+  displaySmall = ScreenTitleStyle,
+  headlineLarge = ScreenTitleStyle,
   headlineMedium = SectionHeadingStyle,
   headlineSmall = CardTitleStyle,
-  titleLarge = TitleStyle, // 24sp, Bold
-  titleMedium = SectionHeadingStyle, // 20sp, Bold
-  titleSmall = CardTitleStyle, // 18sp, Bold
-  bodyLarge = BodyStyle, // 16sp, Normal, line height 24sp
-  bodyMedium = SecondaryTextStyle, // 14sp, Normal
-  bodySmall = CaptionStyle, // 14sp
-  labelLarge = ButtonTextStyle, // 16sp, SemiBold
-  labelMedium = SecondaryTextStyle, // 14sp
-  labelSmall = CaptionStyle.copy(fontSize = 13.sp) // 13sp min
+  titleLarge = ScreenTitleStyle,
+  titleMedium = SectionHeadingStyle,
+  titleSmall = CardTitleStyle,
+  bodyLarge = BodyStyle,
+  bodyMedium = SecondaryTextStyle,
+  bodySmall = CaptionStyle,
+  labelLarge = ButtonTextStyle,
+  labelMedium = FieldLabelStyle,
+  labelSmall = NavLabelStyle
+)
+
+val RoyalShapes = Shapes(
+  extraSmall = RoundedCornerShape(8.dp),
+  small = RoundedCornerShape(12.dp),
+  medium = RoundedCornerShape(14.dp),
+  large = RoundedCornerShape(18.dp),
+  extraLarge = RoundedCornerShape(24.dp)
 )
 
 // Layout & dimension constants
 val ScreenPadding = 16.dp
 val ItemSpacing = 12.dp
-val CardRadius = 16.dp
-val ButtonRadius = 12.dp
-val ButtonMinHeight = 48.dp
+val CardRadius = 18.dp
+val ButtonRadius = 14.dp
+val ButtonMinHeight = 52.dp
 
 private val DarkColorScheme = darkColorScheme(
-  primary = GoldPrimary,
-  onPrimary = DarkTextOnGold, // Dark #1A1405 for gold buttons/fab/chips/tabs
-  primaryContainer = DarkSurfaceVariant,
-  onPrimaryContainer = GoldLight,
-  secondary = GoldPrimary,
-  onSecondary = DarkTextOnGold,
-  secondaryContainer = DarkSurfaceVariant,
-  onSecondaryContainer = GoldLight,
-  tertiary = GoldAccent,
-  onTertiary = DarkTextOnGold,
+  primary = MetallicGold,
+  onPrimary = Midnight,
+  primaryContainer = RoyalSurfaceHigh,
+  onPrimaryContainer = ChampagneGold,
+  secondary = ElectricViolet,
+  onSecondary = SilverWhite,
+  secondaryContainer = RoyalSurfaceHigh,
+  onSecondaryContainer = Lavender,
+  tertiary = ChampagneGold,
+  onTertiary = Midnight,
   background = DarkBackground,
-  onBackground = TextPrimary,
-  surface = DarkSurface,
-  onSurface = TextPrimary,
-  surfaceVariant = DarkSurfaceVariant,
-  onSurfaceVariant = TextSecondary,
+  onBackground = SilverWhite,
+  surface = RoyalSurface,
+  onSurface = SilverWhite,
+  surfaceVariant = RoyalSurfaceHigh,
+  onSurfaceVariant = Lavender,
   outline = DarkBorder,
   outlineVariant = DarkBorderHighlight,
-  error = ErrorRed,
-  onError = TextPrimary,
-  errorContainer = ErrorContainer,
-  onErrorContainer = ErrorRed
+  error = ErrorColor,
+  onError = Midnight,
+  errorContainer = RoyalErrorContainer,
+  onErrorContainer = ErrorColor
 )
 
 @Composable
@@ -149,6 +252,7 @@ fun ClassRepTheme(
   MaterialTheme(
     colorScheme = DarkColorScheme,
     typography = AppTypography,
+    shapes = RoyalShapes,
     content = content
   )
 }

@@ -10,6 +10,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
@@ -25,23 +26,25 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.testTag
-import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import com.example.admin.data.AdminClassItem
 import com.example.admin.data.AdminRegisterDetail
 import com.example.admin.data.AdminRegisterSummary
 import com.example.admin.ui.components.AdminEmptyState
 import com.example.admin.ui.components.AdminGlassCard
+import com.example.admin.ui.components.AdminMetallicGoldText
 import com.example.admin.ui.components.AdminSearchField
 import com.example.admin.ui.components.AdminStatusPill
+import com.example.admin.ui.theme.AdminBodyStyle
+import com.example.admin.ui.theme.AdminCaptionStyle
+import com.example.admin.ui.theme.AdminCardTitleStyle
+import com.example.admin.ui.theme.AdminScreenTitleStyle
+import com.example.admin.ui.theme.AdminSectionHeadingStyle
+import com.example.admin.ui.theme.ChampagneGold
 import com.example.admin.ui.theme.CrimsonError
 import com.example.admin.ui.theme.EmeraldSuccess
 import com.example.admin.ui.theme.GoldLight
 import com.example.admin.ui.theme.GoldPrimary
-import com.example.admin.ui.theme.TextMuted
-import com.example.admin.ui.theme.TextPrimary
-import com.example.admin.ui.theme.TextSecondary
 import com.example.admin.util.AdminJsonHelper
 
 @Composable
@@ -79,15 +82,15 @@ fun AdminOversightScreen(
     BackHandler(onBack = onCloseClass)
     Column(modifier = Modifier.fillMaxSize().padding(horizontal = 16.dp, vertical = 14.dp)) {
       Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth()) {
-        IconButton(onClick = onCloseClass) {
-          Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back to classes", tint = GoldPrimary)
+        IconButton(onClick = onCloseClass, modifier = Modifier.size(48.dp)) {
+          Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back to classes", tint = ChampagneGold)
         }
         Column(modifier = Modifier.weight(1f)) {
-          Text(selectedClass.name, fontSize = 19.sp, fontWeight = FontWeight.Bold, color = TextPrimary)
-          Text("Attendance Registers • Code: ${AdminJsonHelper.orDash(selectedClass.code)}", fontSize = 12.sp, color = GoldLight)
+          Text(selectedClass.name, style = AdminSectionHeadingStyle)
+          Text("Attendance Registers • Code: ${AdminJsonHelper.orDash(selectedClass.code)}", style = AdminCaptionStyle.copy(color = ChampagneGold))
         }
-        IconButton(onClick = { onOpenClass(selectedClass) }) {
-          Icon(Icons.Default.Refresh, contentDescription = "Refresh registers", tint = GoldPrimary)
+        IconButton(onClick = { onOpenClass(selectedClass) }, modifier = Modifier.size(48.dp)) {
+          Icon(Icons.Default.Refresh, contentDescription = "Refresh registers", tint = ChampagneGold)
         }
       }
       if (isRegistersLoading || isRegisterDetailLoading) {
@@ -108,9 +111,9 @@ fun AdminOversightScreen(
             AdminGlassCard(onClick = { onOpenRegister(reg.sessionId) }) {
               Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
                 Column(modifier = Modifier.weight(1f)) {
-                  Text(AdminJsonHelper.orDash(reg.registerNo), fontSize = 15.sp, fontWeight = FontWeight.Bold, color = GoldLight)
-                  Text(AdminJsonHelper.orDash(reg.courseName.ifBlank { reg.title }), fontSize = 14.sp, color = TextPrimary)
-                  Text("${AdminJsonHelper.orDash(reg.dateText)} • Present: ${reg.presentCount}", fontSize = 12.sp, color = TextSecondary)
+                  Text(AdminJsonHelper.orDash(reg.registerNo), style = AdminCardTitleStyle.copy(color = ChampagneGold))
+                  Text(AdminJsonHelper.orDash(reg.courseName.ifBlank { reg.title }), style = AdminBodyStyle)
+                  Text("${AdminJsonHelper.orDash(reg.dateText)} • Present: ${reg.presentCount}", style = AdminCaptionStyle)
                 }
                 AdminStatusPill(reg.status.uppercase(), stColor)
               }
@@ -124,12 +127,12 @@ fun AdminOversightScreen(
 
   Column(modifier = Modifier.fillMaxSize().padding(horizontal = 16.dp, vertical = 14.dp).testTag("admin_oversight_screen")) {
     Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
-      Column {
-        Text("Classes & Oversight", fontSize = 22.sp, fontWeight = FontWeight.Bold, color = TextPrimary)
-        Text("Tap any class to audit attendance registers", fontSize = 12.sp, color = TextSecondary)
+      Column(modifier = Modifier.weight(1f)) {
+        AdminMetallicGoldText(text = "Classes & Oversight", style = AdminScreenTitleStyle)
+        Text("Tap any class to audit attendance registers", style = AdminCaptionStyle)
       }
-      IconButton(onClick = onRefreshClasses) {
-        Icon(Icons.Default.Refresh, contentDescription = "Refresh classes", tint = GoldPrimary)
+      IconButton(onClick = onRefreshClasses, modifier = Modifier.size(48.dp)) {
+        Icon(Icons.Default.Refresh, contentDescription = "Refresh classes", tint = ChampagneGold)
       }
     }
     Spacer(modifier = Modifier.height(10.dp))
@@ -147,17 +150,15 @@ fun AdminOversightScreen(
           AdminGlassCard(onClick = { onOpenClass(cls) }) {
             Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
               Column(modifier = Modifier.weight(1f)) {
-                Text(cls.name, fontSize = 16.sp, fontWeight = FontWeight.SemiBold, color = TextPrimary)
+                Text(cls.name, style = AdminCardTitleStyle)
                 Text(
                   text = "${AdminJsonHelper.orDash(cls.programmeName)} • Code: ${AdminJsonHelper.orDash(cls.code)}",
-                  fontSize = 12.sp,
-                  color = TextSecondary
+                  style = AdminCaptionStyle
                 )
                 if (cls.memberCount != null || cls.registerCount != null) {
                   Text(
                     text = "${cls.memberCount ?: 0} members • ${cls.registerCount ?: 0} registers",
-                    fontSize = 12.sp,
-                    color = TextMuted
+                    style = AdminCaptionStyle
                   )
                 }
               }

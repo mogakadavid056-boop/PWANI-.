@@ -14,7 +14,7 @@ import java.io.InputStream
 enum class MonitorTab(val label: String) {
   NOTICES("Notices"), MEMBERS("Members"), TIMETABLE("Timetable"),
   UNITS("Units"), MATERIALS("Materials"), ATTENDANCE("Attendance"),
-  POLLS("Polls"), GROUPS("Groups")
+  EXAMS("Exams"), POLLS("Polls"), GROUPS("Groups")
 }
 
 data class AdminClassMonitorState(

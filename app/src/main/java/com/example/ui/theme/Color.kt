@@ -2,37 +2,52 @@ package com.example.ui.theme
 
 import androidx.compose.ui.graphics.Color
 
-// Transparent screens over NatureBackground
+// Royal Luxury Core Palette
+val Midnight = Color(0xFF080610)
+val RoyalPurple = Color(0xFF31005F)
+val ElectricViolet = Color(0xFF8B24FF)
+val Lavender = Color(0xFFC7A4FF)
+val MetallicGold = Color(0xFFD4AF37)
+val ChampagneGold = Color(0xFFF5D88A)
+val SilverWhite = Color(0xFFF5F1FF)
+
+// Derived tones strictly for surfaces and shadows
+val RoyalSurface = Color(0xFF120A22)
+val RoyalSurfaceHigh = Color(0xFF1B0E33)
+val RoyalCardSurface = Color(0xE0120A22) // Surface at 88% opacity
+val RoyalNavSurface = Color(0xEB080610)  // Midnight at 92% opacity
+val GoldShadow = Color(0xFF7A5C0E)
+val GoldHighlight = Color(0xFFFFF1C2)
+val ErrorColor = Color(0xFFFF6B6B)
+val SuccessColor = Color(0xFF3DDC84)
+val RoyalErrorContainer = Color(0xD92D0E18)
+val RoyalSuccessContainer = Color(0xD9102921)
+
+// Semantic tokens mapped to Royal Luxury palette (keeps existing component references cohesive)
 val DarkBackground = Color.Transparent
+val DarkSurface = RoyalSurface
+val DarkCard = RoyalCardSurface
+val DarkSurfaceVariant = RoyalSurfaceHigh
+val DarkSurfaceElevated = RoyalSurfaceHigh
 
-// Semi-transparent dark green surfaces (#0B2A1E at 90% opacity for high legibility)
-val DarkSurface = Color(0xE60B2A1E)
-val DarkCard = Color(0xE60B2A1E)
-val DarkSurfaceVariant = Color(0xE60B2A1E)
-val DarkSurfaceElevated = Color(0xF20B2A1E)
+val GoldPrimary = MetallicGold
+val GoldAccent = ChampagneGold
+val GoldLight = ChampagneGold
+val GoldDark = GoldShadow
+val GoldMuted = GoldShadow
 
-// Gold palette
-val GoldPrimary = Color(0xFFE6B422)
-val GoldAccent = Color(0xFFE6B422)
-val GoldLight = Color(0xFFF7D97B)
-val GoldDark = Color(0xFFB88E14)
-val GoldMuted = Color(0xFF8A6C16)
+val DarkTextOnGold = Midnight
+val EmbossedPurpleOnGold = RoyalPurple
 
-// Dark text and icons for gold surfaces (#1A1405, high contrast > 10:1 on #E6B422)
-val DarkTextOnGold = Color(0xFF1A1405)
+val TextPrimary = SilverWhite
+val TextSecondary = Lavender
+val TextMuted = Lavender
+val TextGold = MetallicGold
 
-// Text palette: primary pure white (#FFFFFF), secondary #D5DDD8
-val TextPrimary = Color(0xFFFFFFFF)
-val TextSecondary = Color(0xFFD5DDD8)
-val TextMuted = Color(0xFFA1A1AA)
-val TextGold = Color(0xFFE6B422)
+val ErrorRed = ErrorColor
+val ErrorContainer = RoyalErrorContainer
+val SuccessGreen = SuccessColor
+val SuccessContainer = RoyalSuccessContainer
 
-// Status colors
-val ErrorRed = Color(0xFFFF5C5C)
-val ErrorContainer = Color(0xD9381414)
-val SuccessGreen = Color(0xFF3DDC84)
-val SuccessContainer = Color(0xD912341F)
-
-// Thin gold border
-val DarkBorder = Color(0x50E6B422)
-val DarkBorderHighlight = Color(0x80E6B422)
+val DarkBorder = MetallicGold.copy(alpha = 0.40f)
+val DarkBorderHighlight = ChampagneGold.copy(alpha = 0.70f)

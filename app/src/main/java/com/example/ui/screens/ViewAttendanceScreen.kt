@@ -42,15 +42,11 @@ import com.example.ui.components.AttendanceRecordRow
 import com.example.ui.components.ClassRepPullToRefresh
 import com.example.ui.components.ErrorBanner
 import com.example.ui.components.LoadingSkeleton
-import com.example.ui.theme.DarkBackground
-import com.example.ui.theme.DarkBorder
-import com.example.ui.theme.DarkSurface
-import com.example.ui.theme.DarkSurfaceVariant
-import com.example.ui.theme.GoldDark
-import com.example.ui.theme.GoldLight
-import com.example.ui.theme.GoldPrimary
-import com.example.ui.theme.TextPrimary
-import com.example.ui.theme.TextSecondary
+import com.example.ui.components.MetallicGoldText
+import com.example.ui.components.OutlinedGoldButton
+import com.example.ui.components.PrimaryButton
+import com.example.ui.components.RoyalCard
+import com.example.ui.theme.*
 
 import androidx.compose.material.icons.filled.FileDownload
 import androidx.compose.material.icons.filled.PictureAsPdf
@@ -91,7 +87,6 @@ fun ViewAttendanceScreen(
   Box(
     modifier = Modifier
       .fillMaxSize()
-      .background(DarkBackground)
       .testTag("view_attendance_screen")
   ) {
     Column(
@@ -106,37 +101,30 @@ fun ViewAttendanceScreen(
       ) {
         IconButton(
           onClick = onBack,
-          modifier = Modifier.size(40.dp).testTag("view_attendance_back_btn")
+          modifier = Modifier.size(48.dp).testTag("view_attendance_back_btn")
         ) {
-          Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back", tint = GoldLight)
+          Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back", tint = ChampagneGold)
         }
 
-        Spacer(modifier = Modifier.width(8.dp))
+        Spacer(modifier = Modifier.width(6.dp))
 
         Column(modifier = Modifier.weight(1f)) {
-          Text("Attendance List", fontSize = 20.sp, fontWeight = FontWeight.Bold, color = GoldLight)
-          Text("Verified sign-ins for this session", fontSize = 12.sp, color = TextSecondary)
+          MetallicGoldText("Attendance List", style = ScreenTitleStyle, maxLines = 1)
+          Text("Verified sign-ins for this session", style = CaptionStyle.copy(color = Lavender))
         }
 
         IconButton(
           onClick = onRefresh,
-          modifier = Modifier.size(40.dp).testTag("refresh_attendance_list_btn")
+          modifier = Modifier.size(48.dp).testTag("refresh_attendance_list_btn")
         ) {
-          Icon(Icons.Default.Refresh, contentDescription = "Refresh list", tint = GoldLight)
+          Icon(Icons.Default.Refresh, contentDescription = "Refresh list", tint = ChampagneGold)
         }
       }
 
       Spacer(modifier = Modifier.height(16.dp))
 
       // Summary Card
-      Box(
-        modifier = Modifier
-          .fillMaxWidth()
-          .clip(RoundedCornerShape(14.dp))
-          .background(DarkSurface)
-          .border(1.dp, DarkBorder, RoundedCornerShape(14.dp))
-          .padding(16.dp)
-      ) {
+      RoyalCard {
         Row(
           modifier = Modifier.fillMaxWidth(),
           verticalAlignment = Alignment.CenterVertically
@@ -145,19 +133,18 @@ fun ViewAttendanceScreen(
             modifier = Modifier
               .size(44.dp)
               .clip(RoundedCornerShape(12.dp))
-              .background(DarkSurfaceVariant),
+              .background(RoyalSurfaceHigh)
+              .border(1.dp, DarkBorder, RoundedCornerShape(12.dp)),
             contentAlignment = Alignment.Center
           ) {
-            Icon(Icons.Default.Group, contentDescription = null, tint = GoldLight, modifier = Modifier.size(24.dp))
+            Icon(Icons.Default.Group, contentDescription = null, tint = ChampagneGold, modifier = Modifier.size(24.dp))
           }
           Spacer(modifier = Modifier.width(14.dp))
           Column {
-            Text("Total Signed", fontSize = 12.sp, color = TextSecondary)
+            Text("Total Signed", style = CaptionStyle.copy(color = Lavender))
             Text(
               text = "${attendanceList.size} ${if (attendanceList.size == 1) "student" else "students"}",
-              fontSize = 20.sp,
-              fontWeight = FontWeight.Bold,
-              color = GoldPrimary,
+              style = SectionHeadingStyle.copy(color = ChampagneGold),
               modifier = Modifier.testTag("attendance_total_count")
             )
           }
@@ -171,7 +158,9 @@ fun ViewAttendanceScreen(
         modifier = Modifier.fillMaxWidth(),
         horizontalArrangement = Arrangement.spacedBy(10.dp)
       ) {
-        OutlinedButton(
+        OutlinedGoldButton(
+          text = "Export CSV",
+          leadingIcon = Icons.Default.FileDownload,
           onClick = {
             isExportingCsv = true
             exportError = null
@@ -184,17 +173,12 @@ fun ViewAttendanceScreen(
             }
           },
           enabled = !isExportingCsv && !isExportingPdf && attendanceList.isNotEmpty(),
-          modifier = Modifier.weight(1f).height(48.dp).testTag("view_attendance_export_csv_btn"),
-          shape = RoundedCornerShape(10.dp),
-          colors = ButtonDefaults.outlinedButtonColors(containerColor = com.example.ui.theme.DarkSurface, contentColor = GoldPrimary),
-          border = androidx.compose.foundation.BorderStroke(1.5.dp, GoldPrimary)
-        ) {
-          Icon(Icons.Default.FileDownload, contentDescription = null, modifier = Modifier.size(18.dp), tint = GoldPrimary)
-          Spacer(modifier = Modifier.width(6.dp))
-          Text("Export CSV", fontSize = 15.sp, fontWeight = FontWeight.Bold, color = GoldPrimary)
-        }
+          modifier = Modifier.weight(1f).testTag("view_attendance_export_csv_btn")
+        )
 
-        Button(
+        PrimaryButton(
+          text = if (isExportingPdf) "PDF..." else "Export PDF",
+          leadingIcon = Icons.Default.PictureAsPdf,
           onClick = {
             if (session != null) {
               isExportingPdf = true
@@ -216,20 +200,9 @@ fun ViewAttendanceScreen(
             }
           },
           enabled = !isExportingCsv && !isExportingPdf && attendanceList.isNotEmpty(),
-          modifier = Modifier.weight(1f).height(48.dp).testTag("view_attendance_export_pdf_btn"),
-          shape = RoundedCornerShape(10.dp),
-          colors = ButtonDefaults.buttonColors(containerColor = GoldPrimary, contentColor = com.example.ui.theme.DarkTextOnGold)
-        ) {
-          if (isExportingPdf) {
-            CircularProgressIndicator(color = com.example.ui.theme.DarkTextOnGold, strokeWidth = 2.dp, modifier = Modifier.size(18.dp))
-            Spacer(modifier = Modifier.width(6.dp))
-            Text("Generating PDF...", fontSize = 13.sp, fontWeight = FontWeight.Bold, color = com.example.ui.theme.DarkTextOnGold)
-          } else {
-            Icon(Icons.Default.PictureAsPdf, contentDescription = null, tint = com.example.ui.theme.DarkTextOnGold, modifier = Modifier.size(18.dp))
-            Spacer(modifier = Modifier.width(6.dp))
-            Text("Export PDF", fontSize = 15.sp, fontWeight = FontWeight.Bold, color = com.example.ui.theme.DarkTextOnGold)
-          }
-        }
+          isLoading = isExportingPdf,
+          modifier = Modifier.weight(1f).testTag("view_attendance_export_pdf_btn")
+        )
       }
 
       val activeErr = errorMessage ?: exportError

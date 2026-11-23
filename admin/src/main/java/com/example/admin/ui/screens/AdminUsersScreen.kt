@@ -12,6 +12,7 @@ import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.defaultMinSize
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -51,22 +52,30 @@ import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.example.admin.assistant.AdminAssistantSparkleButton
 import com.example.admin.data.AdminUserItem
 import com.example.admin.ui.UserFilterChip
 import com.example.admin.ui.components.AdminEmptyState
 import com.example.admin.ui.components.AdminGlassCard
+import com.example.admin.ui.components.AdminMetallicGoldText
 import com.example.admin.ui.components.AdminNotificationBellButton
 import com.example.admin.ui.components.AdminSearchField
 import com.example.admin.ui.components.AdminStatusPill
 import com.example.admin.ui.theme.AdminBorder
+import com.example.admin.ui.theme.AdminCaptionStyle
+import com.example.admin.ui.theme.AdminCardTitleStyle
+import com.example.admin.ui.theme.AdminNavLabelStyle
+import com.example.admin.ui.theme.AdminScreenTitleStyle
 import com.example.admin.ui.theme.AdminSurface
 import com.example.admin.ui.theme.AmberWarning
+import com.example.admin.ui.theme.ChampagneGold
 import com.example.admin.ui.theme.DarkTextOnGold
 import com.example.admin.ui.theme.EmeraldSuccess
 import com.example.admin.ui.theme.GoldLight
 import com.example.admin.ui.theme.GoldPrimary
 import com.example.admin.ui.theme.InfoBlue
-import com.example.admin.ui.theme.TextPrimary
+import com.example.admin.ui.theme.Lavender
+import com.example.admin.ui.theme.MontserratFamily
 import com.example.admin.ui.theme.TextSecondary
 import com.example.admin.util.AdminJsonHelper
 
@@ -76,6 +85,7 @@ fun AdminUsersScreen(
   searchQuery: String,
   activeFilter: UserFilterChip,
   unreadNotifications: Int,
+  isOnline: Boolean = true,
   isLoading: Boolean,
   isActionLoading: Boolean,
   onSearchChanged: (String) -> Unit,
@@ -83,6 +93,7 @@ fun AdminUsersScreen(
   onRefresh: () -> Unit,
   onAssignRole: (AdminUserItem, String) -> Unit,
   onToggleVerify: (AdminUserItem, Boolean) -> Unit,
+  onOpenAssistant: () -> Unit = {},
   onOpenNotifications: () -> Unit
 ) {
   var roleTarget by remember { mutableStateOf<AdminUserItem?>(null) }
@@ -102,11 +113,14 @@ fun AdminUsersScreen(
   Column(modifier = Modifier.fillMaxSize().padding(horizontal = 16.dp, vertical = 14.dp).testTag("admin_users_screen")) {
     Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
       Column(modifier = Modifier.weight(1f)) {
-        Text("Users & Roles", fontSize = 22.sp, fontWeight = FontWeight.Bold, color = TextPrimary)
-        Text("${filtered.size} shown • Tap user to change role", fontSize = 12.sp, color = TextSecondary)
+        AdminMetallicGoldText(text = "Users & Roles", style = AdminScreenTitleStyle)
+        Text("${filtered.size} shown • Tap user to change role", style = AdminCaptionStyle)
       }
       Row {
-        IconButton(onClick = onRefresh) { Icon(Icons.Default.Refresh, contentDescription = "Refresh users", tint = GoldPrimary) }
+        AdminAssistantSparkleButton(isOnline = isOnline, onClick = onOpenAssistant)
+        IconButton(onClick = onRefresh, modifier = Modifier.size(48.dp)) {
+          Icon(Icons.Default.Refresh, contentDescription = "Refresh users", tint = ChampagneGold)
+        }
         AdminNotificationBellButton(unreadCount = unreadNotifications, onClick = onOpenNotifications)
       }
     }
@@ -128,12 +142,14 @@ fun AdminUsersScreen(
         FilterChip(
           selected = activeFilter == chip,
           onClick = { onFilterChanged(chip) },
-          label = { Text(chip.label, fontSize = 12.sp) },
+          modifier = Modifier.defaultMinSize(minHeight = 48.dp),
+          label = { Text(chip.label, style = AdminNavLabelStyle) },
+          border = FilterChipDefaults.filterChipBorder(enabled = true, selected = activeFilter == chip, borderColor = AdminBorder, selectedBorderColor = ChampagneGold),
           colors = FilterChipDefaults.filterChipColors(
-            selectedContainerColor = GoldPrimary,
+            selectedContainerColor = ChampagneGold,
             selectedLabelColor = DarkTextOnGold,
             containerColor = AdminSurface,
-            labelColor = TextSecondary
+            labelColor = Lavender
           )
         )
       }
@@ -228,7 +244,7 @@ private fun AdminUserCard(
       }
       Spacer(modifier = Modifier.width(12.dp))
       Column(modifier = Modifier.weight(1f)) {
-        Text(user.fullName.ifBlank { "Unnamed User" }, fontSize = 16.sp, fontWeight = FontWeight.SemiBold, color = TextPrimary)
+        Text(user.fullName.ifBlank { "Unnamed User" }, style = AdminCardTitleStyle)
         Spacer(modifier = Modifier.height(6.dp))
         FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
           AdminStatusPill(text = user.displayRole, color = accent)
@@ -242,34 +258,35 @@ private fun AdminUserCard(
         if (user.email.isNotBlank()) {
           Spacer(modifier = Modifier.height(6.dp))
           Row(verticalAlignment = Alignment.CenterVertically) {
-            Icon(Icons.Default.Email, contentDescription = null, tint = TextSecondary, modifier = Modifier.size(13.dp))
-            Spacer(modifier = Modifier.width(5.dp))
-            Text(user.email, fontSize = 12.sp, color = TextSecondary)
+            Icon(Icons.Default.Email, contentDescription = null, tint = Lavender, modifier = Modifier.size(14.dp))
+            Spacer(modifier = Modifier.width(6.dp))
+            Text(user.email, style = AdminCaptionStyle)
           }
         }
         if (user.admissionNumber.isNotBlank()) {
           Spacer(modifier = Modifier.height(2.dp))
           Row(verticalAlignment = Alignment.CenterVertically) {
-            Icon(Icons.Default.Badge, contentDescription = null, tint = TextSecondary, modifier = Modifier.size(13.dp))
-            Spacer(modifier = Modifier.width(5.dp))
-            Text("Adm: ${AdminJsonHelper.orDash(user.admissionNumber)}", fontSize = 12.sp, color = TextSecondary)
+            Icon(Icons.Default.Badge, contentDescription = null, tint = Lavender, modifier = Modifier.size(14.dp))
+            Spacer(modifier = Modifier.width(6.dp))
+            Text("Adm: ${AdminJsonHelper.orDash(user.admissionNumber)}", style = AdminCaptionStyle)
           }
         }
         if (user.isLecturer) {
-          Spacer(modifier = Modifier.height(8.dp))
+          Spacer(modifier = Modifier.height(10.dp))
           Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
             OutlinedButton(
               onClick = onVerifyClick,
-              modifier = Modifier.height(34.dp),
-              shape = RoundedCornerShape(8.dp),
-              contentPadding = PaddingValues(horizontal = 12.dp, vertical = 0.dp),
+              modifier = Modifier.defaultMinSize(minHeight = 48.dp),
+              shape = RoundedCornerShape(14.dp),
+              contentPadding = PaddingValues(horizontal = 14.dp, vertical = 8.dp),
               border = BorderStroke(1.dp, if (user.isVerified) AmberWarning else GoldPrimary)
             ) {
               Text(
                 text = if (user.isVerified) "Remove Verification" else "Verify Lecturer",
-                fontSize = 12.sp,
+                fontFamily = MontserratFamily,
+                fontSize = 13.sp,
                 fontWeight = FontWeight.SemiBold,
-                color = if (user.isVerified) AmberWarning else GoldLight
+                color = if (user.isVerified) AmberWarning else ChampagneGold
               )
             }
           }

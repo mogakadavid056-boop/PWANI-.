@@ -36,8 +36,8 @@ fun MyAttendanceStatusCard(
 
   val riskColor = when (status?.riskLevel) {
     RiskLevel.CRITICAL -> ErrorRed
-    RiskLevel.HIGH -> Color(0xFFFF9800)
-    RiskLevel.WATCH -> Color(0xFFFFD54F)
+    RiskLevel.HIGH -> ElectricViolet
+    RiskLevel.WATCH -> ChampagneGold
     else -> SuccessGreen
   }
   val pct = (status?.percentage ?: 100.0).coerceIn(0.0, 100.0)

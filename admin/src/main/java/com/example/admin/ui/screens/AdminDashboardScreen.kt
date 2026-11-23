@@ -1,10 +1,12 @@
 package com.example.admin.ui.screens
 
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.defaultMinSize
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -16,6 +18,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.AccountBalance
 import androidx.compose.material.icons.filled.AssignmentTurnedIn
+import androidx.compose.material.icons.filled.AutoAwesome
 import androidx.compose.material.icons.filled.FactCheck
 import androidx.compose.material.icons.filled.Groups
 import androidx.compose.material.icons.filled.Refresh
@@ -34,24 +37,34 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.example.admin.assistant.AdminAssistantSparkleButton
 import com.example.admin.data.AdminDashboardStats
 import com.example.admin.data.AdminSession
 import com.example.admin.ui.AdminTab
 import com.example.admin.ui.components.AdminGlassCard
+import com.example.admin.ui.components.AdminMetallicGoldText
 import com.example.admin.ui.components.AdminNotificationBellButton
 import com.example.admin.ui.components.AdminStatusPill
 import com.example.admin.ui.components.KpiBentoCard
+import com.example.admin.ui.theme.AdminButtonTextStyle
+import com.example.admin.ui.theme.AdminCaptionStyle
+import com.example.admin.ui.theme.AdminCardTitleStyle
+import com.example.admin.ui.theme.AdminGreetingStyle
+import com.example.admin.ui.theme.AdminScreenTitleStyle
+import com.example.admin.ui.theme.AdminSectionHeadingStyle
 import com.example.admin.ui.theme.AmberWarning
+import com.example.admin.ui.theme.ChampagneGold
 import com.example.admin.ui.theme.DarkTextOnGold
 import com.example.admin.ui.theme.EmeraldSuccess
-import com.example.admin.ui.theme.GoldLight
 import com.example.admin.ui.theme.GoldPrimary
 import com.example.admin.ui.theme.InfoBlue
-import com.example.admin.ui.theme.TextMuted
-import com.example.admin.ui.theme.TextPrimary
-import com.example.admin.ui.theme.TextSecondary
+import com.example.admin.ui.theme.Lavender
+import com.example.admin.ui.theme.MetallicGold
+import com.example.admin.ui.theme.MontserratFamily
+import com.example.admin.ui.theme.SilverWhite
 
 @Composable
 fun AdminDashboardScreen(
@@ -62,9 +75,11 @@ fun AdminDashboardScreen(
   pendingApprovalsCount: Int,
   unverifiedLecturersCount: Int = stats.unverifiedLecturers,
   isLoading: Boolean,
+  isOnline: Boolean = true,
   onRefresh: () -> Unit,
   onJumpToUnverified: () -> Unit,
   onNavigateTab: (AdminTab) -> Unit,
+  onOpenAssistant: () -> Unit = {},
   onOpenNotifications: () -> Unit,
   onOpenSettings: () -> Unit
 ) {
@@ -80,52 +95,52 @@ fun AdminDashboardScreen(
         verticalAlignment = Alignment.CenterVertically
       ) {
         Column(modifier = Modifier.weight(1f)) {
-          Text("Control Center", fontSize = 24.sp, fontWeight = FontWeight.Bold, color = TextPrimary)
+          AdminMetallicGoldText("Control Center", style = AdminScreenTitleStyle, maxLines = 1)
           Text(
             text = "Welcome, ${session.fullName.ifBlank { session.email }}",
-            fontSize = 13.sp,
-            color = GoldLight
+            style = AdminGreetingStyle,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis
           )
         }
-        Row {
-          IconButton(onClick = onRefresh, modifier = Modifier.testTag("dashboard_refresh_btn")) {
-            Icon(Icons.Default.Refresh, contentDescription = "Refresh dashboard", tint = GoldPrimary)
+        Row(verticalAlignment = Alignment.CenterVertically) {
+          AdminAssistantSparkleButton(isOnline = isOnline, onClick = onOpenAssistant)
+          IconButton(onClick = onRefresh, modifier = Modifier.size(48.dp).testTag("dashboard_refresh_btn")) {
+            Icon(Icons.Default.Refresh, contentDescription = "Refresh dashboard", tint = ChampagneGold)
           }
           AdminNotificationBellButton(unreadCount = unreadNotifications, onClick = onOpenNotifications)
-          IconButton(onClick = onOpenSettings, modifier = Modifier.testTag("dashboard_settings_btn")) {
-            Icon(Icons.Default.Settings, contentDescription = "Account & Setup", tint = GoldLight)
+          IconButton(onClick = onOpenSettings, modifier = Modifier.size(48.dp).testTag("dashboard_settings_btn")) {
+            Icon(Icons.Default.Settings, contentDescription = "Account & Setup", tint = ChampagneGold)
           }
         }
       }
       if (isLoading) {
         Spacer(modifier = Modifier.height(8.dp))
-        LinearProgressIndicator(modifier = Modifier.fillMaxWidth(), color = GoldPrimary)
+        LinearProgressIndicator(modifier = Modifier.fillMaxWidth(), color = ChampagneGold)
       }
     }
 
     if (unverifiedLecturersCount > 0) {
       item {
-        AdminGlassCard(borderColor = AmberWarning.copy(alpha = 0.7f), onClick = onJumpToUnverified) {
+        AdminGlassCard(borderColor = ChampagneGold.copy(alpha = 0.7f), isHero = true, onClick = onJumpToUnverified) {
           Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.SpaceBetween) {
             Column(modifier = Modifier.weight(1f)) {
-              AdminStatusPill(text = "Action Required", color = AmberWarning)
+              AdminStatusPill(text = "Action Required", color = ChampagneGold)
               Spacer(modifier = Modifier.height(6.dp))
               Text(
                 text = "$unverifiedLecturersCount lecturer account(s) waiting verification",
-                fontSize = 15.sp,
-                fontWeight = FontWeight.SemiBold,
-                color = TextPrimary
+                style = AdminCardTitleStyle
               )
-              Text("Tap to review and verify them now", fontSize = 12.sp, color = TextSecondary)
+              Text("Tap to review and verify them now", style = AdminCaptionStyle.copy(color = Lavender))
             }
             Spacer(modifier = Modifier.width(8.dp))
             Button(
               onClick = onJumpToUnverified,
-              shape = RoundedCornerShape(10.dp),
-              colors = ButtonDefaults.buttonColors(containerColor = GoldPrimary, contentColor = DarkTextOnGold),
-              modifier = Modifier.testTag("dashboard_review_lecturers_btn")
+              shape = RoundedCornerShape(14.dp),
+              modifier = Modifier.defaultMinSize(minHeight = 48.dp).testTag("dashboard_review_lecturers_btn"),
+              colors = ButtonDefaults.buttonColors(containerColor = GoldPrimary, contentColor = DarkTextOnGold)
             ) {
-              Text("Review", fontWeight = FontWeight.Bold)
+              Text("Review", style = AdminButtonTextStyle.copy(fontSize = 14.sp, color = DarkTextOnGold))
             }
           }
         }
@@ -180,26 +195,46 @@ fun AdminDashboardScreen(
 
     item {
       AdminGlassCard {
-        Text("Quick Governance Actions", fontSize = 16.sp, fontWeight = FontWeight.Bold, color = GoldLight)
+        Text("Quick Governance Actions", style = AdminSectionHeadingStyle)
         Spacer(modifier = Modifier.height(10.dp))
         Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
           OutlinedButton(
             onClick = { onNavigateTab(AdminTab.APPROVALS) },
-            modifier = Modifier.weight(1f).height(48.dp).testTag("dashboard_approvals_btn"),
-            shape = RoundedCornerShape(10.dp)
+            modifier = Modifier.weight(1f).defaultMinSize(minHeight = 48.dp).testTag("dashboard_approvals_btn"),
+            shape = RoundedCornerShape(14.dp),
+            border = BorderStroke(1.5.dp, MetallicGold)
           ) {
-            Icon(Icons.Default.School, contentDescription = null, modifier = Modifier.size(18.dp), tint = GoldPrimary)
+            Icon(Icons.Default.School, contentDescription = null, modifier = Modifier.size(18.dp), tint = ChampagneGold)
             Spacer(modifier = Modifier.width(6.dp))
-            Text("Approvals ($pendingApprovalsCount)", fontSize = 12.sp, color = TextPrimary)
+            Text("Approvals ($pendingApprovalsCount)", fontFamily = MontserratFamily, fontWeight = FontWeight.SemiBold, fontSize = 13.sp, color = ChampagneGold, maxLines = 1)
           }
           OutlinedButton(
             onClick = { onNavigateTab(AdminTab.RISK) },
-            modifier = Modifier.weight(1f).height(48.dp).testTag("dashboard_risk_btn"),
-            shape = RoundedCornerShape(10.dp)
+            modifier = Modifier.weight(1f).defaultMinSize(minHeight = 48.dp).testTag("dashboard_risk_btn"),
+            shape = RoundedCornerShape(14.dp),
+            border = BorderStroke(1.5.dp, EmeraldSuccess.copy(alpha = 0.7f))
           ) {
             Icon(Icons.Default.FactCheck, contentDescription = null, modifier = Modifier.size(18.dp), tint = EmeraldSuccess)
             Spacer(modifier = Modifier.width(6.dp))
-            Text("Attendance Risk", fontSize = 12.sp, color = TextPrimary)
+            Text("Attendance Risk", fontFamily = MontserratFamily, fontWeight = FontWeight.SemiBold, fontSize = 13.sp, color = SilverWhite, maxLines = 1)
+          }
+        }
+      }
+    }
+
+    if (isOnline) {
+      item {
+        AdminGlassCard(
+          borderColor = ChampagneGold.copy(alpha = 0.55f),
+          onClick = onOpenAssistant,
+          modifier = Modifier.testTag("admin_dashboard_assistant_card")
+        ) {
+          Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+            Icon(Icons.Default.AutoAwesome, contentDescription = null, tint = ChampagneGold, modifier = Modifier.size(22.dp))
+            Column(modifier = Modifier.weight(1f)) {
+              Text("Ask ClassRep Assistant", style = AdminCardTitleStyle.copy(color = ChampagneGold))
+              Text("Check unverified lecturers, prefect gaps, system stats & draft notices", style = AdminCaptionStyle.copy(color = Lavender))
+            }
           }
         }
       }
@@ -207,7 +242,7 @@ fun AdminDashboardScreen(
 
     item {
       AdminGlassCard(
-        borderColor = (if (stats.rpcSqlInstalled) EmeraldSuccess else AmberWarning).copy(alpha = 0.5f),
+        borderColor = (if (stats.rpcSqlInstalled) EmeraldSuccess else AmberWarning).copy(alpha = 0.55f),
         onClick = onOpenSettings
       ) {
         Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.SpaceBetween) {
@@ -223,8 +258,7 @@ fun AdminDashboardScreen(
               } else {
                 "Basic user management works now. Tap here to copy the SQL script for full Schools & Class Oversight."
               },
-              fontSize = 12.sp,
-              color = TextMuted
+              style = AdminCaptionStyle.copy(color = Lavender)
             )
           }
         }

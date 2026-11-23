@@ -40,9 +40,11 @@ import androidx.compose.ui.unit.sp
 import com.example.ui.components.DarkTextField
 import com.example.ui.components.ErrorBanner
 import com.example.ui.components.GoldButton
-import com.example.ui.theme.DarkBackground
-import com.example.ui.theme.GoldLight
-import com.example.ui.theme.TextSecondary
+import com.example.ui.components.MetallicGoldText
+import com.example.ui.theme.BodyStyle
+import com.example.ui.theme.ChampagneGold
+import com.example.ui.theme.Lavender
+import com.example.ui.theme.ScreenTitleStyle
 
 @Composable
 fun JoinClassScreen(
@@ -57,7 +59,6 @@ fun JoinClassScreen(
   Box(
     modifier = Modifier
       .fillMaxSize()
-      .background(DarkBackground)
       .testTag("join_class_screen")
   ) {
     Column(
@@ -72,20 +73,19 @@ fun JoinClassScreen(
       ) {
         IconButton(
           onClick = onBack,
-          modifier = Modifier.size(40.dp)
+          modifier = Modifier.size(48.dp)
         ) {
           Icon(
             imageVector = Icons.AutoMirrored.Filled.ArrowBack,
             contentDescription = "Back",
-            tint = GoldLight
+            tint = ChampagneGold
           )
         }
-        Spacer(modifier = Modifier.width(8.dp))
-        Text(
+        Spacer(modifier = Modifier.width(6.dp))
+        MetallicGoldText(
           text = "Join Class",
-          fontSize = 22.sp,
-          fontWeight = FontWeight.Bold,
-          color = GoldLight
+          style = ScreenTitleStyle,
+          maxLines = 1
         )
       }
 
@@ -93,9 +93,7 @@ fun JoinClassScreen(
 
       Text(
         text = "Enter the class join code provided by your class prefect or instructor.",
-        fontSize = 14.sp,
-        color = TextSecondary,
-        lineHeight = 20.sp
+        style = BodyStyle.copy(color = Lavender)
       )
 
       Spacer(modifier = Modifier.height(24.dp))

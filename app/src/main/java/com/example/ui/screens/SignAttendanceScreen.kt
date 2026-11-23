@@ -29,9 +29,16 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.compose.ui.focus.onFocusChanged
 import com.example.ui.components.ClassRepSnackbarHost
+import com.example.ui.components.GoldButton
+import com.example.ui.components.MetallicGoldText
 import com.example.ui.components.OfflineToastHelper
+import com.example.ui.components.RoyalCard
+import com.example.ui.components.RoyalCardBorderBrush
 import com.example.ui.components.SignaturePad
+import com.example.ui.components.royalOutlinedTextFieldColors
+import com.example.ui.components.violetGlowShadow
 import com.example.ui.theme.*
 import com.example.util.JsonHelper
 
@@ -81,63 +88,59 @@ fun SignAttendanceScreen(
   val admValid = ADM_REGEX.matches(admissionNo.trim())
   val detailsValid = nameWordsValid && admValid
 
-  Box(modifier = Modifier.fillMaxSize().background(DarkBackground).testTag("sign_attendance_screen")) {
+  Box(modifier = Modifier.fillMaxSize().testTag("sign_attendance_screen")) {
     Column(
       modifier = Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(horizontal = 20.dp, vertical = 20.dp),
       horizontalAlignment = Alignment.CenterHorizontally
     ) {
       Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-        IconButton(onClick = onBack, modifier = Modifier.size(40.dp).testTag("sign_attendance_back_btn")) {
-          Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back", tint = GoldLight)
+        IconButton(onClick = onBack, modifier = Modifier.size(48.dp).testTag("sign_attendance_back_btn")) {
+          Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back", tint = ChampagneGold)
         }
-        Spacer(modifier = Modifier.width(8.dp))
+        Spacer(modifier = Modifier.width(6.dp))
         Column(modifier = Modifier.weight(1f)) {
-          Text("Sign Attendance", fontSize = 20.sp, fontWeight = FontWeight.Bold, color = GoldLight)
-          Text("Verify your details, enter code and sign", fontSize = 12.sp, color = TextSecondary)
+          MetallicGoldText("Sign Attendance", style = ScreenTitleStyle.copy(fontSize = 22.sp))
+          Text("Verify your details, enter code and sign", style = SubtitleItalicStyle.copy(fontSize = 14.sp))
         }
       }
 
       Spacer(modifier = Modifier.height(16.dp))
 
       // Member Details Card / Inline Editor
-      Column(
-        modifier = Modifier.fillMaxWidth().clip(RoundedCornerShape(12.dp)).background(DarkSurface)
-          .border(1.dp, DarkBorder, RoundedCornerShape(12.dp)).padding(14.dp)
-      ) {
+      RoyalCard {
         Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.SpaceBetween) {
           Row(verticalAlignment = Alignment.CenterVertically) {
-            Icon(Icons.Default.Person, contentDescription = null, tint = GoldPrimary, modifier = Modifier.size(18.dp))
+            Icon(Icons.Default.Person, contentDescription = null, tint = ChampagneGold, modifier = Modifier.size(18.dp))
             Spacer(modifier = Modifier.width(6.dp))
-            Text("Your details", fontSize = 14.sp, fontWeight = FontWeight.Bold, color = GoldLight)
+            Text("Your details", style = CardTitleStyle.copy(color = ChampagneGold, fontSize = 16.sp))
           }
           if (!showEditDetails) {
-            TextButton(onClick = { showEditDetails = true }, modifier = Modifier.testTag("edit_my_details_btn")) {
-              Icon(Icons.Default.Edit, contentDescription = null, tint = GoldPrimary, modifier = Modifier.size(14.dp))
+            TextButton(onClick = { showEditDetails = true }, modifier = Modifier.defaultMinSize(minHeight = 48.dp).testTag("edit_my_details_btn")) {
+              Icon(Icons.Default.Edit, contentDescription = null, tint = ChampagneGold, modifier = Modifier.size(14.dp))
               Spacer(modifier = Modifier.width(4.dp))
-              Text("Edit my details", fontSize = 14.sp, color = GoldPrimary, maxLines = 1)
+              Text("Edit my details", style = ButtonTextStyle.copy(fontSize = 14.sp, color = ChampagneGold), maxLines = 1)
             }
           }
         }
 
         if (!showEditDetails) {
-          Text("Name: ${JsonHelper.orDash(fullName)}", fontSize = 13.5.sp, color = TextPrimary, fontWeight = FontWeight.Medium)
-          Spacer(modifier = Modifier.height(2.dp))
-          Text("Admission No: ${JsonHelper.orDash(admissionNo)}", fontSize = 13.5.sp, color = TextSecondary)
+          Text("Name: ${JsonHelper.orDash(fullName)}", style = BodyStyle.copy(fontSize = 15.sp, fontWeight = FontWeight.Medium))
+          Text("Admission No: ${JsonHelper.orDash(admissionNo)}", style = SecondaryTextStyle)
         } else {
-          Spacer(modifier = Modifier.height(8.dp))
+          Spacer(modifier = Modifier.height(4.dp))
           RegisterDialogField(fullName, { fullName = it }, "Full name (2+ words)", "member_full_name_input")
           if (fullName.isNotBlank() && !nameWordsValid) {
-            Text("Enter at least first and last name.", fontSize = 12.sp, color = ErrorRed)
+            Text("Enter at least first and last name.", style = CaptionStyle.copy(color = ErrorColor))
           }
-          Spacer(modifier = Modifier.height(8.dp))
+          Spacer(modifier = Modifier.height(4.dp))
           RegisterDialogField(admissionNo, { admissionNo = it }, "Admission number", "member_admission_input")
           if (admissionNo.isNotBlank() && !admValid) {
-            Text("4-30 characters using letters, numbers, /, -, .", fontSize = 12.sp, color = ErrorRed)
+            Text("4-30 characters using letters, numbers, /, -, .", style = CaptionStyle.copy(color = ErrorColor))
           }
-          Spacer(modifier = Modifier.height(8.dp))
+          Spacer(modifier = Modifier.height(4.dp))
           RegisterDialogField(phone, { phone = it }, "Phone (optional)", "member_phone_input")
           if (memberFullName.isNotBlank() && memberAdmissionNo.isNotBlank()) {
-            Spacer(modifier = Modifier.height(10.dp))
+            Spacer(modifier = Modifier.height(8.dp))
             Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
               OutlinedButton(
                 onClick = {
@@ -146,10 +149,11 @@ fun SignAttendanceScreen(
                   showEditDetails = false
                 },
                 enabled = !isLoading,
-                modifier = Modifier.weight(1f).height(42.dp),
-                border = BorderStroke(1.5.dp, GoldPrimary),
-                colors = ButtonDefaults.outlinedButtonColors(containerColor = DarkSurface, contentColor = GoldLight)
-              ) { Text("Cancel", fontSize = 14.sp, color = GoldLight, maxLines = 1, softWrap = false) }
+                shape = RoundedCornerShape(ButtonRadius),
+                modifier = Modifier.weight(1f).defaultMinSize(minHeight = 48.dp),
+                border = BorderStroke(1.5.dp, MetallicGold),
+                colors = ButtonDefaults.outlinedButtonColors(containerColor = RoyalSurface, contentColor = ChampagneGold)
+              ) { Text("Cancel", style = ButtonTextStyle.copy(fontSize = 14.sp, color = ChampagneGold), maxLines = 1, softWrap = false) }
               Button(
                 onClick = {
                   onUpdateMyDetails(fullName.trim(), admissionNo.trim(), phone.trim()) {
@@ -157,9 +161,10 @@ fun SignAttendanceScreen(
                   }
                 },
                 enabled = detailsValid && !isLoading,
-                modifier = Modifier.weight(1f).height(42.dp).testTag("save_my_details_btn"),
-                colors = ButtonDefaults.buttonColors(containerColor = GoldPrimary, contentColor = DarkTextOnGold)
-              ) { Text("Save Details", fontSize = 14.sp, fontWeight = FontWeight.Bold, color = DarkTextOnGold, maxLines = 1, softWrap = false) }
+                shape = RoundedCornerShape(ButtonRadius),
+                modifier = Modifier.weight(1f).defaultMinSize(minHeight = 48.dp).testTag("save_my_details_btn"),
+                colors = ButtonDefaults.buttonColors(containerColor = MetallicGold, contentColor = Midnight)
+              ) { Text("Save Details", style = ButtonTextStyle.copy(fontSize = 14.sp, color = Midnight), maxLines = 1, softWrap = false) }
             }
           }
         }
@@ -168,23 +173,24 @@ fun SignAttendanceScreen(
       Spacer(modifier = Modifier.height(16.dp))
 
       // 6-digit Code Field
+      var codeFocused by remember { mutableStateOf(false) }
       Column(modifier = Modifier.fillMaxWidth()) {
-        Text("6-Digit Session Code", fontSize = 13.sp, fontWeight = FontWeight.SemiBold, color = TextPrimary)
+        Text("6-Digit Session Code", style = FieldLabelStyle)
         Spacer(modifier = Modifier.height(6.dp))
         OutlinedTextField(
           value = code,
           onValueChange = { if (it.length <= 6 && it.all { char -> char.isDigit() }) code = it },
-          modifier = Modifier.fillMaxWidth().testTag("attendance_code_input"),
-          placeholder = { Text("e.g. 123456", color = TextSecondary.copy(alpha = 0.5f), fontSize = 14.sp) },
-          leadingIcon = { Icon(Icons.Default.Pin, contentDescription = null, tint = GoldLight, modifier = Modifier.size(18.dp)) },
+          modifier = Modifier
+            .fillMaxWidth()
+            .then(violetGlowShadow(codeFocused))
+            .onFocusChanged { codeFocused = it.isFocused }
+            .testTag("attendance_code_input"),
+          placeholder = { Text("e.g. 123456", style = CaptionStyle.copy(color = Lavender.copy(alpha = 0.6f))) },
+          leadingIcon = { Icon(Icons.Default.Pin, contentDescription = null, tint = ChampagneGold, modifier = Modifier.size(18.dp)) },
           keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
           singleLine = true,
-          shape = RoundedCornerShape(12.dp),
-          colors = OutlinedTextFieldDefaults.colors(
-            focusedBorderColor = GoldPrimary, unfocusedBorderColor = DarkBorder,
-            focusedContainerColor = DarkSurface, unfocusedContainerColor = DarkSurface,
-            focusedTextColor = GoldLight, unfocusedTextColor = TextPrimary
-          )
+          shape = RoundedCornerShape(ButtonRadius),
+          colors = royalOutlinedTextFieldColors()
         )
       }
 
@@ -196,12 +202,12 @@ fun SignAttendanceScreen(
         val mins = lockoutRemainingSeconds / 60
         val secs = lockoutRemainingSeconds % 60
         Box(
-          modifier = Modifier.fillMaxWidth().clip(RoundedCornerShape(12.dp)).background(DarkSurfaceVariant)
-            .border(1.dp, ErrorRed, RoundedCornerShape(12.dp)).padding(12.dp).testTag("attendance_lockout_banner")
+          modifier = Modifier.fillMaxWidth().clip(RoundedCornerShape(14.dp)).background(RoyalErrorContainer)
+            .border(1.dp, ErrorColor, RoundedCornerShape(14.dp)).padding(14.dp).testTag("attendance_lockout_banner")
         ) {
           Text(
             text = "Too many attempts. The Sign button is disabled for ${String.format("%02d:%02d", mins, secs)}.",
-            fontSize = 13.sp, fontWeight = FontWeight.SemiBold, color = ErrorRed
+            style = CaptionStyle.copy(fontWeight = FontWeight.SemiBold, color = ErrorColor)
           )
         }
         Spacer(modifier = Modifier.height(14.dp))
@@ -210,9 +216,16 @@ fun SignAttendanceScreen(
       val canSubmit = code.length == 6 && hasSignature && detailsValid && !isLoading && !isLockedOut
       val isOnline by com.example.data.NetworkMonitor.isOnline.collectAsStateWithLifecycle()
       val context = LocalContext.current
-      Button(
+      GoldButton(
+        text = if (isLockedOut) {
+          val mins = lockoutRemainingSeconds / 60
+          val secs = lockoutRemainingSeconds % 60
+          "Locked: ${mins}m ${secs}s"
+        } else {
+          "Submit Attendance"
+        },
         onClick = {
-          if (isLockedOut) return@Button
+          if (isLockedOut) return@GoldButton
           if (!isOnline) {
             OfflineToastHelper.show(context)
           } else {
@@ -223,25 +236,11 @@ fun SignAttendanceScreen(
           }
         },
         enabled = if (!isOnline) !isLockedOut else canSubmit,
-        modifier = Modifier.fillMaxWidth().height(48.dp)
-          .then(if (!isOnline || isLockedOut || !canSubmit) Modifier.alpha(0.5f) else Modifier)
-          .testTag("submit_sign_attendance_btn"),
-        shape = RoundedCornerShape(12.dp),
-        colors = ButtonDefaults.buttonColors(
-          containerColor = GoldPrimary, contentColor = DarkTextOnGold,
-          disabledContainerColor = GoldPrimary.copy(alpha = 0.4f), disabledContentColor = DarkTextOnGold.copy(alpha = 0.7f)
-        )
-      ) {
-        if (isLockedOut) {
-          val mins = lockoutRemainingSeconds / 60
-          val secs = lockoutRemainingSeconds % 60
-          Text("Locked: ${mins}m ${secs}s", fontSize = 14.sp, fontWeight = FontWeight.Bold, color = DarkTextOnGold, maxLines = 1)
-        } else if (isLoading) {
-          CircularProgressIndicator(color = DarkTextOnGold, strokeWidth = 2.5.dp, modifier = Modifier.size(20.dp))
-        } else {
-          Text("Submit Attendance", fontSize = 14.sp, fontWeight = FontWeight.Bold, color = DarkTextOnGold, maxLines = 1, softWrap = false)
-        }
-      }
+        isLoading = isLoading,
+        modifier = Modifier
+          .then(if (!isOnline || isLockedOut || !canSubmit) Modifier.alpha(0.55f) else Modifier)
+          .testTag("submit_sign_attendance_btn")
+      )
       Spacer(modifier = Modifier.height(56.dp))
     }
 
@@ -254,25 +253,22 @@ fun SignAttendanceScreen(
     if (!successMessage.isNullOrBlank()) {
       Dialog(onDismissRequest = onDismissSuccess) {
         Box(
-          modifier = Modifier.fillMaxWidth().clip(RoundedCornerShape(16.dp)).background(DarkSurface)
-            .border(1.dp, GoldPrimary, RoundedCornerShape(16.dp)).padding(24.dp).testTag("attendance_success_dialog"),
+          modifier = Modifier.fillMaxWidth().clip(RoundedCornerShape(CardRadius)).background(RoyalSurfaceHigh)
+            .border(1.dp, RoyalCardBorderBrush, RoundedCornerShape(CardRadius)).padding(24.dp).testTag("attendance_success_dialog"),
           contentAlignment = Alignment.Center
         ) {
           Column(horizontalAlignment = Alignment.CenterHorizontally) {
-            Icon(Icons.Default.CheckCircle, contentDescription = null, tint = GoldPrimary, modifier = Modifier.size(48.dp))
+            Icon(Icons.Default.CheckCircle, contentDescription = null, tint = ChampagneGold, modifier = Modifier.size(48.dp))
             Spacer(modifier = Modifier.height(14.dp))
-            Text("Success!", fontSize = 20.sp, fontWeight = FontWeight.Bold, color = GoldLight)
+            Text("Success!", style = SectionHeadingStyle)
             Spacer(modifier = Modifier.height(6.dp))
-            Text(successMessage, fontSize = 14.sp, color = TextPrimary, lineHeight = 20.sp)
+            Text(successMessage, style = BodyStyle.copy(fontSize = 14.sp))
             Spacer(modifier = Modifier.height(20.dp))
-            Button(
+            GoldButton(
+              text = "Done",
               onClick = onDismissSuccess,
-              modifier = Modifier.fillMaxWidth().height(48.dp).testTag("dismiss_success_btn"),
-              shape = RoundedCornerShape(10.dp),
-              colors = ButtonDefaults.buttonColors(containerColor = GoldPrimary, contentColor = DarkTextOnGold)
-            ) {
-              Text("Done", fontSize = 14.sp, fontWeight = FontWeight.Bold, color = DarkTextOnGold, maxLines = 1)
-            }
+              testTag = "dismiss_success_btn"
+            )
           }
         }
       }

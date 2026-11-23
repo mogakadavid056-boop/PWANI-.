@@ -99,12 +99,11 @@ fun NotificationPermissionRationaleDialog(
         NotificationPreferences.setPermissionPromptDismissed(context, true)
         showPrompt = false
       },
-      containerColor = Color(0xFF0E3324),
+      containerColor = RoyalSurfaceHigh,
       title = {
         Text(
           text = "Stay updated with class alerts",
-          fontWeight = FontWeight.Bold,
-          color = GoldLight
+          style = SectionHeadingStyle
         )
       },
       text = {

@@ -196,18 +196,34 @@ class SupabaseAuthService(
     if (!SupabaseConfig.isConfigured() || userId.isBlank() || accessToken.isBlank()) {
       return@withContext Result.failure(IllegalStateException("Missing session for profile update"))
     }
-    val url = "${SupabaseConfig.url}/rest/v1/profiles?id=eq.$userId"
-    val request = Request.Builder()
-      .url(url)
+    val upsertBody = JSONObject(payload.toString()).apply { put("id", userId) }
+    val upsertUrl = "${SupabaseConfig.url}/rest/v1/profiles?on_conflict=id"
+    val upsertRequest = Request.Builder()
+      .url(upsertUrl)
       .addHeader("apikey", SupabaseConfig.anonKey)
       .addHeader("Authorization", "Bearer $accessToken")
       .addHeader("Content-Type", "application/json")
-      .addHeader("Prefer", "return=minimal")
-      .patch(payload.toString().toRequestBody(jsonMediaType))
+      .addHeader("Prefer", "resolution=merge-duplicates,return=minimal")
+      .post(upsertBody.toString().toRequestBody(jsonMediaType))
       .build()
 
     try {
-      client.newCall(request).execute().use { response ->
+      client.newCall(upsertRequest).execute().use { response ->
+        if (response.isSuccessful) {
+          return@withContext Result.success(Unit)
+        }
+      }
+      val patchUrl = "${SupabaseConfig.url}/rest/v1/profiles?id=eq.$userId"
+      val patchRequest = Request.Builder()
+        .url(patchUrl)
+        .addHeader("apikey", SupabaseConfig.anonKey)
+        .addHeader("Authorization", "Bearer $accessToken")
+        .addHeader("Content-Type", "application/json")
+        .addHeader("Prefer", "return=minimal")
+        .patch(payload.toString().toRequestBody(jsonMediaType))
+        .build()
+
+      client.newCall(patchRequest).execute().use { response ->
         if (response.isSuccessful) {
           Result.success(Unit)
         } else {

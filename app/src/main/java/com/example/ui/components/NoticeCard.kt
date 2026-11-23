@@ -42,16 +42,25 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.data.NoticeItem
+import com.example.ui.theme.BodyStyle
 import com.example.ui.theme.CaptionStyle
 import com.example.ui.theme.CardRadius
+import com.example.ui.theme.CardTitleStyle
+import com.example.ui.theme.ChampagneGold
 import com.example.ui.theme.DarkBorder
 import com.example.ui.theme.DarkCard
-import com.example.ui.theme.DarkSurface
+import com.example.ui.theme.ElectricViolet
+import com.example.ui.theme.ErrorColor
 import com.example.ui.theme.ErrorContainer
 import com.example.ui.theme.ErrorRed
-import com.example.ui.theme.GoldLight
 import com.example.ui.theme.GoldPrimary
-import com.example.ui.theme.PoppinsFamily
+import com.example.ui.theme.Lavender
+import com.example.ui.theme.MontserratFamily
+import com.example.ui.theme.RoyalSurfaceHigh
+import com.example.ui.theme.SectionHeadingStyle
+import com.example.ui.theme.SilverWhite
+import com.example.ui.theme.SuccessColor
+import com.example.ui.theme.SuccessContainer
 import com.example.ui.theme.TextPrimary
 import com.example.ui.theme.TextSecondary
 import java.text.SimpleDateFormat
@@ -60,10 +69,10 @@ import java.util.TimeZone
 
 fun getCategoryColors(category: String): Pair<Color, Color> {
   return when (category.lowercase().trim()) {
-    "exam" -> Pair(Color(0xFF381414), Color(0xFFFF5C5C))
-    "assignment" -> Pair(Color(0xFF14283D), Color(0xFF58A6FF))
-    "event" -> Pair(Color(0xFF12341F), Color(0xFF3DDC84))
-    else -> Pair(Color(0xFF25252B), Color(0xFFA0A0A8)) // general = grey
+    "exam" -> Pair(ErrorContainer, ErrorColor)
+    "assignment" -> Pair(ElectricViolet.copy(alpha = 0.24f), ChampagneGold)
+    "event" -> Pair(SuccessContainer, SuccessColor)
+    else -> Pair(RoyalSurfaceHigh, Lavender)
   }
 }
 
@@ -108,14 +117,19 @@ fun NoticeCard(
   val (catBg, catText) = getCategoryColors(notice.category)
   val relativeTime = formatRelativeTime(notice.createdAt)
   val shape = RoundedCornerShape(CardRadius)
-  val cardBg = if (!isRead) Color(0xFF24242A) else DarkCard
+  val cardBg = if (!isRead) RoyalSurfaceHigh else DarkCard
+  val borderStroke = when {
+    notice.isUrgent -> ErrorRed.copy(alpha = 0.65f)
+    !isRead -> ElectricViolet.copy(alpha = 0.65f)
+    else -> DarkBorder
+  }
 
   Box(
     modifier = modifier
       .fillMaxWidth()
       .clip(shape)
       .background(cardBg)
-      .border(1.dp, if (notice.isUrgent) ErrorRed.copy(alpha = 0.5f) else DarkBorder, shape)
+      .border(1.dp, borderStroke, shape)
       .clickable(onClick = onClick)
       .testTag("notice_card_${notice.id}")
   ) {
@@ -145,13 +159,13 @@ fun NoticeCard(
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(6.dp)
           ) {
-            // Unread gold dot
+            // Unread Electric Violet dot
             if (!isRead) {
               Box(
                 modifier = Modifier
                   .size(8.dp)
                   .clip(CircleShape)
-                  .background(GoldPrimary)
+                  .background(ElectricViolet)
                   .testTag("unread_dot_${notice.id}")
               )
             }
@@ -212,7 +226,7 @@ fun NoticeCard(
               Box {
                 IconButton(
                   onClick = { showMenu = true },
-                  modifier = Modifier.size(36.dp).testTag("notice_more_btn_${notice.id}")
+                  modifier = Modifier.size(48.dp).testTag("notice_more_btn_${notice.id}")
                 ) {
                   Icon(
                     Icons.Default.MoreVert,
@@ -227,11 +241,11 @@ fun NoticeCard(
                   val context = LocalContext.current
                   androidx.compose.ui.window.Dialog(onDismissRequest = { showMenu = false }) {
                     Column(
-                      modifier = Modifier.fillMaxWidth().clip(RoundedCornerShape(16.dp))
-                        .background(androidx.compose.ui.graphics.Color(0xFF0B2A1E))
-                        .border(1.dp, GoldPrimary.copy(alpha = 0.6f), RoundedCornerShape(16.dp)).padding(16.dp)
+                      modifier = Modifier.fillMaxWidth().clip(RoundedCornerShape(18.dp))
+                        .background(RoyalSurfaceHigh)
+                        .border(1.dp, GoldPrimary.copy(alpha = 0.6f), RoundedCornerShape(18.dp)).padding(16.dp)
                     ) {
-                      Text("Notice Options", fontSize = 16.sp, fontWeight = FontWeight.Bold, color = GoldLight)
+                      Text("Notice Options", style = SectionHeadingStyle)
                       Spacer(modifier = Modifier.height(10.dp))
                       if (onEdit != null) {
                         Row(
@@ -242,7 +256,7 @@ fun NoticeCard(
                         ) {
                           Icon(Icons.Default.Edit, contentDescription = null, tint = GoldPrimary, modifier = Modifier.size(18.dp))
                           Spacer(modifier = Modifier.width(12.dp))
-                          Text("Edit Notice", color = TextPrimary, fontSize = 14.sp)
+                          Text("Edit Notice", color = TextPrimary, fontSize = 15.sp)
                         }
                       }
                       if (onDelete != null) {
@@ -254,7 +268,7 @@ fun NoticeCard(
                         ) {
                           Icon(Icons.Default.Delete, contentDescription = null, tint = ErrorRed, modifier = Modifier.size(18.dp))
                           Spacer(modifier = Modifier.width(12.dp))
-                          Text("Delete Notice", color = ErrorRed, fontSize = 14.sp)
+                          Text("Delete Notice", color = ErrorRed, fontSize = 15.sp)
                         }
                       }
                     }
@@ -267,28 +281,20 @@ fun NoticeCard(
 
         Spacer(modifier = Modifier.height(8.dp))
 
-        // Title in bold (Poppins) - wrapping onto 2 lines
         Text(
           text = notice.title.ifBlank { "Untitled Notice" },
-          fontFamily = PoppinsFamily,
-          fontWeight = FontWeight.Bold,
-          fontSize = 18.sp,
-          lineHeight = 24.sp,
-          color = TextPrimary,
+          style = CardTitleStyle.copy(color = SilverWhite),
           maxLines = 2,
           overflow = TextOverflow.Ellipsis
         )
 
         Spacer(modifier = Modifier.height(6.dp))
 
-        // 2-line preview
         Text(
           text = notice.content.ifBlank { "No content provided." },
-          fontSize = 14.sp,
-          color = TextSecondary,
+          style = BodyStyle.copy(fontSize = 14.sp, lineHeight = 20.sp, color = Lavender),
           maxLines = 2,
-          overflow = TextOverflow.Ellipsis,
-          lineHeight = 20.sp
+          overflow = TextOverflow.Ellipsis
         )
       }
     }

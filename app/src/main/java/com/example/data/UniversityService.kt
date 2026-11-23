@@ -186,7 +186,8 @@ class UniversityService(
             schoolName = schoolName,
             programmeId = JsonHelper.strOrNull(obj, "programme_id"),
             programmeName = programmeName,
-            universityId = JsonHelper.strOrNull(obj, "university_id")
+            universityId = JsonHelper.strOrNull(obj, "university_id"),
+            showOnLeaderboard = JsonHelper.bool(obj, "show_on_leaderboard", true)
           )
         )
       }
@@ -203,18 +204,34 @@ class UniversityService(
     if (!SupabaseConfig.isConfigured() || userId.isBlank()) {
       return@withContext Result.failure(IllegalStateException("User ID required"))
     }
-    val url = "${SupabaseConfig.url}/rest/v1/profiles?id=eq.$userId"
     val authToken = if (token.isNotBlank() && token != SupabaseConfig.anonKey) token else SupabaseConfig.anonKey
-    val request = Request.Builder()
-      .url(url)
+    val upsertBody = JSONObject(payload.toString()).apply { put("id", userId) }
+    val upsertUrl = "${SupabaseConfig.url}/rest/v1/profiles?on_conflict=id"
+    val upsertRequest = Request.Builder()
+      .url(upsertUrl)
       .addHeader("apikey", SupabaseConfig.anonKey)
       .addHeader("Authorization", "Bearer $authToken")
       .addHeader("Content-Type", "application/json")
-      .addHeader("Prefer", "return=minimal")
-      .patch(payload.toString().toRequestBody(jsonMediaType))
+      .addHeader("Prefer", "resolution=merge-duplicates,return=minimal")
+      .post(upsertBody.toString().toRequestBody(jsonMediaType))
       .build()
 
     try {
+      client.newCall(upsertRequest).execute().use { response ->
+        if (response.isSuccessful) {
+          return@withContext Result.success(Unit)
+        }
+      }
+      val url = "${SupabaseConfig.url}/rest/v1/profiles?id=eq.$userId"
+      val request = Request.Builder()
+        .url(url)
+        .addHeader("apikey", SupabaseConfig.anonKey)
+        .addHeader("Authorization", "Bearer $authToken")
+        .addHeader("Content-Type", "application/json")
+        .addHeader("Prefer", "return=minimal")
+        .patch(payload.toString().toRequestBody(jsonMediaType))
+        .build()
+
       client.newCall(request).execute().use { response ->
         if (response.isSuccessful) {
           Result.success(Unit)

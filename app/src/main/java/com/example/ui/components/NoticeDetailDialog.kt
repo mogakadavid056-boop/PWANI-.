@@ -37,14 +37,15 @@ import com.example.data.NoticeItem
 import com.example.ui.theme.BodyStyle
 import com.example.ui.theme.CaptionStyle
 import com.example.ui.theme.CardRadius
-import com.example.ui.theme.DarkBackground
 import com.example.ui.theme.DarkBorder
-import com.example.ui.theme.DarkCard
 import com.example.ui.theme.ErrorContainer
 import com.example.ui.theme.ErrorRed
 import com.example.ui.theme.GoldPrimary
-import com.example.ui.theme.PoppinsFamily
-import com.example.ui.theme.TextPrimary
+import com.example.ui.theme.MontserratFamily
+import com.example.ui.theme.RoyalSurface
+import com.example.ui.theme.RoyalSurfaceHigh
+import com.example.ui.theme.SectionHeadingStyle
+import com.example.ui.theme.SilverWhite
 import com.example.ui.theme.TextSecondary
 import java.text.SimpleDateFormat
 import java.util.Locale
@@ -82,8 +83,8 @@ fun NoticeDetailDialog(
       modifier = Modifier
         .fillMaxWidth(0.92f)
         .clip(shape)
-        .background(DarkCard)
-        .border(1.dp, if (notice.isUrgent) ErrorRed.copy(alpha = 0.5f) else DarkBorder, shape)
+        .background(RoyalSurfaceHigh)
+        .border(1.dp, if (notice.isUrgent) ErrorRed.copy(alpha = 0.55f) else DarkBorder, shape)
         .padding(20.dp)
         .testTag("notice_detail_dialog")
     ) {
@@ -139,53 +140,45 @@ fun NoticeDetailDialog(
 
           IconButton(
             onClick = onDismiss,
-            modifier = Modifier.size(32.dp).testTag("notice_detail_close_button")
+            modifier = Modifier.size(48.dp).testTag("notice_detail_close_button")
           ) {
             Icon(Icons.Default.Close, contentDescription = "Close", tint = TextSecondary, modifier = Modifier.size(20.dp))
           }
         }
 
-        Spacer(modifier = Modifier.height(14.dp))
+        Spacer(modifier = Modifier.height(10.dp))
 
-        // Large title in Poppins
         Text(
           text = notice.title.ifBlank { "Untitled Notice" },
-          fontFamily = PoppinsFamily,
-          fontWeight = FontWeight.SemiBold,
-          fontSize = 20.sp,
-          color = TextPrimary,
-          lineHeight = 26.sp
+          style = SectionHeadingStyle.copy(color = SilverWhite)
         )
 
         Spacer(modifier = Modifier.height(8.dp))
 
-        // Date and time row
         Row(verticalAlignment = Alignment.CenterVertically) {
           Icon(Icons.Default.AccessTime, contentDescription = null, tint = TextSecondary, modifier = Modifier.size(14.dp))
           Spacer(modifier = Modifier.width(6.dp))
           Text(
             text = fullDate,
-            style = CaptionStyle.copy(color = TextSecondary, fontSize = 12.sp)
+            style = CaptionStyle
           )
         }
 
         Spacer(modifier = Modifier.height(16.dp))
 
-        // Full content with comfortable line spacing
         Box(
           modifier = Modifier
             .fillMaxWidth()
             .heightIn(min = 100.dp, max = 340.dp)
-            .clip(RoundedCornerShape(12.dp))
-            .background(DarkBackground)
-            .border(1.dp, DarkBorder, RoundedCornerShape(12.dp))
+            .clip(RoundedCornerShape(14.dp))
+            .background(RoyalSurface)
+            .border(1.dp, DarkBorder, RoundedCornerShape(14.dp))
             .padding(16.dp)
             .verticalScroll(rememberScrollState())
         ) {
           Text(
             text = notice.content.ifBlank { "No content provided." },
-            style = BodyStyle.copy(fontSize = 15.sp, lineHeight = 23.sp),
-            color = TextPrimary
+            style = BodyStyle
           )
         }
 

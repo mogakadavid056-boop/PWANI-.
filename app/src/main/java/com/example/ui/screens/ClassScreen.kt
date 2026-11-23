@@ -23,7 +23,7 @@ import com.example.ui.theme.DarkBackground
 import com.example.ui.theme.ItemSpacing
 import com.example.ui.theme.ScreenPadding
 
-enum class MoreSubView { None, Materials, Polls, AlarmSettings }
+enum class MoreSubView { None, Materials, Polls, Challenges, Leaderboard, AlarmSettings }
 
 @Composable
 fun ClassScreen(
@@ -78,8 +78,12 @@ fun ClassScreen(
   onPromptDeletePoll: () -> Unit, onDismissDeletePoll: () -> Unit, onConfirmDeletePoll: () -> Unit,
   onDismissPollsError: () -> Unit, onClosePollDetail: () -> Unit, onDismissCreatePoll: () -> Unit,
   onCreatePollSubmit: (String, List<String>, String) -> Unit,
+  challengesUiState: ChallengesUiState = ChallengesUiState(),
+  showOnLeaderboard: Boolean = true,
+  challengesCallbacks: ClassChallengesCallbacks = ClassChallengesCallbacks(),
   onRegenerateJoinCode: () -> Unit = {},
   unreadNotificationCount: Int = 0, onOpenNotifications: () -> Unit = {},
+  isOnline: Boolean = true, onOpenAssistant: () -> Unit = {},
   allClasses: List<ClassItem> = emptyList(), isAdmin: Boolean = false, isLecturer: Boolean = false,
   openTimetableSignal: Int = 0, openTabSignal: Triple<Int, ClassTab, MoreSubView>? = null,
   onSwitchClass: (ClassItem) -> Unit = {}, onJoinWithCode: () -> Unit = {}, onNavigateToCreateClass: () -> Unit = {},
@@ -101,6 +105,7 @@ fun ClassScreen(
 
   val isOverlayActive = HandleClassSubScreenOverlay(
     attendanceUiState = attendanceUiState, pollsUiState = pollsUiState, trackerUiState = trackerUiState,
+    challengesUiState = challengesUiState,
     isStaff = isStaff, session = session, className = classItem.name,
     onDismissAttendanceError = attendanceCallbacks.onDismissAttendanceError,
     onOpenViewAttendance = attendanceCallbacks.onOpenViewAttendance,
@@ -120,7 +125,8 @@ fun ClassScreen(
     onSelectPollOption = onSelectPollOption, onCastVote = onCastVote, onPromptClosePoll = onPromptClosePoll,
     onDismissClosePoll = onDismissClosePoll, onConfirmClosePoll = onConfirmClosePoll, onPromptDeletePoll = onPromptDeletePoll,
     onDismissDeletePoll = onDismissDeletePoll, onConfirmDeletePoll = onConfirmDeletePoll,
-    onDismissPollsError = onDismissPollsError, onClosePollDetail = onClosePollDetail
+    onDismissPollsError = onDismissPollsError, onClosePollDetail = onClosePollDetail,
+    challengesCallbacks = challengesCallbacks
   )
   if (isOverlayActive) return
 
@@ -144,24 +150,37 @@ fun ClassScreen(
     ClassTab.Attendance -> attendanceUiState.isLoading
     ClassTab.Groups -> groupsUiState.isLoadingGroups
     ClassTab.Timetable -> timetableUiState.isLoading
-    ClassTab.More -> if (moreSubView == MoreSubView.Materials) materialsUiState.isLoading else if (moreSubView == MoreSubView.Polls) pollsUiState.isLoading else false
+    ClassTab.More -> when (moreSubView) {
+      MoreSubView.Materials -> materialsUiState.isLoading
+      MoreSubView.Polls -> pollsUiState.isLoading
+      MoreSubView.Challenges -> challengesUiState.isLoadingQuizzes
+      MoreSubView.Leaderboard -> challengesUiState.isLoadingLeaderboard
+      else -> false
+    }
   }
   val onTabRefresh: () -> Unit = {
     when (selectedTab) {
-      ClassTab.Notices -> onRefreshNotices()
+      ClassTab.Notices -> { onRefreshNotices(); challengesCallbacks.onRefreshAll() }
       ClassTab.Attendance -> attendanceCallbacks.onRefreshAttendance()
       ClassTab.Groups -> onRefreshGroups()
       ClassTab.Timetable -> onRefreshTimetable()
-      ClassTab.More -> if (moreSubView == MoreSubView.Materials) onRefreshMaterials() else if (moreSubView == MoreSubView.Polls) onRefreshPolls() else onRefreshNotices()
+      ClassTab.More -> when (moreSubView) {
+        MoreSubView.Materials -> onRefreshMaterials()
+        MoreSubView.Polls -> onRefreshPolls()
+        MoreSubView.Challenges, MoreSubView.Leaderboard -> challengesCallbacks.onRefreshAll()
+        else -> onRefreshNotices()
+      }
     }
   }
   val canManageAttendance = if (attendanceUiState.registers.isNotEmpty()) attendanceUiState.registers.any { it.canManage } else isStaff
 
-  Box(modifier = Modifier.fillMaxSize().background(DarkBackground).testTag("class_screen")) {
+  Box(modifier = Modifier.fillMaxSize().testTag("class_screen")) {
     Column(modifier = Modifier.fillMaxSize()) {
       ClassTopAppBar(
         classItem = classItem, isStaff = isStaff, unreadNotificationCount = unreadNotificationCount,
         onOpenNotifications = onOpenNotifications,
+        isOnline = isOnline,
+        onOpenAssistant = onOpenAssistant,
         onBack = { if (selectedTab == ClassTab.More && moreSubView != MoreSubView.None) moreSubView = MoreSubView.None else onBack() },
         onEditClassNameClick = { showEditClassNameDialog = true },
         onOpenClassSwitcher = if (isStaff && !isPrefect) { { showClassSwitcherSheet = true } } else null,
@@ -193,6 +212,8 @@ fun ClassScreen(
               readNoticeIds = readNoticeIds, canPostNotice = canPostNotice, isLoading = isLoading,
               attendanceUiState = attendanceUiState, trackerUiState = trackerUiState, groupsUiState = groupsUiState,
               timetableUiState = timetableUiState, materialsUiState = materialsUiState, pollsUiState = pollsUiState,
+              challengesUiState = challengesUiState, isAdmin = isAdmin, showOnLeaderboard = showOnLeaderboard,
+              challengesCallbacks = challengesCallbacks,
               onRefreshNotices = onRefreshNotices, onNoticeClick = onNoticeClick, onNavigateToPostNotice = onNavigateToPostNotice,
               onEditNoticeClick = onEditNoticeClick, onDeleteNoticeClick = onDeleteNoticeClick,
               onStartAttendanceClick = { showStartAttendanceDialog = true }, onRefreshAttendance = attendanceCallbacks.onRefreshAttendance,
@@ -214,6 +235,8 @@ fun ClassScreen(
               onDeleteMaterialClick = onDeleteMaterialClick, onRefreshPolls = onRefreshPolls,
               onCreatePollClick = onCreatePollClick, onPollClick = onPollClick,
               onOpenMaterials = { moreSubView = MoreSubView.Materials }, onOpenPolls = { moreSubView = MoreSubView.Polls },
+              onOpenChallenges = { selectedTab = ClassTab.More; moreSubView = MoreSubView.Challenges; challengesCallbacks.onRefreshAll() },
+              onOpenLeaderboard = { selectedTab = ClassTab.More; moreSubView = MoreSubView.Leaderboard; challengesCallbacks.onRefreshAll() },
               onOpenAlarmSettings = { moreSubView = MoreSubView.AlarmSettings },
               onOpenManageMembers = onNavigateToManageMembers, onBackFromMoreSubView = { moreSubView = MoreSubView.None }
             )
@@ -229,7 +252,8 @@ fun ClassScreen(
       canPostNotice = canPostNotice, canManageAttendance = canManageAttendance,
       onNavigateToPostNotice = onNavigateToPostNotice, onStartAttendanceClick = { showStartAttendanceDialog = true },
       onAddScheduleClick = onAddScheduleClick, onCreateGroupClick = { showCreateGroupDialog = true },
-      onAddMaterialClick = onAddMaterialClick, onCreatePollClick = onCreatePollClick
+      onAddMaterialClick = onAddMaterialClick, onCreatePollClick = onCreatePollClick,
+      onCreateChallengeClick = challengesCallbacks.onOpenCreateDialog
     )
     ClassDialogs(
       activeNoticeDetail = activeNoticeDetail, onCloseNoticeDetail = onCloseNoticeDetail,
@@ -257,7 +281,15 @@ fun ClassScreen(
       onDismissRegisterUnit = onDismissRegisterUnit, onSubmitRegisterUnit = onSubmitRegisterUnit,
       onDismissPromptDeleteMaterial = onDismissPromptDeleteMaterial, onConfirmDeleteMaterial = onConfirmDeleteMaterial,
       showCreatePollDialog = pollsUiState.showCreateDialog, isPollActionLoading = pollsUiState.isActionLoading,
-      onDismissCreatePollDialog = onDismissCreatePoll, onCreatePoll = onCreatePollSubmit
+      onDismissCreatePollDialog = onDismissCreatePoll, onCreatePoll = onCreatePollSubmit,
+      challengesUiState = challengesUiState,
+      canCreateExam = isAdmin || isLecturer,
+      onDismissCreateChallengeDialog = challengesCallbacks.onDismissCreateDialog,
+      onCreateChallenge = challengesCallbacks.onCreateChallenge,
+      onDismissAddQuestionsDialog = challengesCallbacks.onDismissAddQuestionsDialog,
+      onAddQuestionsSubmit = challengesCallbacks.onAddQuestions,
+      onDismissDeleteChallenge = challengesCallbacks.onDismissDelete,
+      onConfirmDeleteChallenge = challengesCallbacks.onConfirmDelete
     )
     if (showClassSwitcherSheet) ClassSwitcherBottomSheet(
       classes = allClasses, currentClassId = classItem.id, isAdmin = isAdmin, isLecturer = isLecturer,

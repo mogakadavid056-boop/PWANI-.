@@ -50,14 +50,23 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
-import com.example.ui.theme.DarkBackground
+import com.example.ui.components.RoyalCardBorderBrush
+import com.example.ui.components.royalOutlinedTextFieldColors
+import com.example.ui.theme.ButtonRadius
+import com.example.ui.theme.ButtonTextStyle
+import com.example.ui.theme.CaptionStyle
+import com.example.ui.theme.CardRadius
+import com.example.ui.theme.ChampagneGold
 import com.example.ui.theme.DarkBorder
-import com.example.ui.theme.DarkCard
-import com.example.ui.theme.DarkSurface
-import com.example.ui.theme.GoldLight
-import com.example.ui.theme.GoldPrimary
-import com.example.ui.theme.TextPrimary
-import com.example.ui.theme.TextSecondary
+import com.example.ui.theme.ErrorColor
+import com.example.ui.theme.FieldLabelStyle
+import com.example.ui.theme.Lavender
+import com.example.ui.theme.MetallicGold
+import com.example.ui.theme.Midnight
+import com.example.ui.theme.RoyalSurface
+import com.example.ui.theme.RoyalSurfaceHigh
+import com.example.ui.theme.SectionHeadingStyle
+import com.example.ui.theme.SilverWhite
 
 @Composable
 fun CreatePollDialog(
@@ -74,11 +83,11 @@ fun CreatePollDialog(
 
   Dialog(onDismissRequest = { if (!isLoading) onDismiss() }) {
     Surface(
-      shape = RoundedCornerShape(16.dp),
-      color = DarkCard,
+      shape = RoundedCornerShape(CardRadius),
+      color = RoyalSurfaceHigh,
       modifier = Modifier
         .fillMaxWidth()
-        .border(1.dp, DarkBorder, RoundedCornerShape(16.dp))
+        .border(1.dp, RoyalCardBorderBrush, RoundedCornerShape(CardRadius))
         .testTag("create_poll_dialog")
     ) {
       Column(
@@ -87,11 +96,11 @@ fun CreatePollDialog(
           .verticalScroll(rememberScrollState())
           .padding(20.dp)
       ) {
-        Text("Create Poll", fontSize = 18.sp, fontWeight = FontWeight.Bold, color = GoldLight)
+        Text("Create Poll", style = SectionHeadingStyle)
         Spacer(modifier = Modifier.height(14.dp))
 
         if (localError != null) {
-          Text(text = localError.orEmpty(), fontSize = 12.sp, color = Color(0xFFEF5350))
+          Text(text = localError.orEmpty(), style = CaptionStyle.copy(color = ErrorColor))
           Spacer(modifier = Modifier.height(8.dp))
         }
 
@@ -102,12 +111,7 @@ fun CreatePollDialog(
           label = { Text("Poll Question") },
           placeholder = { Text("e.g. When should we hold the revision session?") },
           modifier = Modifier.fillMaxWidth().testTag("poll_question_input"),
-          colors = OutlinedTextFieldDefaults.colors(
-            focusedBorderColor = GoldPrimary,
-            unfocusedBorderColor = DarkBorder,
-            focusedTextColor = TextPrimary,
-            unfocusedTextColor = TextPrimary
-          ),
+          colors = royalOutlinedTextFieldColors(),
           singleLine = false,
           maxLines = 3
         )
@@ -120,16 +124,17 @@ fun CreatePollDialog(
           horizontalArrangement = Arrangement.SpaceBetween,
           verticalAlignment = Alignment.CenterVertically
         ) {
-          Text("Options (${options.size}/10)", fontSize = 13.sp, fontWeight = FontWeight.Bold, color = TextPrimary)
+          Text("Options (${options.size}/10)", style = FieldLabelStyle)
           if (options.size < 10) {
             OutlinedButton(
               onClick = { options.add(""); localError = null },
-              shape = RoundedCornerShape(8.dp),
-              modifier = Modifier.height(32.dp).testTag("add_poll_option_btn")
+              shape = RoundedCornerShape(ButtonRadius),
+              border = androidx.compose.foundation.BorderStroke(1.dp, MetallicGold.copy(alpha = 0.65f)),
+              modifier = Modifier.defaultMinSize(minHeight = 48.dp).testTag("add_poll_option_btn")
             ) {
-              Icon(Icons.Default.Add, contentDescription = null, tint = GoldLight, modifier = Modifier.size(14.dp))
+              Icon(Icons.Default.Add, contentDescription = null, tint = ChampagneGold, modifier = Modifier.size(16.dp))
               Spacer(modifier = Modifier.width(4.dp))
-              Text("Add", fontSize = 11.sp, color = GoldLight)
+              Text("Add", style = ButtonTextStyle.copy(fontSize = 14.sp, color = ChampagneGold))
             }
           }
         }
@@ -147,23 +152,18 @@ fun CreatePollDialog(
               onValueChange = { newText -> options[idx] = newText; localError = null },
               label = { Text("Option ${idx + 1}") },
               modifier = Modifier.weight(1f).testTag("poll_option_input_$idx"),
-              colors = OutlinedTextFieldDefaults.colors(
-                focusedBorderColor = GoldPrimary,
-                unfocusedBorderColor = DarkBorder,
-                focusedTextColor = TextPrimary,
-                unfocusedTextColor = TextPrimary
-              ),
+              colors = royalOutlinedTextFieldColors(),
               singleLine = true
             )
             if (options.size > 2) {
               IconButton(
                 onClick = { options.removeAt(idx); localError = null },
-                modifier = Modifier.size(36.dp).testTag("remove_poll_option_$idx")
+                modifier = Modifier.size(48.dp).testTag("remove_poll_option_$idx")
               ) {
                 Icon(
                   Icons.Default.RemoveCircleOutline,
                   contentDescription = "Remove option",
-                  tint = Color(0xFFEF5350),
+                  tint = ErrorColor,
                   modifier = Modifier.size(20.dp)
                 )
               }
@@ -174,18 +174,18 @@ fun CreatePollDialog(
         Spacer(modifier = Modifier.height(16.dp))
 
         // Duration dropdown
-        Text("Duration", fontSize = 13.sp, fontWeight = FontWeight.Bold, color = TextPrimary)
+        Text("Duration", style = FieldLabelStyle)
         Spacer(modifier = Modifier.height(6.dp))
 
         Column(modifier = Modifier.fillMaxWidth()) {
           Box(
             modifier = Modifier
               .fillMaxWidth()
-              .clip(RoundedCornerShape(8.dp))
-              .background(DarkSurface)
-              .border(1.dp, if (durationDropdownExpanded) GoldPrimary else DarkBorder, RoundedCornerShape(8.dp))
+              .clip(RoundedCornerShape(ButtonRadius))
+              .background(RoyalSurface)
+              .border(1.dp, if (durationDropdownExpanded) MetallicGold else DarkBorder, RoundedCornerShape(ButtonRadius))
               .clickable { durationDropdownExpanded = !durationDropdownExpanded }
-              .padding(horizontal = 14.dp, vertical = 12.dp)
+              .padding(horizontal = 14.dp, vertical = 14.dp)
               .testTag("poll_duration_dropdown"),
             contentAlignment = Alignment.CenterStart
           ) {
@@ -194,8 +194,8 @@ fun CreatePollDialog(
               horizontalArrangement = Arrangement.SpaceBetween,
               verticalAlignment = Alignment.CenterVertically
             ) {
-              Text(selectedDuration, fontSize = 14.sp, color = TextPrimary)
-              Icon(Icons.Default.ArrowDropDown, contentDescription = null, tint = GoldLight)
+              Text(selectedDuration, style = com.example.ui.theme.BodyStyle.copy(fontSize = 15.sp))
+              Icon(Icons.Default.ArrowDropDown, contentDescription = null, tint = ChampagneGold)
             }
           }
 
@@ -204,23 +204,25 @@ fun CreatePollDialog(
               modifier = Modifier
                 .fillMaxWidth()
                 .padding(top = 4.dp)
-                .clip(RoundedCornerShape(8.dp))
-                .background(DarkSurface)
-                .border(1.dp, DarkBorder, RoundedCornerShape(8.dp))
+                .clip(RoundedCornerShape(ButtonRadius))
+                .background(RoyalSurface)
+                .border(1.dp, DarkBorder, RoundedCornerShape(ButtonRadius))
             ) {
               durations.forEachIndexed { idx, d ->
                 Text(
                   text = d,
-                  color = if (d == selectedDuration) GoldLight else TextPrimary,
-                  fontWeight = if (d == selectedDuration) FontWeight.Bold else FontWeight.Normal,
-                  fontSize = 14.sp,
+                  style = com.example.ui.theme.BodyStyle.copy(
+                    color = if (d == selectedDuration) ChampagneGold else SilverWhite,
+                    fontWeight = if (d == selectedDuration) FontWeight.Bold else FontWeight.Normal,
+                    fontSize = 14.sp
+                  ),
                   modifier = Modifier
                     .fillMaxWidth()
                     .clickable {
                       selectedDuration = d
                       durationDropdownExpanded = false
                     }
-                    .padding(horizontal = 14.dp, vertical = 10.dp)
+                    .padding(horizontal = 14.dp, vertical = 12.dp)
                 )
                 if (idx < durations.lastIndex) HorizontalDivider(color = DarkBorder.copy(alpha = 0.5f))
               }
@@ -237,12 +239,12 @@ fun CreatePollDialog(
         ) {
           OutlinedButton(
             onClick = onDismiss,
-            shape = RoundedCornerShape(10.dp),
+            shape = RoundedCornerShape(ButtonRadius),
             modifier = Modifier.defaultMinSize(minHeight = 48.dp).testTag("create_poll_cancel_btn"),
-            colors = ButtonDefaults.outlinedButtonColors(containerColor = com.example.ui.theme.DarkSurface, contentColor = com.example.ui.theme.TextPrimary),
-            border = androidx.compose.foundation.BorderStroke(1.5.dp, com.example.ui.theme.DarkBorder)
+            colors = ButtonDefaults.outlinedButtonColors(containerColor = RoyalSurface, contentColor = Lavender),
+            border = androidx.compose.foundation.BorderStroke(1.5.dp, DarkBorder)
           ) {
-            Text("Cancel", color = com.example.ui.theme.TextPrimary, fontSize = 16.sp, fontWeight = FontWeight.SemiBold)
+            Text("Cancel", style = ButtonTextStyle.copy(color = Lavender, fontSize = 14.sp))
           }
           Spacer(modifier = Modifier.width(10.dp))
           val isOnline by com.example.data.NetworkMonitor.isOnline.collectAsStateWithLifecycle()
@@ -265,14 +267,14 @@ fun CreatePollDialog(
               onCreatePoll(question, cleanOpts, selectedDuration)
             },
             enabled = !isLoading,
-            shape = RoundedCornerShape(10.dp),
-            colors = ButtonDefaults.buttonColors(containerColor = GoldPrimary, contentColor = com.example.ui.theme.DarkTextOnGold),
+            shape = RoundedCornerShape(ButtonRadius),
+            colors = ButtonDefaults.buttonColors(containerColor = MetallicGold, contentColor = Midnight),
             modifier = Modifier.defaultMinSize(minHeight = 48.dp).alpha(if (!isOnline) 0.5f else 1f).testTag("create_poll_submit_btn")
           ) {
             if (isLoading) {
-              CircularProgressIndicator(color = com.example.ui.theme.DarkTextOnGold, modifier = Modifier.size(20.dp), strokeWidth = 2.dp)
+              CircularProgressIndicator(color = Midnight, modifier = Modifier.size(20.dp), strokeWidth = 2.dp)
             } else {
-              Text("Create", fontWeight = FontWeight.Bold, fontSize = 16.sp, color = com.example.ui.theme.DarkTextOnGold)
+              Text("Create", style = ButtonTextStyle.copy(color = Midnight, fontSize = 14.sp))
             }
           }
         }

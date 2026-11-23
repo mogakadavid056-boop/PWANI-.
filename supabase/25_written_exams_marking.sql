@@ -1,0 +1,1438 @@
+-- CLASSREP V2 - EXAMS, BULK CSV IMPORT, WRITTEN EXAMS, HAND MARKING & MARKED PAPERS (PDF)
+-- Run once after 20_units_materials.sql, 21_notifications.sql, 22_attendance_tracker.sql, 24_challenges_leaderboard.sql.
+-- Safe to run multiple times (idempotent).
+--
+-- WHAT THIS ADDS
+--  * Challenge vs Exam mode (quizzes.is_exam, shuffle_questions, time limit 1-360 mins).
+--  * Question types: multiple choice (A-E) or WRITTEN answers. An exam is "choices", "written", or "both".
+--    Written questions are allowed in exams only (created by lecturers or admins).
+--  * Decimal marks per question (0.5 to 100 marks, e.g., 1 for MCQ, 10 for essay) and optional model_answer guide.
+--  * Shuffled question delivery (when shuffle_questions = true) & server-side MCQ grading keyed by question ord.
+--  * Hand-marking studio workflow: save_marking_draft (with optimistic draft_version lock), release_marked_paper,
+--    reopen_marked_paper, list_exam_submissions, get_exam_paper, list_papers_to_mark, get_my_marked_paper.
+--  * Private Supabase Storage bucket "marked-papers" (path: class_id/quiz_id/student_id.pdf).
+--  * Student "paper_marked" notification & audit logging.
+
+-- 0. Reconcile prerequisite tables & helpers (idempotent)
+do $$
+begin
+  -- Reconcile quiz_attempts student_id if an older schema used user_id
+  if exists (
+    select 1 from information_schema.columns
+    where table_schema = 'public' and table_name = 'quiz_attempts' and column_name = 'user_id'
+  ) and not exists (
+    select 1 from information_schema.columns
+    where table_schema = 'public' and table_name = 'quiz_attempts' and column_name = 'student_id'
+  ) then
+    alter table public.quiz_attempts rename column user_id to student_id;
+  end if;
+end $$;
+
+create table if not exists public.audit_logs (
+  id uuid primary key default gen_random_uuid(),
+  user_id uuid references auth.users(id) on delete set null,
+  action text not null,
+  table_name text,
+  record_id uuid,
+  metadata jsonb not null default '{}'::jsonb,
+  created_at timestamptz not null default now()
+);
+
+alter table public.audit_logs enable row level security;
+drop policy if exists "Admins read audit logs" on public.audit_logs;
+create policy "Admins read audit logs"
+  on public.audit_logs for select to authenticated
+  using (public.is_admin());
+
+create or replace function public.is_class_member(p_class uuid)
+returns boolean
+language sql
+stable
+security definer
+set search_path = public
+as $$
+  select public.is_admin()
+    or public.is_class_staff(p_class)
+    or exists (
+      select 1 from public.class_members cm
+      where cm.class_id = p_class
+        and cm.user_id = auth.uid()
+        and coalesce(cm.status::text, 'active') = 'active'
+    );
+$$;
+
+grant execute on function public.is_class_member(uuid) to authenticated;
+
+create or replace function public.storage_class_id(p_name text)
+returns uuid
+language plpgsql
+immutable
+as $$
+declare
+  v_first text := split_part(coalesce(p_name, ''), '/', 1);
+begin
+  if v_first = '' then
+    return null;
+  end if;
+  return v_first::uuid;
+exception when others then
+  return null;
+end;
+$$;
+
+create or replace function public.award_points(
+  p_user uuid,
+  p_class uuid,
+  p_pts integer,
+  p_reason text,
+  p_ref uuid default null
+)
+returns void
+language plpgsql
+security definer
+set search_path = public
+as $$
+begin
+  if p_user is null or coalesce(p_pts, 0) <= 0 then
+    return;
+  end if;
+  insert into public.points_ledger (user_id, class_id, points, reason, ref_id)
+  values (p_user, p_class, p_pts, coalesce(nullif(trim(p_reason), ''), 'quiz'), p_ref)
+  on conflict (user_id, reason, ref_id) where ref_id is not null do nothing;
+end;
+$$;
+
+revoke execute on function public.award_points(uuid, uuid, integer, text, uuid) from public, anon, authenticated;
+
+create or replace function public.notify_users(
+  p_users uuid[],
+  p_kind text,
+  p_title text,
+  p_body text,
+  p_class uuid default null,
+  p_data jsonb default '{}'::jsonb
+)
+returns void
+language plpgsql
+security definer
+set search_path = public
+as $$
+begin
+  if to_regclass('public.notifications') is null or p_users is null then
+    return;
+  end if;
+  insert into public.notifications (user_id, class_id, kind, title, body, data)
+  select distinct uid, p_class, p_kind, coalesce(p_title, 'Notification'), coalesce(p_body, ''), coalesce(p_data, '{}'::jsonb)
+  from unnest(p_users) as uid
+  where uid is not null;
+end;
+$$;
+
+revoke execute on function public.notify_users(uuid[], text, text, text, uuid, jsonb) from public, anon, authenticated;
+
+-- 1. Quizzes & Questions: exams, shuffling, format, types, decimal marks, model answers
+alter table public.quizzes drop constraint if exists quizzes_time_limit_minutes_check;
+alter table public.quizzes add constraint quizzes_time_limit_minutes_check
+  check (time_limit_minutes is null or time_limit_minutes between 1 and 360);
+
+alter table public.quizzes add column if not exists course_id uuid references public.courses(id) on delete set null;
+alter table public.quizzes add column if not exists is_exam boolean not null default false;
+alter table public.quizzes add column if not exists shuffle_questions boolean not null default false;
+alter table public.quizzes add column if not exists answer_format text not null default 'choices';
+
+alter table public.quizzes drop constraint if exists quizzes_answer_format_check;
+alter table public.quizzes add constraint quizzes_answer_format_check
+  check (answer_format in ('choices', 'written', 'both'));
+
+alter table public.quiz_questions alter column options drop not null;
+alter table public.quiz_questions alter column correct_index drop not null;
+
+alter table public.quiz_questions add column if not exists question_type text not null default 'mcq';
+alter table public.quiz_questions drop constraint if exists quiz_questions_question_type_check;
+alter table public.quiz_questions add constraint quiz_questions_question_type_check
+  check (question_type in ('mcq', 'written'));
+
+alter table public.quiz_questions add column if not exists marks numeric(6, 2) not null default 1;
+alter table public.quiz_questions drop constraint if exists quiz_questions_marks_check;
+alter table public.quiz_questions add constraint quiz_questions_marks_check
+  check (marks > 0 and marks <= 100);
+
+alter table public.quiz_questions add column if not exists model_answer text;
+
+alter table public.quiz_questions drop constraint if exists quiz_questions_shape;
+alter table public.quiz_questions add constraint quiz_questions_shape
+  check ((question_type = 'mcq' and options is not null and correct_index is not null)
+         or question_type = 'written');
+
+-- 2. Attempts: marks, written answers and the marking workflow
+alter table public.quiz_attempts alter column score type numeric(7, 2);
+alter table public.quiz_attempts alter column total type numeric(7, 2);
+
+alter table public.quiz_attempts add column if not exists points_awarded integer not null default 0;
+alter table public.quiz_attempts add column if not exists written_answers jsonb not null default '{}'::jsonb;
+alter table public.quiz_attempts add column if not exists late boolean not null default false;
+alter table public.quiz_attempts add column if not exists mcq_marks numeric(7, 2);
+alter table public.quiz_attempts add column if not exists written_marks numeric(7, 2);
+alter table public.quiz_attempts add column if not exists marking_status text not null default 'auto';
+alter table public.quiz_attempts drop constraint if exists quiz_attempts_marking_status_check;
+alter table public.quiz_attempts add constraint quiz_attempts_marking_status_check
+  check (marking_status in ('auto', 'pending', 'marking', 'released'));
+
+alter table public.quiz_attempts add column if not exists marked_by uuid references auth.users(id) on delete set null;
+alter table public.quiz_attempts add column if not exists released_at timestamptz;
+alter table public.quiz_attempts add column if not exists marked_pdf_path text;
+alter table public.quiz_attempts add column if not exists marking_draft jsonb;
+alter table public.quiz_attempts add column if not exists draft_version integer not null default 0;
+alter table public.quiz_attempts add column if not exists question_marks jsonb not null default '{}'::jsonb;
+alter table public.quiz_attempts add column if not exists overall_comment text;
+
+-- Ensure attempt RLS matches student_id & staff/admin access cleanly
+drop policy if exists "Students read own attempts and staff read class attempts" on public.quiz_attempts;
+create policy "Students read own attempts and staff read class attempts"
+  on public.quiz_attempts for select to authenticated
+  using (
+    student_id = auth.uid()
+    or exists (
+      select 1 from public.quizzes q
+      where q.id = quiz_attempts.quiz_id
+        and (public.is_admin() or public.is_class_staff(q.class_id))
+    )
+  );
+
+-- Update quiz notification trigger to distinguish Exams vs Challenges
+create or replace function public.trg_notify_quiz_created()
+returns trigger
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  v_label text := case when coalesce(new.is_exam, false) then 'New Exam: ' else 'New Challenge: ' end;
+  v_hint text := case
+    when coalesce(new.is_exam, false) then 'An exam has been scheduled. Open Challenges & Exams to view details.'
+    else 'Tap to open Challenges and test your knowledge.'
+  end;
+begin
+  if to_regprocedure('public._notify_class_members(uuid,uuid,text,text,text,jsonb)') is not null then
+    perform public._notify_class_members(
+      new.class_id,
+      new.created_by,
+      'quiz',
+      v_label || coalesce(new.title, 'Assessment'),
+      coalesce(nullif(trim(new.description), ''), v_hint),
+      jsonb_build_object('quiz_id', new.id, 'class_id', new.class_id, 'is_exam', coalesce(new.is_exam, false))
+    );
+  end if;
+  return new;
+end;
+$$;
+
+-- 3. Private bucket for the marked PDFs (path: class_id/quiz_id/student_id.pdf)
+insert into storage.buckets (id, name, public, file_size_limit, allowed_mime_types)
+values ('marked-papers', 'marked-papers', false, 20971520, array['application/pdf'])
+on conflict (id) do update
+set public = false, file_size_limit = 20971520, allowed_mime_types = array['application/pdf'];
+
+-- 4. Who may mark a quiz: admins, or a lecturer of the class (restricted to the unit's lecturers when the unit has any)
+create or replace function public.can_mark_quiz(p_quiz uuid)
+returns boolean
+language sql stable security definer set search_path = public
+as $$
+  select coalesce((
+    select public.is_admin()
+        or (
+          public.is_class_lecturer(qz.class_id)
+          and (
+            qz.course_id is null
+            or not exists (select 1 from public.course_lecturers cl where cl.course_id = qz.course_id)
+            or exists (select 1 from public.course_lecturers cl
+                        where cl.course_id = qz.course_id and cl.lecturer_id = auth.uid())
+          )
+        )
+    from public.quizzes qz
+    where qz.id = p_quiz
+  ), false);
+$$;
+
+grant execute on function public.can_mark_quiz(uuid) to authenticated;
+
+-- 5. Storage rules for the marked PDFs
+do $$
+begin
+  if to_regclass('storage.objects') is not null then
+    drop policy if exists "markers read marked papers" on storage.objects;
+    create policy "markers read marked papers" on storage.objects
+    for select to authenticated
+    using (
+      bucket_id = 'marked-papers'
+      and public.storage_class_id(name) is not null
+      and (public.is_admin() or public.is_class_lecturer(public.storage_class_id(name)))
+    );
+
+    drop policy if exists "students read own marked paper" on storage.objects;
+    create policy "students read own marked paper" on storage.objects
+    for select to authenticated
+    using (
+      bucket_id = 'marked-papers'
+      and split_part(name, '/', 3) = auth.uid()::text || '.pdf'
+      and exists (
+        select 1 from public.quiz_attempts qa
+        where qa.student_id = auth.uid()
+          and qa.marking_status = 'released'
+          and qa.marked_pdf_path = storage.objects.name
+      )
+    );
+
+    drop policy if exists "markers upload marked papers" on storage.objects;
+    create policy "markers upload marked papers" on storage.objects
+    for insert to authenticated
+    with check (
+      bucket_id = 'marked-papers'
+      and public.storage_class_id(name) is not null
+      and (public.is_admin() or public.is_class_lecturer(public.storage_class_id(name)))
+    );
+
+    drop policy if exists "markers replace marked papers" on storage.objects;
+    create policy "markers replace marked papers" on storage.objects
+    for update to authenticated
+    using (
+      bucket_id = 'marked-papers'
+      and public.storage_class_id(name) is not null
+      and (public.is_admin() or public.is_class_lecturer(public.storage_class_id(name)))
+    );
+
+    drop policy if exists "markers delete marked papers" on storage.objects;
+    create policy "markers delete marked papers" on storage.objects
+    for delete to authenticated
+    using (
+      bucket_id = 'marked-papers'
+      and public.storage_class_id(name) is not null
+      and (public.is_admin() or public.is_class_lecturer(public.storage_class_id(name)))
+    );
+  end if;
+exception when insufficient_privilege then
+  null;
+end $$;
+
+-- 6. Question validation: handles written questions and decimal marks
+--    A question is {"type": "mcq" | "written", "question": "...", "options": [...], "correct_index": 0,
+--                   "marks": 1, "explanation": "...", "model_answer": "..."}
+create or replace function public.insert_quiz_questions(p_quiz uuid, p_questions jsonb, p_start integer)
+returns integer
+language plpgsql security definer set search_path = public
+as $$
+declare
+  q jsonb;
+  opts jsonb;
+  n integer;
+  i integer := p_start;
+  qtype text;
+  mk numeric;
+begin
+  for q in select * from jsonb_array_elements(p_questions) loop
+    i := i + 1;
+    qtype := lower(coalesce(nullif(trim(q ->> 'type'), ''), 'mcq'));
+
+    if qtype not in ('mcq', 'written') then
+      raise exception 'Question % has an unknown type', i;
+    end if;
+
+    if coalesce(trim(q ->> 'question'), '') = '' then
+      raise exception 'Question % is empty', i;
+    end if;
+
+    if coalesce(q ->> 'marks', '') = '' then
+      mk := case when qtype = 'mcq' then 1 else 5 end;
+    elsif (q ->> 'marks') !~ '^[0-9]+(\.[0-9]+)?$' then
+      raise exception 'Question % has an invalid mark', i;
+    else
+      mk := (q ->> 'marks')::numeric;
+    end if;
+
+    if mk <= 0 or mk > 100 then
+      raise exception 'Question % must have between 0.5 and 100 marks', i;
+    end if;
+
+    if qtype = 'mcq' then
+      opts := q -> 'options';
+
+      if jsonb_typeof(opts) <> 'array' or jsonb_array_length(opts) < 2 or jsonb_array_length(opts) > 5 then
+        raise exception 'Question % needs 2 to 5 options', i;
+      end if;
+
+      n := jsonb_array_length(opts);
+
+      if (q ->> 'correct_index') is null
+         or (q ->> 'correct_index') !~ '^[0-9]+$'
+         or (q ->> 'correct_index')::integer > n - 1 then
+        raise exception 'Question % needs a valid correct answer', i;
+      end if;
+
+      insert into public.quiz_questions
+        (quiz_id, ord, question, question_type, options, correct_index, explanation, marks, model_answer)
+      values
+        (p_quiz, i, trim(q ->> 'question'), 'mcq', opts, (q ->> 'correct_index')::integer,
+         nullif(trim(q ->> 'explanation'), ''), mk, null);
+    else
+      insert into public.quiz_questions
+        (quiz_id, ord, question, question_type, options, correct_index, explanation, marks, model_answer)
+      values
+        (p_quiz, i, trim(q ->> 'question'), 'written', null, null,
+         nullif(trim(q ->> 'explanation'), ''), mk, nullif(trim(q ->> 'model_answer'), ''));
+    end if;
+  end loop;
+
+  return i;
+end;
+$$;
+
+revoke execute on function public.insert_quiz_questions(uuid, jsonb, integer) from public, anon, authenticated;
+
+-- 7. Create a challenge or an exam (answer_format: choices, written or both)
+drop function if exists public.create_quiz(uuid, text, text, timestamptz, timestamptz, integer, jsonb, uuid);
+drop function if exists public.create_quiz(uuid, text, text, timestamptz, timestamptz, integer, jsonb, uuid, boolean, boolean);
+drop function if exists public.create_quiz(uuid, text, text, timestamptz, timestamptz, integer, jsonb, uuid, boolean, boolean, text);
+
+create or replace function public.create_quiz(
+  target_class_id uuid,
+  quiz_title text,
+  quiz_description text,
+  quiz_opens_at timestamptz,
+  quiz_closes_at timestamptz,
+  time_limit integer,
+  questions jsonb,
+  target_course_id uuid default null,
+  as_exam boolean default false,
+  shuffle boolean default false,
+  answer_format text default 'choices'
+)
+returns uuid
+language plpgsql security definer set search_path = public
+as $$
+declare
+  new_id uuid;
+  n_mcq integer;
+  n_written integer;
+  v_course_ok boolean := false;
+begin
+  if not public.is_class_staff(target_class_id) then
+    raise exception 'Only lecturers, prefects and administrators can create challenges';
+  end if;
+
+  if as_exam and not (public.is_admin() or public.is_class_lecturer(target_class_id)) then
+    raise exception 'Only lecturers and administrators can create exams';
+  end if;
+
+  if answer_format not in ('choices', 'written', 'both') then
+    raise exception 'The format must be choices, written or both';
+  end if;
+
+  if answer_format <> 'choices' and not as_exam then
+    raise exception 'Written questions are only allowed in exams';
+  end if;
+
+  if quiz_title is null or char_length(trim(quiz_title)) = 0 then
+    raise exception 'Please give it a title';
+  end if;
+
+  if quiz_closes_at <= quiz_opens_at or quiz_closes_at <= now() then
+    raise exception 'The closing time must be in the future and after the opening time';
+  end if;
+
+  if as_exam and time_limit is null then
+    raise exception 'An exam needs a time limit';
+  end if;
+
+  if time_limit is not null and (time_limit < 1 or time_limit > 360) then
+    raise exception 'The time limit must be between 1 and 360 minutes';
+  end if;
+
+  if jsonb_typeof(questions) <> 'array' or jsonb_array_length(questions) < 1 or jsonb_array_length(questions) > 200 then
+    raise exception 'It needs 1 to 200 questions';
+  end if;
+
+  if target_course_id is not null then
+    select exists (
+      select 1 from public.courses c
+      where c.id = target_course_id
+        and c.class_id = target_class_id
+        and lower(coalesce(c.status, 'approved')) = 'approved'
+    ) into v_course_ok;
+
+    if not v_course_ok and to_regclass('public.class_courses') is not null then
+      execute 'select exists (select 1 from public.class_courses cc where cc.class_id = $1 and cc.course_id = $2 and lower(coalesce(cc.status, ''approved'')) = ''approved'')'
+        into v_course_ok using target_class_id, target_course_id;
+    end if;
+
+    if not coalesce(v_course_ok, false) then
+      raise exception 'Choose an approved unit of this class';
+    end if;
+  end if;
+
+  insert into public.quizzes (
+    class_id, course_id, title, description, opens_at, closes_at,
+    time_limit_minutes, is_exam, shuffle_questions, answer_format, active, created_by
+  )
+  values (
+    target_class_id, target_course_id, trim(quiz_title), nullif(trim(coalesce(quiz_description, '')), ''),
+    quiz_opens_at, quiz_closes_at, time_limit, as_exam, shuffle, answer_format, true, auth.uid()
+  )
+  returning id into new_id;
+
+  perform public.insert_quiz_questions(new_id, questions, 0);
+
+  select count(*) filter (where k.question_type = 'mcq'),
+         count(*) filter (where k.question_type = 'written')
+  into n_mcq, n_written
+  from public.quiz_questions k
+  where k.quiz_id = new_id;
+
+  if answer_format = 'choices' and n_written > 0 then
+    raise exception 'This exam is set to choices only, but it has written questions';
+  end if;
+
+  if answer_format = 'written' and n_mcq > 0 then
+    raise exception 'This exam is set to written only, but it has choice questions';
+  end if;
+
+  insert into public.audit_logs (user_id, action, table_name, record_id, metadata)
+  values (auth.uid(), case when as_exam then 'create_exam' else 'create_challenge' end,
+          'quizzes', new_id,
+          jsonb_build_object('questions', jsonb_array_length(questions), 'format', answer_format));
+
+  return new_id;
+end;
+$$;
+
+grant execute on function public.create_quiz(uuid, text, text, timestamptz, timestamptz, integer, jsonb, uuid, boolean, boolean, text) to authenticated;
+
+-- Adding more questions keeps the same rules
+create or replace function public.add_quiz_questions(target_quiz_id uuid, questions jsonb)
+returns integer
+language plpgsql security definer set search_path = public
+as $$
+declare
+  cid uuid;
+  creator uuid;
+  fmt text;
+  current_max integer;
+  new_total integer;
+  n_mcq integer;
+  n_written integer;
+begin
+  select z.class_id, z.created_by, z.answer_format into cid, creator, fmt
+  from public.quizzes z where z.id = target_quiz_id;
+
+  if cid is null then
+    raise exception 'Not found';
+  end if;
+
+  if not (public.is_admin() or public.is_class_lecturer(cid) or creator = auth.uid()) then
+    raise exception 'Not authorized';
+  end if;
+
+  if exists (select 1 from public.quiz_attempts a where a.quiz_id = target_quiz_id) then
+    raise exception 'Students have already started this. Questions can no longer be added.';
+  end if;
+
+  if jsonb_typeof(questions) <> 'array' or jsonb_array_length(questions) < 1 then
+    raise exception 'Send at least one question';
+  end if;
+
+  select coalesce(max(k.ord), 0) into current_max from public.quiz_questions k where k.quiz_id = target_quiz_id;
+
+  if current_max + jsonb_array_length(questions) > 200 then
+    raise exception 'A quiz can have at most 200 questions';
+  end if;
+
+  new_total := public.insert_quiz_questions(target_quiz_id, questions, current_max);
+
+  select count(*) filter (where k.question_type = 'mcq'),
+         count(*) filter (where k.question_type = 'written')
+  into n_mcq, n_written
+  from public.quiz_questions k
+  where k.quiz_id = target_quiz_id;
+
+  if fmt = 'choices' and n_written > 0 then
+    raise exception 'This exam is set to choices only';
+  end if;
+
+  if fmt = 'written' and n_mcq > 0 then
+    raise exception 'This exam is set to written only';
+  end if;
+
+  return new_total;
+end;
+$$;
+
+grant execute on function public.add_quiz_questions(uuid, jsonb) to authenticated;
+
+-- 8. The list: marks, format and the student's marking status
+drop function if exists public.list_quizzes(uuid);
+
+create or replace function public.list_quizzes(target_class_id uuid)
+returns table (
+  quiz_id uuid,
+  title text,
+  description text,
+  unit_code text,
+  opens_at timestamptz,
+  closes_at timestamptz,
+  time_limit_minutes integer,
+  question_count bigint,
+  status text,
+  attempted boolean,
+  my_score numeric,
+  my_total numeric,
+  attempts_count bigint,
+  is_exam boolean,
+  answer_format text,
+  total_marks numeric,
+  my_marking_status text
+)
+language plpgsql stable security definer set search_path = public
+as $$
+declare
+  staff boolean;
+begin
+  staff := public.is_class_staff(target_class_id);
+
+  if not (staff or public.is_class_member(target_class_id)) then
+    raise exception 'Not authorized';
+  end if;
+
+  return query
+  select
+    z.id,
+    z.title,
+    coalesce(z.description, ''),
+    coalesce((select c.code from public.courses c where c.id = z.course_id), ''),
+    z.opens_at,
+    z.closes_at,
+    z.time_limit_minutes,
+    (select count(*) from public.quiz_questions qq where qq.quiz_id = z.id),
+    case when not z.active or now() >= z.closes_at then 'closed'
+         when now() < z.opens_at then 'upcoming'
+         else 'open' end,
+    exists (select 1 from public.quiz_attempts a
+             where a.quiz_id = z.id and a.student_id = auth.uid() and a.submitted_at is not null),
+    (select case
+              when not z.is_exam then a.score
+              when now() > z.closes_at and a.marking_status in ('auto', 'released') then a.score
+              else null end
+       from public.quiz_attempts a where a.quiz_id = z.id and a.student_id = auth.uid()),
+    (select case
+              when not z.is_exam then a.total
+              when now() > z.closes_at and a.marking_status in ('auto', 'released') then a.total
+              else null end
+       from public.quiz_attempts a where a.quiz_id = z.id and a.student_id = auth.uid()),
+    case when staff
+         then (select count(*) from public.quiz_attempts a where a.quiz_id = z.id and a.submitted_at is not null)
+         else null::bigint end,
+    coalesce(z.is_exam, false),
+    coalesce(z.answer_format, 'choices'),
+    (select coalesce(sum(qq.marks), 0) from public.quiz_questions qq where qq.quiz_id = z.id),
+    (select a.marking_status from public.quiz_attempts a
+      where a.quiz_id = z.id and a.student_id = auth.uid() and a.submitted_at is not null)
+  from public.quizzes z
+  where z.class_id = target_class_id
+  order by
+    case
+      when z.active and now() >= z.opens_at and now() < z.closes_at then 1
+      when z.active and now() < z.opens_at then 2
+      else 3
+    end,
+    z.closes_at desc;
+end;
+$$;
+
+grant execute on function public.list_quizzes(uuid) to authenticated;
+
+-- 9. Start: returns the type and marks of each question (never the answers)
+drop function if exists public.start_quiz(uuid);
+
+create or replace function public.start_quiz(target_quiz_id uuid)
+returns table (
+  question_id uuid,
+  ord integer,
+  question_type text,
+  question text,
+  options jsonb,
+  marks numeric,
+  time_limit_minutes integer,
+  started_at timestamptz
+)
+language plpgsql security definer set search_path = public
+as $$
+#variable_conflict use_column
+declare
+  qz record;
+  att record;
+  my_role text;
+begin
+  if auth.uid() is null then
+    raise exception 'Authentication required';
+  end if;
+
+  select z.id, z.class_id, z.active, z.opens_at, z.closes_at, z.time_limit_minutes, z.shuffle_questions
+  into qz
+  from public.quizzes z
+  where z.id = target_quiz_id;
+
+  if not found then
+    raise exception 'Not found';
+  end if;
+
+  select nullif(trim(lower(r.role::text)), '') into my_role
+  from public.user_roles r where r.user_id = auth.uid() limit 1;
+
+  if coalesce(my_role, 'student') not in ('student', 'class_rep', 'class representative', 'class_prefect', 'prefect', 'rep') then
+    raise exception 'Only students can take this';
+  end if;
+
+  if not public.is_class_member(qz.class_id) then
+    raise exception 'You are not a member of this class';
+  end if;
+
+  if not qz.active or now() < qz.opens_at or now() >= qz.closes_at then
+    raise exception 'This is not open';
+  end if;
+
+  select a.quiz_id, a.started_at, a.submitted_at
+  into att
+  from public.quiz_attempts a
+  where a.quiz_id = target_quiz_id and a.student_id = auth.uid();
+
+  if found then
+    if att.submitted_at is not null then
+      raise exception 'You have already taken this';
+    end if;
+
+    if qz.time_limit_minutes is not null
+       and now() > att.started_at + make_interval(mins => qz.time_limit_minutes) + interval '30 seconds' then
+      raise exception 'Your time is up';
+    end if;
+  else
+    insert into public.quiz_attempts (quiz_id, student_id)
+    values (target_quiz_id, auth.uid());
+
+    select a.quiz_id, a.started_at, a.submitted_at
+    into att
+    from public.quiz_attempts a
+    where a.quiz_id = target_quiz_id and a.student_id = auth.uid();
+  end if;
+
+  return query
+  select q.id, q.ord, q.question_type, q.question, q.options, q.marks, qz.time_limit_minutes, att.started_at
+  from public.quiz_questions q
+  where q.quiz_id = target_quiz_id
+  order by case when qz.shuffle_questions then md5(auth.uid()::text || q.id::text) else null end, q.ord;
+end;
+$$;
+
+grant execute on function public.start_quiz(uuid) to authenticated;
+
+-- 10. Submit: choice answers by number (-1 = skipped), written answers as {"3": "text", "4": "text"} keyed by question number
+drop function if exists public.submit_quiz(uuid, integer[]);
+drop function if exists public.submit_quiz(uuid, integer[], jsonb);
+
+create or replace function public.submit_quiz(
+  target_quiz_id uuid,
+  chosen_answers integer[],
+  written_answers jsonb default '{}'::jsonb
+)
+returns table (
+  score numeric,
+  total numeric,
+  points_awarded integer,
+  needs_marking boolean
+)
+language plpgsql security definer set search_path = public
+as $$
+#variable_conflict use_column
+declare
+  qz record;
+  att record;
+  total_m numeric;
+  got numeric := 0;
+  pts integer;
+  q record;
+  late_flag boolean;
+  has_written boolean;
+  clean jsonb;
+begin
+  if auth.uid() is null then
+    raise exception 'Authentication required';
+  end if;
+
+  select z.id, z.class_id, z.closes_at, z.time_limit_minutes, z.is_exam
+  into qz
+  from public.quizzes z
+  where z.id = target_quiz_id;
+
+  if not found then
+    raise exception 'Not found';
+  end if;
+
+  select a.quiz_id, a.started_at, a.submitted_at, a.score, a.total, a.points_awarded, a.marking_status
+  into att
+  from public.quiz_attempts a
+  where a.quiz_id = target_quiz_id and a.student_id = auth.uid()
+  for update;
+
+  if not found then
+    raise exception 'Start it first';
+  end if;
+
+  if att.submitted_at is not null then
+    return query select coalesce(att.score, 0), coalesce(att.total, 0), coalesce(att.points_awarded, 0), (att.marking_status in ('pending', 'marking'));
+    return;
+  end if;
+
+  select coalesce(sum(k.marks), 0), coalesce(bool_or(k.question_type = 'written'), false)
+  into total_m, has_written
+  from public.quiz_questions k
+  where k.quiz_id = target_quiz_id;
+
+  late_flag := (qz.time_limit_minutes is not null
+                and now() > att.started_at + make_interval(mins => qz.time_limit_minutes) + interval '60 seconds')
+               or now() > qz.closes_at + interval '5 minutes';
+
+  if not late_flag then
+    for q in
+      select k.ord as n, k.correct_index as correct, k.marks as mk
+      from public.quiz_questions k
+      where k.quiz_id = target_quiz_id and k.question_type = 'mcq'
+      order by k.ord
+    loop
+      if chosen_answers is not null
+         and q.n >= 1
+         and q.n <= coalesce(array_length(chosen_answers, 1), 0)
+         and chosen_answers[q.n] is not null
+         and chosen_answers[q.n] = q.correct then
+        got := got + q.mk;
+      end if;
+    end loop;
+  end if;
+
+  -- keep only answers for real written questions, each cut to 8000 characters
+  select coalesce(jsonb_object_agg(e.key, to_jsonb(left(e.value, 8000))), '{}'::jsonb)
+  into clean
+  from jsonb_each_text(case when jsonb_typeof(written_answers) = 'object' then written_answers else '{}'::jsonb end) e
+  where e.key ~ '^[0-9]+$'
+    and exists (select 1 from public.quiz_questions k
+                 where k.quiz_id = target_quiz_id and k.ord = e.key::integer and k.question_type = 'written');
+
+  pts := case when late_flag or qz.is_exam then 0 else floor(got)::integer + 5 end;
+
+  update public.quiz_attempts a
+  set submitted_at = now(),
+      score = got,
+      total = total_m,
+      mcq_marks = got,
+      answers = chosen_answers,
+      written_answers = clean,
+      late = late_flag,
+      points_awarded = pts,
+      marking_status = case when has_written then 'pending' else 'auto' end
+  where a.quiz_id = target_quiz_id and a.student_id = auth.uid();
+
+  perform public.award_points(auth.uid(), qz.class_id, pts, 'quiz', target_quiz_id);
+
+  return query select got, total_m, pts, has_written;
+end;
+$$;
+
+grant execute on function public.submit_quiz(uuid, integer[], jsonb) to authenticated;
+
+-- 11. Review for students: choice answers after the exam closes; written marks and comments only after the paper is returned
+drop function if exists public.get_quiz_review(uuid);
+
+create or replace function public.get_quiz_review(target_quiz_id uuid)
+returns table (
+  ord integer,
+  question_type text,
+  question text,
+  options jsonb,
+  correct_index integer,
+  chosen_index integer,
+  written_answer text,
+  marks numeric,
+  awarded_marks numeric,
+  marker_comment text,
+  explanation text
+)
+language plpgsql stable security definer set search_path = public
+as $$
+#variable_conflict use_column
+declare
+  cid uuid;
+  ex boolean;
+  closes timestamptz;
+  att record;
+  staff boolean;
+  show_marking boolean;
+begin
+  select z.class_id, z.is_exam, z.closes_at into cid, ex, closes
+  from public.quizzes z where z.id = target_quiz_id;
+
+  if cid is null then
+    raise exception 'Not found';
+  end if;
+
+  staff := public.is_class_staff(cid);
+
+  select a.answers, a.written_answers, a.question_marks, a.marking_status, a.submitted_at
+  into att
+  from public.quiz_attempts a
+  where a.quiz_id = target_quiz_id and a.student_id = auth.uid();
+
+  if not staff then
+    if att.submitted_at is null then
+      raise exception 'Finish it to see the answers';
+    end if;
+
+    if ex and now() <= closes then
+      raise exception 'The answers will be shown after the exam closes';
+    end if;
+  end if;
+
+  show_marking := staff or att.marking_status = 'released';
+
+  return query
+  select
+    k.ord,
+    k.question_type,
+    k.question,
+    k.options,
+    k.correct_index,
+    case
+      when att.answers is not null and k.ord >= 1 and k.ord <= coalesce(array_length(att.answers, 1), 0)
+        then (att.answers)[k.ord]
+      else -1
+    end,
+    att.written_answers ->> k.ord::text,
+    k.marks,
+    case
+      when k.question_type = 'mcq' then
+        case
+          when att.answers is not null and k.ord >= 1 and k.ord <= coalesce(array_length(att.answers, 1), 0)
+               and (att.answers)[k.ord] is not null and (att.answers)[k.ord] = k.correct_index
+            then k.marks
+          else 0::numeric
+        end
+      when show_marking and (att.question_marks -> k.ord::text ->> 'marks') is not null then
+        (att.question_marks -> k.ord::text ->> 'marks')::numeric
+      else null::numeric
+    end,
+    case when show_marking then att.question_marks -> k.ord::text ->> 'comment' else null end,
+    coalesce(k.explanation, '')
+  from public.quiz_questions k
+  where k.quiz_id = target_quiz_id
+  order by k.ord;
+end;
+$$;
+
+grant execute on function public.get_quiz_review(uuid) to authenticated;
+
+-- 12. Results list for staff
+drop function if exists public.quiz_results(uuid);
+
+create or replace function public.quiz_results(target_quiz_id uuid)
+returns table (
+  student_id uuid,
+  full_name text,
+  admission_number text,
+  score numeric,
+  total numeric,
+  submitted_at timestamptz,
+  marking_status text,
+  late boolean
+)
+language plpgsql stable security definer set search_path = public
+as $$
+declare
+  cid uuid;
+begin
+  select z.class_id into cid from public.quizzes z where z.id = target_quiz_id;
+
+  if cid is null then
+    raise exception 'Not found';
+  end if;
+
+  if not public.is_class_staff(cid) then
+    raise exception 'Not authorized';
+  end if;
+
+  return query
+  select a.student_id, p.full_name, p.admission_number,
+         case when a.marking_status in ('auto', 'released') then a.score else null end,
+         a.total, a.submitted_at, a.marking_status, a.late
+  from public.quiz_attempts a
+  join public.profiles p on p.id = a.student_id
+  where a.quiz_id = target_quiz_id and a.submitted_at is not null
+  order by a.score desc nulls last, a.submitted_at asc;
+end;
+$$;
+
+grant execute on function public.quiz_results(uuid) to authenticated;
+
+-- 13. MARKING (lecturers who may mark this quiz, and admins)
+
+-- 13a. The submissions, papers waiting first
+create or replace function public.list_exam_submissions(target_quiz_id uuid)
+returns table (
+  student_id uuid,
+  full_name text,
+  admission_number text,
+  submitted_at timestamptz,
+  late boolean,
+  mcq_marks numeric,
+  written_marks numeric,
+  final_score numeric,
+  max_total numeric,
+  marking_status text
+)
+language plpgsql stable security definer set search_path = public, auth
+as $$
+#variable_conflict use_column
+declare
+  mx numeric;
+begin
+  if not public.can_mark_quiz(target_quiz_id) then
+    raise exception 'Not authorized';
+  end if;
+
+  select coalesce(sum(k.marks), 0) into mx from public.quiz_questions k where k.quiz_id = target_quiz_id;
+
+  return query
+  select
+    a.student_id,
+    coalesce(
+      nullif(trim(p.full_name), ''),
+      nullif(trim(au.raw_user_meta_data ->> 'full_name'), ''),
+      nullif(split_part(coalesce(au.email, ''), '@', 1), ''),
+      'Student'
+    ),
+    coalesce(
+      nullif(trim(p.admission_number), ''),
+      nullif(trim(au.raw_user_meta_data ->> 'admission_number'), ''),
+      '-'
+    ),
+    a.submitted_at,
+    a.late,
+    a.mcq_marks,
+    a.written_marks,
+    case when a.marking_status in ('auto', 'released') then a.score else null end,
+    mx,
+    a.marking_status
+  from public.quiz_attempts a
+  left join public.profiles p on p.id = a.student_id
+  left join auth.users au on au.id = a.student_id
+  where a.quiz_id = target_quiz_id and a.submitted_at is not null
+  order by
+    case a.marking_status when 'pending' then 0 when 'marking' then 1 else 2 end,
+    lower(trim(coalesce(
+      nullif(trim(p.full_name), ''),
+      nullif(trim(au.raw_user_meta_data ->> 'full_name'), ''),
+      ''
+    ))),
+    lower(trim(coalesce(
+      nullif(trim(p.admission_number), ''),
+      nullif(trim(au.raw_user_meta_data ->> 'admission_number'), ''),
+      ''
+    )));
+end;
+$$;
+
+grant execute on function public.list_exam_submissions(uuid) to authenticated;
+
+-- 13b. One student's whole paper in one call (questions, their answers, the marking guide, any draft)
+create or replace function public.get_exam_paper(target_quiz_id uuid, target_student_id uuid)
+returns jsonb
+language plpgsql stable security definer set search_path = public
+as $$
+declare
+  qz record;
+  att record;
+  result jsonb;
+begin
+  if not public.can_mark_quiz(target_quiz_id) then
+    raise exception 'Not authorized';
+  end if;
+
+  select * into qz from public.quizzes z where z.id = target_quiz_id;
+
+  select * into att
+  from public.quiz_attempts qa
+  where qa.quiz_id = target_quiz_id and qa.student_id = target_student_id and qa.submitted_at is not null;
+
+  if not found then
+    raise exception 'No submission from this student';
+  end if;
+
+  select jsonb_build_object(
+    'quiz', jsonb_build_object(
+      'id', qz.id,
+      'title', qz.title,
+      'class_id', qz.class_id,
+      'class_name', (select c.name from public.classes c where c.id = qz.class_id),
+      'unit_code', (select co.code from public.courses co where co.id = qz.course_id),
+      'unit_name', (select co.name from public.courses co where co.id = qz.course_id),
+      'closes_at', qz.closes_at,
+      'answer_format', qz.answer_format,
+      'total_marks', (select coalesce(sum(k.marks), 0) from public.quiz_questions k where k.quiz_id = qz.id)
+    ),
+    'student', (select jsonb_build_object('id', p.id, 'full_name', p.full_name,
+                                          'admission_number', p.admission_number)
+                  from public.profiles p where p.id = target_student_id),
+    'attempt', jsonb_build_object(
+      'status', att.marking_status,
+      'submitted_at', att.submitted_at,
+      'late', att.late,
+      'mcq_marks', att.mcq_marks,
+      'written_marks', att.written_marks,
+      'draft_version', att.draft_version,
+      'overall_comment', att.overall_comment,
+      'marked_pdf_path', att.marked_pdf_path
+    ),
+    'questions', coalesce((
+      select jsonb_agg(jsonb_build_object(
+        'ord', k.ord,
+        'type', k.question_type,
+        'question', k.question,
+        'options', k.options,
+        'marks', k.marks,
+        'correct_index', k.correct_index,
+        'chosen_index', case
+          when att.answers is not null and k.ord >= 1 and k.ord <= coalesce(array_length(att.answers, 1), 0)
+            then (att.answers)[k.ord]
+          else -1
+        end,
+        'written_answer', att.written_answers ->> k.ord::text,
+        'model_answer', k.model_answer,
+        'awarded_marks', att.question_marks -> k.ord::text -> 'marks',
+        'comment', att.question_marks -> k.ord::text -> 'comment'
+      ) order by k.ord)
+      from public.quiz_questions k
+      where k.quiz_id = qz.id
+    ), '[]'::jsonb),
+    'draft', att.marking_draft
+  )
+  into result;
+
+  return result;
+end;
+$$;
+
+grant execute on function public.get_exam_paper(uuid, uuid) to authenticated;
+
+-- 13c. Check the marks (internal)
+create or replace function public.validate_question_marks(p_quiz uuid, p_marks jsonb)
+returns void
+language plpgsql security definer set search_path = public
+as $$
+declare
+  r record;
+  mx numeric;
+begin
+  if p_marks is null then
+    return;
+  end if;
+
+  if jsonb_typeof(p_marks) <> 'object' then
+    raise exception 'The marks must be an object keyed by question number';
+  end if;
+
+  for r in select e.key as k, e.value as v from jsonb_each(p_marks) e loop
+    if r.k !~ '^[0-9]+$' then
+      raise exception 'Invalid question number %', r.k;
+    end if;
+
+    select qq.marks into mx
+    from public.quiz_questions qq
+    where qq.quiz_id = p_quiz and qq.ord = r.k::integer and qq.question_type = 'written';
+
+    if mx is null then
+      raise exception 'Question % is not a written question', r.k;
+    end if;
+
+    if (r.v ->> 'marks') is not null then
+      if (r.v ->> 'marks') !~ '^[0-9]+(\.[0-9]+)?$' then
+        raise exception 'Question %: the mark must be a number', r.k;
+      end if;
+
+      if (r.v ->> 'marks')::numeric > mx then
+        raise exception 'Question %: the mark cannot be more than %', r.k, mx;
+      end if;
+    end if;
+
+    if char_length(coalesce(r.v ->> 'comment', '')) > 2000 then
+      raise exception 'Question %: the comment is too long', r.k;
+    end if;
+  end loop;
+end;
+$$;
+
+revoke execute on function public.validate_question_marks(uuid, jsonb) from public, anon, authenticated;
+
+-- 13d. Save the work in progress (pen strokes, ticks, notes, marks). expected_version stops two devices overwriting each other.
+create or replace function public.save_marking_draft(
+  target_quiz_id uuid,
+  target_student_id uuid,
+  expected_version integer,
+  draft_json jsonb,
+  marks_json jsonb,
+  overall_text text
+)
+returns integer
+language plpgsql security definer set search_path = public
+as $$
+declare
+  att record;
+  new_version integer;
+begin
+  if not public.can_mark_quiz(target_quiz_id) then
+    raise exception 'Not authorized';
+  end if;
+
+  select qa.marking_status, qa.draft_version into att
+  from public.quiz_attempts qa
+  where qa.quiz_id = target_quiz_id and qa.student_id = target_student_id and qa.submitted_at is not null
+  for update;
+
+  if not found then
+    raise exception 'No submission from this student';
+  end if;
+
+  if att.marking_status = 'released' then
+    raise exception 'This paper was already returned. Reopen it to change it.';
+  end if;
+
+  if expected_version is not null and att.draft_version <> expected_version then
+    raise exception 'A newer version was saved from another device. Reload the paper.';
+  end if;
+
+  perform public.validate_question_marks(target_quiz_id, marks_json);
+
+  update public.quiz_attempts qa
+  set marking_draft = draft_json,
+      question_marks = coalesce(marks_json, '{}'::jsonb),
+      overall_comment = left(overall_text, 2000),
+      marking_status = case when qa.marking_status = 'auto' then 'auto' else 'marking' end,
+      marked_by = auth.uid(),
+      draft_version = qa.draft_version + 1
+  where qa.quiz_id = target_quiz_id and qa.student_id = target_student_id
+  returning qa.draft_version into new_version;
+
+  return new_version;
+end;
+$$;
+
+grant execute on function public.save_marking_draft(uuid, uuid, integer, jsonb, jsonb, text) to authenticated;
+
+-- 13e. Return the marked paper: the PDF is already uploaded to marked-papers/class_id/quiz_id/student_id.pdf
+create or replace function public.release_marked_paper(
+  target_quiz_id uuid,
+  target_student_id uuid,
+  pdf_path text,
+  marks_json jsonb,
+  overall_text text
+)
+returns void
+language plpgsql security definer set search_path = public
+as $$
+declare
+  qz record;
+  att record;
+  expected text;
+  missing integer;
+  wsum numeric;
+  total_m numeric;
+begin
+  if not public.can_mark_quiz(target_quiz_id) then
+    raise exception 'Not authorized';
+  end if;
+
+  select z.class_id, z.title, z.closes_at into qz from public.quizzes z where z.id = target_quiz_id;
+
+  if now() < qz.closes_at then
+    raise exception 'Papers can be returned after the exam closes';
+  end if;
+
+  select qa.marking_status, qa.mcq_marks into att
+  from public.quiz_attempts qa
+  where qa.quiz_id = target_quiz_id and qa.student_id = target_student_id and qa.submitted_at is not null
+  for update;
+
+  if not found then
+    raise exception 'No submission from this student';
+  end if;
+
+  if att.marking_status not in ('pending', 'marking') then
+    raise exception 'This paper cannot be returned (status: %)', att.marking_status;
+  end if;
+
+  expected := qz.class_id::text || '/' || target_quiz_id::text || '/' || target_student_id::text || '.pdf';
+
+  if pdf_path is distinct from expected then
+    raise exception 'Invalid file path';
+  end if;
+
+  perform public.validate_question_marks(target_quiz_id, marks_json);
+
+  select k.ord into missing
+  from public.quiz_questions k
+  where k.quiz_id = target_quiz_id
+    and k.question_type = 'written'
+    and (marks_json -> k.ord::text ->> 'marks') is null
+  order by k.ord
+  limit 1;
+
+  if missing is not null then
+    raise exception 'Give a mark for question % before returning the paper', missing;
+  end if;
+
+  select coalesce(sum((marks_json -> k.ord::text ->> 'marks')::numeric), 0)
+  into wsum
+  from public.quiz_questions k
+  where k.quiz_id = target_quiz_id and k.question_type = 'written';
+
+  select coalesce(sum(k.marks), 0) into total_m from public.quiz_questions k where k.quiz_id = target_quiz_id;
+
+  update public.quiz_attempts qa
+  set written_marks = wsum,
+      score = coalesce(qa.mcq_marks, 0) + wsum,
+      total = total_m,
+      question_marks = marks_json,
+      overall_comment = left(overall_text, 2000),
+      marking_status = 'released',
+      released_at = now(),
+      marked_by = auth.uid(),
+      marked_pdf_path = pdf_path
+  where qa.quiz_id = target_quiz_id and qa.student_id = target_student_id;
+
+  perform public.notify_users(
+    array[target_student_id],
+    'paper_marked',
+    'Your paper has been marked',
+    qz.title || ' - open it to see your marks and comments, or print it.',
+    qz.class_id,
+    jsonb_build_object('quiz_id', target_quiz_id)
+  );
+
+  insert into public.audit_logs (user_id, action, table_name, record_id, metadata)
+  values (auth.uid(), 'release_marked_paper', 'quiz_attempts', target_student_id,
+          jsonb_build_object('quiz_id', target_quiz_id));
+end;
+$$;
+
+grant execute on function public.release_marked_paper(uuid, uuid, text, jsonb, text) to authenticated;
+
+-- 13f. Take a returned paper back for corrections (the student loses access until it is returned again)
+create or replace function public.reopen_marked_paper(target_quiz_id uuid, target_student_id uuid)
+returns void
+language plpgsql security definer set search_path = public
+as $$
+begin
+  if not public.can_mark_quiz(target_quiz_id) then
+    raise exception 'Not authorized';
+  end if;
+
+  update public.quiz_attempts qa
+  set marking_status = 'marking', released_at = null
+  where qa.quiz_id = target_quiz_id
+    and qa.student_id = target_student_id
+    and qa.marking_status = 'released';
+
+  if not found then
+    raise exception 'This paper is not in the returned state';
+  end if;
+
+  insert into public.audit_logs (user_id, action, table_name, record_id, metadata)
+  values (auth.uid(), 'reopen_marked_paper', 'quiz_attempts', target_student_id,
+          jsonb_build_object('quiz_id', target_quiz_id));
+end;
+$$;
+
+grant execute on function public.reopen_marked_paper(uuid, uuid) to authenticated;
+
+-- 13g. Papers waiting for the lecturer (for the Home card)
+create or replace function public.list_papers_to_mark()
+returns table (
+  quiz_id uuid,
+  class_id uuid,
+  class_name text,
+  title text,
+  closes_at timestamptz,
+  waiting bigint,
+  in_progress bigint,
+  returned bigint
+)
+language plpgsql stable security definer set search_path = public
+as $$
+begin
+  if auth.uid() is null then
+    raise exception 'Authentication required';
+  end if;
+
+  return query
+  select z.id, z.class_id, c.name, z.title, z.closes_at,
+         count(*) filter (where a.marking_status = 'pending'),
+         count(*) filter (where a.marking_status = 'marking'),
+         count(*) filter (where a.marking_status = 'released')
+  from public.quizzes z
+  join public.classes c on c.id = z.class_id
+  join public.quiz_attempts a on a.quiz_id = z.id and a.submitted_at is not null
+  where z.is_exam
+    and z.answer_format <> 'choices'
+    and now() >= z.closes_at
+    and public.can_mark_quiz(z.id)
+  group by z.id, z.class_id, c.name, z.title, z.closes_at
+  having count(*) filter (where a.marking_status in ('pending', 'marking')) > 0
+  order by z.closes_at desc;
+end;
+$$;
+
+grant execute on function public.list_papers_to_mark() to authenticated;
+
+-- 14. Student: my own result and the link to my marked paper (the PDF path is given only after it is returned)
+create or replace function public.get_my_marked_paper(target_quiz_id uuid)
+returns table (
+  marking_status text,
+  score numeric,
+  total numeric,
+  marked_pdf_path text,
+  released_at timestamptz,
+  overall_comment text
+)
+language plpgsql stable security definer set search_path = public
+as $$
+#variable_conflict use_column
+declare
+  closes timestamptz;
+begin
+  select z.closes_at into closes from public.quizzes z where z.id = target_quiz_id;
+
+  if closes is null then
+    raise exception 'Not found';
+  end if;
+
+  return query
+  select a.marking_status,
+         case when a.marking_status = 'released'
+                or (a.marking_status = 'auto' and now() > closes) then a.score else null end,
+         a.total,
+         case when a.marking_status = 'released' then a.marked_pdf_path else null end,
+         a.released_at,
+         case when a.marking_status = 'released' then a.overall_comment else null end
+  from public.quiz_attempts a
+  where a.quiz_id = target_quiz_id and a.student_id = auth.uid() and a.submitted_at is not null;
+end;
+$$;
+
+grant execute on function public.get_my_marked_paper(uuid) to authenticated;
+
+notify pgrst, 'reload schema';
+
+-- END OF WRITTEN EXAMS AND MARKING SQL

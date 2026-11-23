@@ -12,15 +12,19 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.example.ui.theme.DarkSurfaceElevated
+import com.example.ui.theme.ButtonRadius
+import com.example.ui.theme.ButtonTextStyle
+import com.example.ui.theme.CaptionStyle
+import com.example.ui.theme.ChampagneGold
 import com.example.ui.theme.ErrorContainer
 import com.example.ui.theme.ErrorRed
-import com.example.ui.theme.GoldLight
-import com.example.ui.theme.GoldPrimary
-import com.example.ui.theme.TextPrimary
+import com.example.ui.theme.MetallicGold
+import com.example.ui.theme.RoyalSurfaceHigh
+import com.example.ui.theme.SilverWhite
 
 @Composable
 fun ClassRepSnackbarHost(
@@ -33,22 +37,23 @@ fun ClassRepSnackbarHost(
     modifier = modifier.padding(horizontal = 16.dp, vertical = 12.dp)
   ) { data: SnackbarData ->
     Surface(
-      shape = RoundedCornerShape(12.dp),
-      color = if (isError) ErrorContainer else DarkSurfaceElevated,
-      border = BorderStroke(1.2.dp, if (isError) ErrorRed else GoldPrimary)
+      shape = RoundedCornerShape(ButtonRadius),
+      color = if (isError) ErrorContainer else RoyalSurfaceHigh,
+      border = BorderStroke(1.2.dp, if (isError) ErrorRed else MetallicGold)
     ) {
       Snackbar(
-        containerColor = androidx.compose.ui.graphics.Color.Transparent,
-        contentColor = TextPrimary,
+        containerColor = Color.Transparent,
+        contentColor = SilverWhite,
         action = {
           val actionLabel = data.visuals.actionLabel
           if (!actionLabel.isNullOrBlank()) {
             TextButton(onClick = { data.performAction() }) {
               Text(
                 text = actionLabel,
-                fontSize = 14.sp,
-                fontWeight = FontWeight.Bold,
-                color = if (isError) ErrorRed else GoldLight,
+                style = ButtonTextStyle.copy(
+                  color = if (isError) ErrorRed else ChampagneGold,
+                  fontSize = 14.sp
+                ),
                 maxLines = 1
               )
             }
@@ -57,9 +62,7 @@ fun ClassRepSnackbarHost(
       ) {
         Text(
           text = data.visuals.message,
-          fontSize = 13.5.sp,
-          fontWeight = FontWeight.Medium,
-          color = TextPrimary
+          style = CaptionStyle.copy(color = SilverWhite, fontWeight = FontWeight.Medium)
         )
       }
     }

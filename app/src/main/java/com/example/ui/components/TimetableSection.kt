@@ -9,6 +9,7 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.defaultMinSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
@@ -29,20 +30,28 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.shadow
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.data.ScheduleItem
+import com.example.ui.theme.ButtonTextStyle
+import com.example.ui.theme.CaptionStyle
+import com.example.ui.theme.CardTitleStyle
+import com.example.ui.theme.ChampagneGold
 import com.example.ui.theme.DarkBorder
-import com.example.ui.theme.DarkCard
-import com.example.ui.theme.DarkSurface
-import com.example.ui.theme.DarkTextOnGold
-import com.example.ui.theme.GoldLight
-import com.example.ui.theme.GoldPrimary
+import com.example.ui.theme.ElectricViolet
+import com.example.ui.theme.FieldLabelStyle
+import com.example.ui.theme.Lavender
+import com.example.ui.theme.MetallicGold
+import com.example.ui.theme.Midnight
+import com.example.ui.theme.RoyalCardSurface
+import com.example.ui.theme.RoyalPurple
+import com.example.ui.theme.RoyalSurfaceHigh
 import com.example.ui.theme.SectionHeadingStyle
-import com.example.ui.theme.TextPrimary
-import com.example.ui.theme.TextSecondary
+import com.example.ui.theme.SilverWhite
 
 @Composable
 fun TimetableSection(
@@ -80,33 +89,32 @@ fun TimetableSection(
       Row(verticalAlignment = Alignment.CenterVertically) {
         Text(
           text = "Timetable",
-          style = SectionHeadingStyle,
-          color = TextPrimary,
+          style = SectionHeadingStyle.copy(color = ChampagneGold),
           modifier = Modifier.testTag("timetable_section_title")
         )
         Spacer(modifier = Modifier.width(8.dp))
-        Text(text = "(${schedules.size})", fontSize = 14.sp, color = TextSecondary)
+        Text(text = "(${schedules.size})", style = CaptionStyle.copy(color = Lavender))
       }
 
       Row(verticalAlignment = Alignment.CenterVertically) {
         IconButton(
           onClick = onRefresh,
-          modifier = Modifier.size(36.dp).testTag("refresh_timetable_btn")
+          modifier = Modifier.size(40.dp).testTag("refresh_timetable_btn")
         ) {
-          Icon(Icons.Default.Refresh, contentDescription = "Refresh", tint = GoldLight, modifier = Modifier.size(20.dp))
+          Icon(Icons.Default.Refresh, contentDescription = "Refresh", tint = ChampagneGold, modifier = Modifier.size(20.dp))
         }
 
         if (isStaff) {
           Spacer(modifier = Modifier.width(6.dp))
           Button(
             onClick = onAddClassClick,
-            modifier = Modifier.height(36.dp).testTag("add_class_schedule_btn"),
+            modifier = Modifier.height(40.dp).testTag("add_class_schedule_btn"),
             shape = RoundedCornerShape(10.dp),
-            colors = ButtonDefaults.buttonColors(containerColor = GoldPrimary, contentColor = DarkTextOnGold)
+            colors = ButtonDefaults.buttonColors(containerColor = MetallicGold, contentColor = Midnight)
           ) {
-            Icon(Icons.Default.Add, contentDescription = null, modifier = Modifier.size(14.dp), tint = DarkTextOnGold)
+            Icon(Icons.Default.Add, contentDescription = null, modifier = Modifier.size(16.dp), tint = Midnight)
             Spacer(modifier = Modifier.width(4.dp))
-            Text("Add Class", fontSize = 12.sp, fontWeight = FontWeight.Bold, color = DarkTextOnGold)
+            Text("Add Class", style = ButtonTextStyle.copy(color = Midnight, fontSize = 13.sp))
           }
         }
       }
@@ -114,37 +122,55 @@ fun TimetableSection(
 
     Spacer(modifier = Modifier.height(12.dp))
 
-    // Day filter pills
     Row(
       modifier = Modifier
         .fillMaxWidth()
         .horizontalScroll(rememberScrollState()),
-      horizontalArrangement = Arrangement.spacedBy(6.dp)
+      horizontalArrangement = Arrangement.spacedBy(8.dp)
     ) {
       dayFilters.forEach { (d, label) ->
         val isSelected = selectedDay == d
         val isToday = d == todayDayOfWeek
         val pillText = if (isToday && d != 0) "$label •" else label
+        val pillShape = RoundedCornerShape(10.dp)
+        val glowMod = if (isSelected || isToday) {
+          Modifier.shadow(8.dp, pillShape, ambientColor = ElectricViolet, spotColor = ElectricViolet)
+        } else {
+          Modifier
+        }
 
         Box(
           modifier = Modifier
-            .clip(RoundedCornerShape(10.dp))
-            .background(if (isSelected) GoldPrimary else DarkCard)
+            .defaultMinSize(minHeight = 40.dp)
+            .then(glowMod)
+            .clip(pillShape)
+            .background(
+              if (isSelected) Brush.horizontalGradient(listOf(ChampagneGold, MetallicGold))
+              else Brush.horizontalGradient(listOf(RoyalCardSurface, RoyalCardSurface))
+            )
             .border(
-              width = if (isToday) 1.5.dp else 1.dp,
-              color = if (isSelected) GoldPrimary else if (isToday) GoldPrimary else DarkBorder,
-              shape = RoundedCornerShape(10.dp)
+              width = if (isToday || isSelected) 1.5.dp else 1.dp,
+              color = when {
+                isSelected -> ChampagneGold
+                isToday -> ElectricViolet
+                else -> DarkBorder
+              },
+              shape = pillShape
             )
             .clickable { onSelectDay(d) }
-            .padding(horizontal = 12.dp, vertical = 7.dp)
+            .padding(horizontal = 13.dp, vertical = 8.dp)
             .testTag("day_filter_$d"),
           contentAlignment = Alignment.Center
         ) {
           Text(
             text = pillText,
-            fontSize = 12.sp,
-            fontWeight = if (isSelected || isToday) FontWeight.Bold else FontWeight.Normal,
-            color = if (isSelected) DarkTextOnGold else if (isToday) GoldLight else TextSecondary
+            style = FieldLabelStyle.copy(
+              color = when {
+                isSelected -> Midnight
+                isToday -> ChampagneGold
+                else -> Lavender
+              }
+            )
           )
         }
       }
@@ -174,32 +200,46 @@ fun TimetableSection(
           val dayList = grouped[dayInt].orEmpty()
           val isToday = dayInt == todayDayOfWeek
           val dayName = dayList.firstOrNull()?.dayName ?: "Day $dayInt"
+          val headerShape = RoundedCornerShape(10.dp)
+          val todayGlow = if (isToday) {
+            Modifier.shadow(10.dp, headerShape, ambientColor = ElectricViolet, spotColor = ElectricViolet)
+          } else {
+            Modifier
+          }
 
           Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-            // Day header with Today highlighted in gold
             Row(
               verticalAlignment = Alignment.CenterVertically,
               modifier = Modifier
                 .fillMaxWidth()
-                .clip(RoundedCornerShape(8.dp))
-                .background(if (isToday) GoldPrimary.copy(alpha = 0.12f) else DarkSurface.copy(alpha = 0.4f))
-                .padding(horizontal = 10.dp, vertical = 6.dp)
+                .then(todayGlow)
+                .clip(headerShape)
+                .background(if (isToday) RoyalPurple.copy(alpha = 0.65f) else RoyalSurfaceHigh.copy(alpha = 0.7f))
+                .border(
+                  width = if (isToday) 1.dp else 0.5.dp,
+                  color = if (isToday) ElectricViolet else DarkBorder,
+                  shape = headerShape
+                )
+                .padding(horizontal = 12.dp, vertical = 8.dp)
             ) {
               Text(
                 text = dayName,
-                fontSize = 14.sp,
-                fontWeight = FontWeight.Bold,
-                color = if (isToday) GoldPrimary else TextSecondary
+                style = CardTitleStyle.copy(
+                  color = if (isToday) ChampagneGold else SilverWhite
+                )
               )
               if (isToday) {
                 Spacer(modifier = Modifier.width(8.dp))
                 Box(
                   modifier = Modifier
-                    .clip(RoundedCornerShape(4.dp))
-                    .background(GoldPrimary)
-                    .padding(horizontal = 6.dp, vertical = 2.dp)
+                    .clip(RoundedCornerShape(6.dp))
+                    .background(ElectricViolet)
+                    .padding(horizontal = 8.dp, vertical = 2.dp)
                 ) {
-                  Text("TODAY", fontSize = 9.sp, fontWeight = FontWeight.ExtraBold, color = DarkTextOnGold)
+                  Text(
+                    "TODAY",
+                    style = FieldLabelStyle.copy(color = SilverWhite, fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                  )
                 }
               }
             }

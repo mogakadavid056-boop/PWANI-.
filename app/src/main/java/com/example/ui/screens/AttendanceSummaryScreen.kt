@@ -31,6 +31,10 @@ import com.example.ui.components.ClassRepPullToRefresh
 import com.example.ui.components.EmptyAttendanceState
 import com.example.ui.components.ErrorBanner
 import com.example.ui.components.LoadingSkeleton
+import com.example.ui.components.MetallicGoldText
+import com.example.ui.components.OutlinedGoldButton
+import com.example.ui.components.PrimaryButton
+import com.example.ui.components.RoyalCard
 import com.example.ui.theme.*
 import kotlinx.coroutines.launch
 import java.util.Locale
@@ -77,42 +81,39 @@ fun AttendanceSummaryScreen(
   val classAverage = if (summaryList.isNotEmpty()) summaryList.map { it.percentage }.average() else 0.0
   val below75Count = summaryList.count { it.percentage < 75.0 }
 
-  Box(modifier = Modifier.fillMaxSize().background(DarkBackground).testTag("attendance_summary_screen")) {
+  Box(modifier = Modifier.fillMaxSize().testTag("attendance_summary_screen")) {
     Column(modifier = Modifier.fillMaxSize().padding(horizontal = 20.dp, vertical = 18.dp)) {
       Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-        IconButton(onClick = onBack, modifier = Modifier.size(40.dp).testTag("summary_back_btn")) {
-          Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back", tint = GoldLight)
+        IconButton(onClick = onBack, modifier = Modifier.size(48.dp).testTag("summary_back_btn")) {
+          Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back", tint = ChampagneGold)
         }
         Spacer(modifier = Modifier.width(6.dp))
         Column(modifier = Modifier.weight(1f)) {
-          Text("Attendance Summary", fontSize = 19.sp, fontWeight = FontWeight.Bold, color = GoldLight)
-          Text(className.ifBlank { "Class Attendance" }, fontSize = 12.sp, color = TextSecondary)
+          MetallicGoldText("Attendance", style = ScreenTitleStyle, maxLines = 1)
+          Text(className.ifBlank { "Class Attendance Summary" }, style = CaptionStyle.copy(color = Lavender))
         }
-        IconButton(onClick = loadData, modifier = Modifier.size(40.dp)) {
-          Icon(Icons.Default.Refresh, contentDescription = "Refresh", tint = GoldLight)
+        IconButton(onClick = loadData, modifier = Modifier.size(48.dp)) {
+          Icon(Icons.Default.Refresh, contentDescription = "Refresh", tint = ChampagneGold)
         }
       }
 
       Spacer(modifier = Modifier.height(14.dp))
 
       // Stats Card
-      Box(
-        modifier = Modifier.fillMaxWidth().clip(RoundedCornerShape(12.dp)).background(DarkSurface)
-          .border(1.dp, DarkBorder, RoundedCornerShape(12.dp)).padding(14.dp)
-      ) {
+      RoyalCard {
         Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceAround) {
           Column(horizontalAlignment = Alignment.CenterHorizontally) {
-            Text("Students", fontSize = 11.sp, color = TextSecondary)
-            Text("${summaryList.size}", fontSize = 17.sp, fontWeight = FontWeight.Bold, color = TextPrimary)
+            Text("Students", style = CaptionStyle.copy(color = Lavender))
+            Text("${summaryList.size}", style = CardTitleStyle.copy(color = SilverWhite))
           }
           Column(horizontalAlignment = Alignment.CenterHorizontally) {
-            Text("Class Average", fontSize = 11.sp, color = TextSecondary)
+            Text("Class Average", style = CaptionStyle.copy(color = Lavender))
             val avgStr = String.format(Locale.US, "%.1f%%", classAverage)
-            Text(avgStr, fontSize = 17.sp, fontWeight = FontWeight.Bold, color = if (classAverage >= 75.0) GoldPrimary else ErrorRed)
+            Text(avgStr, style = CardTitleStyle.copy(color = if (classAverage >= 75.0) ChampagneGold else ErrorRed))
           }
           Column(horizontalAlignment = Alignment.CenterHorizontally) {
-            Text("Below 75%", fontSize = 11.sp, color = TextSecondary)
-            Text("$below75Count", fontSize = 17.sp, fontWeight = FontWeight.Bold, color = if (below75Count > 0) ErrorRed else GoldLight)
+            Text("Below 75%", style = CaptionStyle.copy(color = Lavender))
+            Text("$below75Count", style = CardTitleStyle.copy(color = if (below75Count > 0) ErrorRed else ChampagneGold))
           }
         }
       }
@@ -121,7 +122,9 @@ fun AttendanceSummaryScreen(
 
       // Export Buttons: Export CSV and Export PDF side by side
       Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-        OutlinedButton(
+        OutlinedGoldButton(
+          text = "Export CSV",
+          leadingIcon = Icons.Default.FileDownload,
           onClick = {
             isExportingCsv = true
             exportError = null
@@ -132,17 +135,12 @@ fun AttendanceSummaryScreen(
             }
           },
           enabled = !isExportingCsv && !isExportingPdf && summaryList.isNotEmpty(),
-          modifier = Modifier.weight(1f).height(48.dp).testTag("summary_export_csv_btn"),
-          shape = RoundedCornerShape(10.dp),
-          colors = ButtonDefaults.outlinedButtonColors(containerColor = com.example.ui.theme.DarkSurface, contentColor = GoldPrimary),
-          border = androidx.compose.foundation.BorderStroke(1.5.dp, GoldPrimary)
-        ) {
-          Icon(Icons.Default.FileDownload, contentDescription = null, modifier = Modifier.size(18.dp), tint = GoldPrimary)
-          Spacer(modifier = Modifier.width(6.dp))
-          Text("Export CSV", fontSize = 15.sp, fontWeight = FontWeight.Bold, color = GoldPrimary)
-        }
+          modifier = Modifier.weight(1f).testTag("summary_export_csv_btn")
+        )
 
-        Button(
+        PrimaryButton(
+          text = if (isExportingPdf) "PDF..." else "Export PDF",
+          leadingIcon = Icons.Default.PictureAsPdf,
           onClick = {
             if (session != null) {
               isExportingPdf = true
@@ -161,20 +159,9 @@ fun AttendanceSummaryScreen(
             }
           },
           enabled = !isExportingCsv && !isExportingPdf && summaryList.isNotEmpty(),
-          modifier = Modifier.weight(1f).height(48.dp).testTag("summary_export_pdf_btn"),
-          shape = RoundedCornerShape(10.dp),
-          colors = ButtonDefaults.buttonColors(containerColor = GoldPrimary, contentColor = com.example.ui.theme.DarkTextOnGold)
-        ) {
-          if (isExportingPdf) {
-            CircularProgressIndicator(color = com.example.ui.theme.DarkTextOnGold, strokeWidth = 2.dp, modifier = Modifier.size(18.dp))
-            Spacer(modifier = Modifier.width(6.dp))
-            Text("Generating PDF...", fontSize = 13.sp, fontWeight = FontWeight.Bold, color = com.example.ui.theme.DarkTextOnGold)
-          } else {
-            Icon(Icons.Default.PictureAsPdf, contentDescription = null, tint = com.example.ui.theme.DarkTextOnGold, modifier = Modifier.size(18.dp))
-            Spacer(modifier = Modifier.width(6.dp))
-            Text("Export PDF", fontSize = 15.sp, fontWeight = FontWeight.Bold, color = com.example.ui.theme.DarkTextOnGold)
-          }
-        }
+          isLoading = isExportingPdf,
+          modifier = Modifier.weight(1f).testTag("summary_export_pdf_btn")
+        )
       }
 
       val activeErr = errorMessage ?: exportError
@@ -209,23 +196,20 @@ fun AttendanceSummaryScreen(
 @Composable
 private fun SummaryStudentRow(index: Int, item: StudentAttendanceSummaryItem) {
   val isBelow75 = item.percentage < 75.0
-  val pctColor = if (isBelow75) ErrorRed else SuccessGreen
-  Box(
-    modifier = Modifier.fillMaxWidth().clip(RoundedCornerShape(10.dp)).background(DarkSurface)
-      .border(1.dp, if (isBelow75) ErrorRed.copy(alpha = 0.4f) else DarkBorder, RoundedCornerShape(10.dp)).padding(12.dp)
-  ) {
+  val pctColor = if (isBelow75) ErrorRed else SuccessColor
+  RoyalCard(borderColor = if (isBelow75) ErrorRed.copy(alpha = 0.5f) else null) {
     Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-      Text("$index.", fontSize = 13.sp, fontWeight = FontWeight.Bold, color = TextSecondary, modifier = Modifier.width(26.dp))
+      Text("$index.", style = CaptionStyle.copy(color = Lavender, fontWeight = FontWeight.Bold), modifier = Modifier.width(26.dp))
       Column(modifier = Modifier.weight(1f)) {
-        Text(item.fullName, fontSize = 14.sp, fontWeight = FontWeight.SemiBold, color = TextPrimary)
+        Text(item.fullName, style = CardTitleStyle.copy(fontSize = 16.sp))
         if (item.admissionNumber.isNotBlank()) {
-          Text("Adm: ${item.admissionNumber}", fontSize = 13.sp, color = GoldLight)
+          Text("Adm: ${item.admissionNumber}", style = CaptionStyle.copy(color = ChampagneGold))
         }
       }
       Column(horizontalAlignment = Alignment.End) {
         val pctStr = String.format(Locale.US, "%.1f%%", item.percentage)
-        Text(pctStr, fontSize = 14.sp, fontWeight = FontWeight.Bold, color = pctColor)
-        Text("${item.attended} / ${item.total} sessions", fontSize = 13.sp, color = TextSecondary)
+        Text(pctStr, fontFamily = MontserratFamily, fontSize = 15.sp, fontWeight = FontWeight.Bold, color = pctColor)
+        Text("${item.attended} / ${item.total} sessions", style = CaptionStyle.copy(color = Lavender))
       }
     }
   }

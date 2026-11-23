@@ -26,6 +26,7 @@ import com.example.data.StudentSessionTimelineItem
 import com.example.ui.components.EmptyAttendanceState
 import com.example.ui.components.ErrorBanner
 import com.example.ui.components.LoadingSkeleton
+import com.example.ui.components.RoyalCard
 import com.example.ui.theme.*
 import com.example.util.NairobiTimeHelper
 import java.util.Locale
@@ -47,15 +48,15 @@ fun StudentAttendanceDetailScreen(
   BackHandler(onBack = onBack)
   var sessionPendingExcuse by remember { mutableStateOf<StudentSessionTimelineItem?>(null) }
 
-  Box(modifier = Modifier.fillMaxSize().background(DarkBackground).testTag("student_attendance_detail_screen")) {
+  Box(modifier = Modifier.fillMaxSize().testTag("student_attendance_detail_screen")) {
     Column(modifier = Modifier.fillMaxSize().padding(horizontal = 16.dp, vertical = 14.dp)) {
       Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
         IconButton(onClick = onBack, modifier = Modifier.size(48.dp)) {
-          Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back", tint = GoldLight)
+          Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back", tint = ChampagneGold)
         }
         Column(modifier = Modifier.weight(1f)) {
-          Text(student.fullName, fontSize = 18.sp, fontWeight = FontWeight.Bold, color = GoldLight)
-          Text("Adm: ${student.admissionNumber}", fontSize = 13.sp, color = TextSecondary)
+          Text(student.fullName, style = ProfileNameStyle.copy(fontSize = 20.sp))
+          Text("Adm: ${student.admissionNumber}", style = CaptionStyle)
         }
         RiskBadgeChip(student.riskLevel)
       }
@@ -63,18 +64,16 @@ fun StudentAttendanceDetailScreen(
       Spacer(modifier = Modifier.height(10.dp))
 
       val pctStr = String.format(Locale.US, "%.1f%%", student.percentage)
-      Row(
-        modifier = Modifier
-          .fillMaxWidth()
-          .clip(RoundedCornerShape(12.dp))
-          .background(DarkCard)
-          .border(1.dp, DarkBorder, RoundedCornerShape(12.dp))
-          .padding(12.dp),
-        horizontalArrangement = Arrangement.SpaceBetween
-      ) {
-        Text("Attended ${student.attended + student.excused} of ${student.totalSessions} ($pctStr)", fontSize = 14.sp, fontWeight = FontWeight.SemiBold, color = TextPrimary)
-        if (student.missStreak >= 2) {
-          Text("Missed ${student.missStreak} in a row", fontSize = 13.sp, fontWeight = FontWeight.Bold, color = ErrorRed)
+      RoyalCard {
+        Row(
+          modifier = Modifier.fillMaxWidth(),
+          horizontalArrangement = Arrangement.SpaceBetween,
+          verticalAlignment = Alignment.CenterVertically
+        ) {
+          Text("Attended ${student.attended + student.excused} of ${student.totalSessions} ($pctStr)", style = BodyStyle.copy(fontWeight = FontWeight.SemiBold))
+          if (student.missStreak >= 2) {
+            Text("Missed ${student.missStreak} in a row", style = CaptionStyle.copy(fontWeight = FontWeight.Bold, color = ErrorColor))
+          }
         }
       }
 
@@ -85,13 +84,15 @@ fun StudentAttendanceDetailScreen(
       if (!successMessage.isNullOrBlank()) {
         Spacer(modifier = Modifier.height(8.dp))
         Row(
-          modifier = Modifier.fillMaxWidth().clip(RoundedCornerShape(10.dp)).background(SuccessContainer)
-            .border(1.dp, SuccessGreen.copy(alpha = 0.5f), RoundedCornerShape(10.dp)).padding(10.dp),
+          modifier = Modifier.fillMaxWidth().clip(RoundedCornerShape(14.dp)).background(RoyalSuccessContainer)
+            .border(1.dp, SuccessColor.copy(alpha = 0.5f), RoundedCornerShape(14.dp)).padding(10.dp),
           horizontalArrangement = Arrangement.SpaceBetween,
           verticalAlignment = Alignment.CenterVertically
         ) {
-          Text(successMessage, fontSize = 13.sp, color = SuccessGreen, fontWeight = FontWeight.Medium)
-          TextButton(onClick = onDismissSuccess) { Text("OK", color = GoldLight) }
+          Text(successMessage, style = CaptionStyle.copy(color = SuccessColor, fontWeight = FontWeight.Medium), modifier = Modifier.weight(1f))
+          TextButton(onClick = onDismissSuccess, modifier = Modifier.defaultMinSize(minHeight = 48.dp)) {
+            Text("OK", style = ButtonTextStyle.copy(color = ChampagneGold, fontSize = 14.sp))
+          }
         }
       }
 
@@ -141,9 +142,9 @@ private fun TimelineSessionCard(
   onRemoveExcuse: () -> Unit
 ) {
   val statusColor = when (row.status) {
-    "present" -> SuccessGreen
-    "excused" -> Color(0xFF42A5F5)
-    else -> ErrorRed
+    "present" -> SuccessColor
+    "excused" -> ElectricViolet
+    else -> ErrorColor
   }
   val statusLabel = when (row.status) {
     "present" -> "Present"
@@ -153,46 +154,37 @@ private fun TimelineSessionCard(
   val formatted = NairobiTimeHelper.formatIsoToNairobi(row.startsAt)
   val dateStr = if (formatted == "-" || formatted.isBlank()) row.startsAt.take(16).replace("T", " ") else formatted
 
-  Column(
-    modifier = Modifier
-      .fillMaxWidth()
-      .clip(RoundedCornerShape(12.dp))
-      .background(DarkCard)
-      .border(1.dp, DarkBorder, RoundedCornerShape(12.dp))
-      .padding(12.dp)
-  ) {
+  RoyalCard {
     Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
       Column(modifier = Modifier.weight(1f)) {
-        Text(row.title, fontSize = 14.sp, fontWeight = FontWeight.Bold, color = TextPrimary)
-        if (dateStr.isNotBlank()) Text(dateStr, fontSize = 13.sp, color = TextSecondary)
+        Text(row.title, style = CardTitleStyle.copy(fontSize = 16.sp))
+        if (dateStr.isNotBlank()) Text(dateStr, style = CaptionStyle)
       }
       Box(
-        modifier = Modifier.clip(RoundedCornerShape(8.dp)).background(statusColor.copy(alpha = 0.16f))
-          .border(1.dp, statusColor.copy(alpha = 0.55f), RoundedCornerShape(8.dp))
+        modifier = Modifier.clip(RoundedCornerShape(10.dp)).background(statusColor.copy(alpha = 0.16f))
+          .border(1.dp, statusColor.copy(alpha = 0.55f), RoundedCornerShape(10.dp))
           .padding(horizontal = 10.dp, vertical = 4.dp)
       ) {
-        Text(statusLabel, fontSize = 12.sp, fontWeight = FontWeight.Bold, color = statusColor)
+        Text(statusLabel, style = FieldLabelStyle.copy(fontSize = 12.sp, color = statusColor))
       }
     }
     if (row.status == "excused" && row.excuseReason.isNotBlank()) {
-      Spacer(modifier = Modifier.height(6.dp))
-      Text("Reason: ${row.excuseReason}", fontSize = 13.sp, color = Color(0xFF90CAF9))
+      Text("Reason: ${row.excuseReason}", style = CaptionStyle.copy(color = Lavender))
     }
     if (row.status == "absent") {
-      Spacer(modifier = Modifier.height(8.dp))
       OutlinedButton(
         onClick = onExcuse,
         enabled = !isActionLoading,
-        shape = RoundedCornerShape(8.dp),
-        border = BorderStroke(1.dp, GoldPrimary),
-        contentPadding = PaddingValues(horizontal = 12.dp, vertical = 4.dp)
+        shape = RoundedCornerShape(ButtonRadius),
+        modifier = Modifier.defaultMinSize(minHeight = 48.dp),
+        border = BorderStroke(1.dp, MetallicGold),
+        contentPadding = PaddingValues(horizontal = 14.dp, vertical = 6.dp)
       ) {
-        Text("Excuse this absence", fontSize = 13.sp, fontWeight = FontWeight.SemiBold, color = GoldLight)
+        Text("Excuse this absence", style = ButtonTextStyle.copy(fontSize = 14.sp, color = ChampagneGold))
       }
     } else if (row.status == "excused") {
-      Spacer(modifier = Modifier.height(8.dp))
-      TextButton(onClick = onRemoveExcuse, enabled = !isActionLoading) {
-        Text("Remove excuse", fontSize = 13.sp, color = ErrorRed)
+      TextButton(onClick = onRemoveExcuse, enabled = !isActionLoading, modifier = Modifier.defaultMinSize(minHeight = 48.dp)) {
+        Text("Remove excuse", style = ButtonTextStyle.copy(fontSize = 14.sp, color = ErrorColor))
       }
     }
   }
@@ -201,18 +193,18 @@ private fun TimelineSessionCard(
 @Composable
 fun RiskBadgeChip(level: RiskLevel) {
   val color = when (level) {
-    RiskLevel.CRITICAL -> ErrorRed
-    RiskLevel.HIGH -> Color(0xFFFF9800)
-    RiskLevel.WATCH -> Color(0xFFFFD54F)
-    else -> SuccessGreen
+    RiskLevel.CRITICAL -> ErrorColor
+    RiskLevel.HIGH -> ElectricViolet
+    RiskLevel.WATCH -> ChampagneGold
+    else -> SuccessColor
   }
   Box(
     modifier = Modifier
-      .clip(RoundedCornerShape(8.dp))
+      .clip(RoundedCornerShape(10.dp))
       .background(color.copy(alpha = 0.18f))
-      .border(1.dp, color.copy(alpha = 0.6f), RoundedCornerShape(8.dp))
+      .border(1.dp, color.copy(alpha = 0.6f), RoundedCornerShape(10.dp))
       .padding(horizontal = 10.dp, vertical = 4.dp)
   ) {
-    Text(level.label, fontSize = 12.sp, fontWeight = FontWeight.Bold, color = color)
+    Text(level.label, style = FieldLabelStyle.copy(fontSize = 12.sp, color = color))
   }
 }

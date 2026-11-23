@@ -7,6 +7,7 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.AutoAwesome
 import androidx.compose.material.icons.filled.Class
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material3.*
@@ -34,6 +35,8 @@ fun FindClassesScreen(
   isAdmin: Boolean,
   unreadNotificationCount: Int = 0,
   onOpenNotifications: () -> Unit = {},
+  isOnline: Boolean = true,
+  onOpenAssistant: () -> Unit = {},
   onBack: (() -> Unit)? = null,
   onOpenClass: (ClassItem) -> Unit,
   viewModel: ClassSearchViewModel = viewModel()
@@ -48,6 +51,8 @@ fun FindClassesScreen(
     isAdmin = isAdmin,
     unreadNotificationCount = unreadNotificationCount,
     onOpenNotifications = onOpenNotifications,
+    isOnline = isOnline,
+    onOpenAssistant = onOpenAssistant,
     onSearchQueryChanged = { viewModel.onSearchQueryChanged(it) },
     onSchoolFilterChanged = { viewModel.onSchoolFilterChanged(it) },
     onYearFilterChanged = { viewModel.onYearFilterChanged(it) },
@@ -67,6 +72,8 @@ fun FindClassesContent(
   isAdmin: Boolean,
   unreadNotificationCount: Int = 0,
   onOpenNotifications: () -> Unit = {},
+  isOnline: Boolean = true,
+  onOpenAssistant: () -> Unit = {},
   onSearchQueryChanged: (String) -> Unit,
   onSchoolFilterChanged: (SchoolItem?) -> Unit,
   onYearFilterChanged: (Int?) -> Unit,
@@ -81,7 +88,6 @@ fun FindClassesContent(
   Box(
     modifier = Modifier
       .fillMaxSize()
-      .background(DarkBackground)
       .testTag("find_classes_screen")
   ) {
     Column(
@@ -94,24 +100,33 @@ fun FindClassesContent(
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.SpaceBetween
       ) {
-        Row(verticalAlignment = Alignment.CenterVertically) {
+        Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.weight(1f)) {
           if (onBack != null) {
-            IconButton(onClick = onBack, modifier = Modifier.size(40.dp).testTag("find_classes_back_btn")) {
-              Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back", tint = GoldLight)
+            IconButton(onClick = onBack, modifier = Modifier.size(48.dp).testTag("find_classes_back_btn")) {
+              Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back", tint = ChampagneGold)
             }
-            Spacer(modifier = Modifier.width(6.dp))
+            Spacer(modifier = Modifier.width(4.dp))
           }
-          Text(
+          MetallicGoldText(
             text = if (isAdmin && onBack == null) "Classes" else "Find My Classes",
-            style = TitleStyle,
+            style = ScreenTitleStyle,
+            maxLines = 1,
             modifier = Modifier.testTag("find_classes_title")
           )
         }
 
-        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(2.dp)) {
+          if (isOnline) {
+            IconButton(
+              onClick = onOpenAssistant,
+              modifier = Modifier.size(48.dp).testTag("find_classes_assistant_button")
+            ) {
+              Icon(Icons.Default.AutoAwesome, contentDescription = "Assistant", tint = ChampagneGold, modifier = Modifier.size(22.dp))
+            }
+          }
           NotificationBellButton(unreadCount = unreadNotificationCount, onClick = onOpenNotifications)
-          IconButton(onClick = onRefresh, modifier = Modifier.size(40.dp).testTag("find_classes_refresh_btn")) {
-            Icon(Icons.Default.Refresh, contentDescription = "Refresh", tint = GoldLight, modifier = Modifier.size(22.dp))
+          IconButton(onClick = onRefresh, modifier = Modifier.size(48.dp).testTag("find_classes_refresh_btn")) {
+            Icon(Icons.Default.Refresh, contentDescription = "Refresh", tint = ChampagneGold, modifier = Modifier.size(22.dp))
           }
         }
       }
@@ -196,16 +211,13 @@ fun FindClassesContent(
                   contentAlignment = Alignment.Center
                 ) {
                   if (uiState.isLoading) {
-                    CircularProgressIndicator(color = GoldPrimary, modifier = Modifier.size(24.dp), strokeWidth = 2.dp)
+                    CircularProgressIndicator(color = ChampagneGold, modifier = Modifier.size(24.dp), strokeWidth = 2.dp)
                   } else {
-                    OutlinedButton(
+                    OutlinedGoldButton(
+                      text = "Load more",
                       onClick = onLoadMore,
-                      shape = RoundedCornerShape(10.dp),
-                      border = androidx.compose.foundation.BorderStroke(1.dp, GoldPrimary),
                       modifier = Modifier.testTag("find_classes_load_more_btn")
-                    ) {
-                      Text("Load more", color = GoldPrimary, fontSize = 13.sp, fontWeight = FontWeight.Bold)
-                    }
+                    )
                   }
                 }
               }

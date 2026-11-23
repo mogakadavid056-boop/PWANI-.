@@ -44,14 +44,17 @@ import com.example.ui.components.DarkTextField
 import com.example.ui.components.ErrorBanner
 import com.example.ui.components.GoldButton
 import com.example.ui.components.GoldOutlinedButton
-import com.example.ui.theme.DarkBackground
-import com.example.ui.theme.DarkBorder
-import com.example.ui.theme.DarkCard
-import com.example.ui.theme.GoldLight
-import com.example.ui.theme.GoldPrimary
-import com.example.ui.theme.SuccessGreen
-import com.example.ui.theme.TextPrimary
-import com.example.ui.theme.TextSecondary
+import com.example.ui.components.MetallicGoldText
+import com.example.ui.components.RoyalCard
+import com.example.ui.theme.BodyStyle
+import com.example.ui.theme.CaptionStyle
+import com.example.ui.theme.ChampagneGold
+import com.example.ui.theme.Lavender
+import com.example.ui.theme.MetallicGold
+import com.example.ui.theme.RoyalSurfaceHigh
+import com.example.ui.theme.ScreenTitleStyle
+import com.example.ui.theme.SilverWhite
+import com.example.ui.theme.SuccessColor
 
 @Composable
 fun RegisterResultScreen(
@@ -76,11 +79,11 @@ fun RegisterResultScreen(
     is RegisterResultState.LecturerPasscodeWrong -> Icons.Default.WarningAmber
   }
   val iconTint = when (result) {
-    is RegisterResultState.StudentPlaced, is RegisterResultState.LecturerPasscodeRight -> SuccessGreen
-    else -> GoldPrimary
+    is RegisterResultState.StudentPlaced, is RegisterResultState.LecturerPasscodeRight -> SuccessColor
+    else -> ChampagneGold
   }
 
-  Box(modifier = Modifier.fillMaxSize().background(DarkBackground).testTag("register_result_screen")) {
+  Box(modifier = Modifier.fillMaxSize().testTag("register_result_screen")) {
     Column(
       modifier = Modifier
         .fillMaxSize()
@@ -93,8 +96,8 @@ fun RegisterResultScreen(
         modifier = Modifier
           .size(88.dp)
           .clip(CircleShape)
-          .background(iconTint.copy(alpha = 0.14f))
-          .border(2.dp, iconTint.copy(alpha = 0.6f), CircleShape),
+          .background(RoyalSurfaceHigh)
+          .border(2.dp, iconTint.copy(alpha = 0.65f), CircleShape),
         contentAlignment = Alignment.Center
       ) {
         Icon(imageVector = icon, contentDescription = null, tint = iconTint, modifier = Modifier.size(44.dp))
@@ -104,11 +107,9 @@ fun RegisterResultScreen(
 
       when (result) {
         is RegisterResultState.StudentPlaced -> {
-          Text(
+          MetallicGoldText(
             text = "Welcome to ${result.className}",
-            fontSize = 24.sp,
-            fontWeight = FontWeight.Bold,
-            color = GoldLight,
+            style = ScreenTitleStyle,
             textAlign = TextAlign.Center
           )
           Spacer(modifier = Modifier.height(10.dp))
@@ -118,10 +119,7 @@ fun RegisterResultScreen(
             } else {
               "You have been placed in your class and are ready to receive updates and sign attendance."
             },
-            fontSize = 14.sp,
-            color = TextSecondary,
-            textAlign = TextAlign.Center,
-            lineHeight = 20.sp
+            style = BodyStyle.copy(color = Lavender, textAlign = TextAlign.Center)
           )
           Spacer(modifier = Modifier.height(28.dp))
           GoldButton(
@@ -132,20 +130,20 @@ fun RegisterResultScreen(
         }
 
         is RegisterResultState.StudentNotPlaced -> {
-          Text(
-            text = "We could not find your class yet",
-            fontSize = 24.sp,
-            fontWeight = FontWeight.Bold,
-            color = GoldLight,
+          MetallicGoldText(
+            text = "Class Pending",
+            style = ScreenTitleStyle,
             textAlign = TextAlign.Center
           )
-          Spacer(modifier = Modifier.height(10.dp))
+          Spacer(modifier = Modifier.height(8.dp))
+          Text(
+            text = "We could not find your class yet",
+            style = CaptionStyle.copy(color = SilverWhite, textAlign = TextAlign.Center)
+          )
+          Spacer(modifier = Modifier.height(8.dp))
           Text(
             text = result.message ?: "Your class may not have been created yet, or you can join directly with a class code.",
-            fontSize = 14.sp,
-            color = TextSecondary,
-            textAlign = TextAlign.Center,
-            lineHeight = 20.sp
+            style = BodyStyle.copy(color = Lavender, textAlign = TextAlign.Center)
           )
           if (!errorMessage.isNullOrBlank()) {
             Spacer(modifier = Modifier.height(14.dp))
@@ -154,32 +152,23 @@ fun RegisterResultScreen(
           Spacer(modifier = Modifier.height(22.dp))
 
           if (showCodeInput) {
-            Box(
-              modifier = Modifier
-                .fillMaxWidth()
-                .clip(RoundedCornerShape(14.dp))
-                .background(DarkCard)
-                .border(1.dp, DarkBorder, RoundedCornerShape(14.dp))
-                .padding(14.dp)
-            ) {
-              Column {
-                DarkTextField(
-                  value = code,
-                  onValueChange = { code = it.uppercase() },
-                  label = "Class Join Code",
-                  leadingIcon = Icons.Default.Key,
-                  keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.Characters, imeAction = ImeAction.Done),
-                  testTag = "result_join_code_input"
-                )
-                Spacer(modifier = Modifier.height(12.dp))
-                GoldButton(
-                  text = "Join with code",
-                  onClick = { onJoinWithCode(code) },
-                  enabled = code.isNotBlank() && !isLoading,
-                  isLoading = isLoading,
-                  testTag = "result_join_code_submit"
-                )
-              }
+            RoyalCard {
+              DarkTextField(
+                value = code,
+                onValueChange = { code = it.uppercase() },
+                label = "Class Join Code",
+                leadingIcon = Icons.Default.Key,
+                keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.Characters, imeAction = ImeAction.Done),
+                testTag = "result_join_code_input"
+              )
+              Spacer(modifier = Modifier.height(4.dp))
+              GoldButton(
+                text = "Join with code",
+                onClick = { onJoinWithCode(code) },
+                enabled = code.isNotBlank() && !isLoading,
+                isLoading = isLoading,
+                testTag = "result_join_code_submit"
+              )
             }
             Spacer(modifier = Modifier.height(14.dp))
           }
@@ -199,20 +188,15 @@ fun RegisterResultScreen(
         }
 
         is RegisterResultState.LecturerPasscodeRight -> {
-          Text(
-            text = if (result.isVerified) "Welcome, Lecturer!" else "Account created",
-            fontSize = 24.sp,
-            fontWeight = FontWeight.Bold,
-            color = GoldLight,
+          MetallicGoldText(
+            text = if (result.isVerified) "Welcome, Lecturer!" else "Account Created",
+            style = ScreenTitleStyle,
             textAlign = TextAlign.Center
           )
           Spacer(modifier = Modifier.height(10.dp))
           Text(
             text = "Account created. An administrator will verify you shortly. Once verified, add your classes from Find my classes.",
-            fontSize = 14.sp,
-            color = TextPrimary,
-            textAlign = TextAlign.Center,
-            lineHeight = 20.sp
+            style = BodyStyle.copy(color = SilverWhite, textAlign = TextAlign.Center)
           )
           Spacer(modifier = Modifier.height(28.dp))
           if (result.isVerified) {
@@ -231,20 +215,15 @@ fun RegisterResultScreen(
         }
 
         is RegisterResultState.LecturerPasscodeWrong -> {
-          Text(
-            text = "Wrong passcode",
-            fontSize = 24.sp,
-            fontWeight = FontWeight.Bold,
-            color = GoldLight,
+          MetallicGoldText(
+            text = "Wrong Passcode",
+            style = ScreenTitleStyle,
             textAlign = TextAlign.Center
           )
           Spacer(modifier = Modifier.height(10.dp))
           Text(
             text = "Wrong passcode. Your account was created as a student. You can try again from Profile.",
-            fontSize = 14.sp,
-            color = TextSecondary,
-            textAlign = TextAlign.Center,
-            lineHeight = 20.sp
+            style = BodyStyle.copy(color = Lavender, textAlign = TextAlign.Center)
           )
           Spacer(modifier = Modifier.height(28.dp))
           GoldButton(

@@ -37,18 +37,24 @@ import androidx.compose.ui.unit.sp
 import com.example.data.PollItem
 import com.example.data.PollOption
 import com.example.data.PollResultsData
+import androidx.compose.foundation.layout.defaultMinSize
 import com.example.ui.components.ConfirmActionDialog
 import com.example.ui.components.ErrorBanner
+import com.example.ui.components.MetallicGoldText
 import com.example.ui.components.PollResultsView
 import com.example.ui.components.PollVotingView
-import com.example.ui.theme.DarkBackground
+import com.example.ui.components.RoyalCard
+import com.example.ui.theme.BodyStyle
+import com.example.ui.theme.ButtonRadius
+import com.example.ui.theme.ButtonTextStyle
+import com.example.ui.theme.ChampagneGold
 import com.example.ui.theme.DarkBorder
-import com.example.ui.theme.DarkCard
-import com.example.ui.theme.DarkSurface
-import com.example.ui.theme.GoldLight
-import com.example.ui.theme.GoldPrimary
-import com.example.ui.theme.TextPrimary
-import com.example.ui.theme.TextSecondary
+import com.example.ui.theme.ErrorColor
+import com.example.ui.theme.FieldLabelStyle
+import com.example.ui.theme.Lavender
+import com.example.ui.theme.MetallicGold
+import com.example.ui.theme.RoyalSurfaceHigh
+import com.example.ui.theme.ScreenTitleStyle
 
 @Composable
 fun PollDetailScreen(
@@ -75,7 +81,7 @@ fun PollDetailScreen(
 ) {
   val (isOpen, statusText) = poll.statusBadge()
 
-  Box(modifier = Modifier.fillMaxSize().background(DarkBackground).testTag("poll_detail_screen")) {
+  Box(modifier = Modifier.fillMaxSize().testTag("poll_detail_screen")) {
     Column(
       modifier = Modifier
         .fillMaxSize()
@@ -83,25 +89,26 @@ fun PollDetailScreen(
         .padding(horizontal = 18.dp, vertical = 16.dp)
     ) {
       Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-        IconButton(onClick = onBack, modifier = Modifier.size(40.dp).testTag("poll_detail_back_btn")) {
-          Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back", tint = GoldLight)
+        IconButton(onClick = onBack, modifier = Modifier.size(48.dp).testTag("poll_detail_back_btn")) {
+          Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back", tint = ChampagneGold)
         }
         Spacer(modifier = Modifier.width(6.dp))
-        Text(
+        MetallicGoldText(
           text = "Poll",
-          fontSize = 18.sp,
-          fontWeight = FontWeight.Bold,
-          color = GoldLight,
+          style = ScreenTitleStyle,
           modifier = Modifier.weight(1f)
         )
         Box(
           modifier = Modifier
-            .clip(RoundedCornerShape(6.dp))
-            .background(if (isOpen) GoldPrimary.copy(alpha = 0.15f) else DarkSurface)
-            .border(1.dp, if (isOpen) GoldPrimary.copy(alpha = 0.5f) else DarkBorder, RoundedCornerShape(6.dp))
-            .padding(horizontal = 8.dp, vertical = 4.dp)
+            .clip(RoundedCornerShape(8.dp))
+            .background(if (isOpen) MetallicGold.copy(alpha = 0.16f) else RoyalSurfaceHigh)
+            .border(1.dp, if (isOpen) MetallicGold.copy(alpha = 0.55f) else DarkBorder, RoundedCornerShape(8.dp))
+            .padding(horizontal = 10.dp, vertical = 4.dp)
         ) {
-          Text(text = statusText, fontSize = 11.sp, fontWeight = FontWeight.SemiBold, color = if (isOpen) GoldLight else TextSecondary)
+          Text(
+            text = statusText,
+            style = FieldLabelStyle.copy(fontSize = 12.sp, color = if (isOpen) ChampagneGold else Lavender)
+          )
         }
       }
 
@@ -112,26 +119,16 @@ fun PollDetailScreen(
         Spacer(modifier = Modifier.height(12.dp))
       }
 
-      Box(
-        modifier = Modifier
-          .fillMaxWidth()
-          .clip(RoundedCornerShape(12.dp))
-          .background(DarkCard)
-          .border(1.dp, DarkBorder, RoundedCornerShape(12.dp))
-          .padding(16.dp)
-      ) {
-        Column {
-          Text(text = "QUESTION", fontSize = 11.sp, fontWeight = FontWeight.Bold, color = GoldLight)
-          Spacer(modifier = Modifier.height(6.dp))
-          Text(text = poll.question, fontSize = 16.sp, fontWeight = FontWeight.Bold, color = TextPrimary)
-        }
+      RoyalCard {
+        Text(text = "QUESTION", style = FieldLabelStyle.copy(fontSize = 12.sp))
+        Text(text = poll.question, style = BodyStyle.copy(fontWeight = FontWeight.SemiBold))
       }
 
       Spacer(modifier = Modifier.height(18.dp))
 
       if (isLoading) {
         Box(modifier = Modifier.fillMaxWidth().height(160.dp), contentAlignment = Alignment.Center) {
-          CircularProgressIndicator(color = GoldPrimary, modifier = Modifier.size(32.dp))
+          CircularProgressIndicator(color = MetallicGold, modifier = Modifier.size(32.dp))
         }
       } else if (pollResults != null) {
         PollResultsView(pollResults = pollResults)
@@ -147,38 +144,30 @@ fun PollDetailScreen(
 
       if (isStaff) {
         Spacer(modifier = Modifier.height(28.dp))
-        Box(
-          modifier = Modifier
-            .fillMaxWidth()
-            .clip(RoundedCornerShape(12.dp))
-            .background(DarkSurface)
-            .border(1.dp, DarkBorder, RoundedCornerShape(12.dp))
-            .padding(14.dp)
-        ) {
-          Column {
-            Text("Staff Actions", fontSize = 12.sp, fontWeight = FontWeight.Bold, color = TextSecondary)
-            Spacer(modifier = Modifier.height(10.dp))
-            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-              if (isOpen) {
-                OutlinedButton(
-                  onClick = onPromptClose,
-                  shape = RoundedCornerShape(8.dp),
-                  modifier = Modifier.weight(1f).height(40.dp).testTag("close_poll_now_btn")
-                ) {
-                  Icon(Icons.Default.Close, contentDescription = null, tint = GoldLight, modifier = Modifier.size(14.dp))
-                  Spacer(modifier = Modifier.width(4.dp))
-                  Text("Close Poll", fontSize = 12.sp, color = GoldLight)
-                }
-              }
+        RoyalCard {
+          Text("Staff Actions", style = FieldLabelStyle.copy(color = Lavender))
+          Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            if (isOpen) {
               OutlinedButton(
-                onClick = onPromptDelete,
-                shape = RoundedCornerShape(8.dp),
-                modifier = Modifier.weight(1f).height(40.dp).testTag("delete_poll_btn")
+                onClick = onPromptClose,
+                shape = RoundedCornerShape(ButtonRadius),
+                border = androidx.compose.foundation.BorderStroke(1.dp, MetallicGold.copy(alpha = 0.6f)),
+                modifier = Modifier.weight(1f).defaultMinSize(minHeight = 48.dp).testTag("close_poll_now_btn")
               ) {
-                Icon(Icons.Default.Delete, contentDescription = null, tint = Color(0xFFEF5350), modifier = Modifier.size(14.dp))
+                Icon(Icons.Default.Close, contentDescription = null, tint = ChampagneGold, modifier = Modifier.size(16.dp))
                 Spacer(modifier = Modifier.width(4.dp))
-                Text("Delete Poll", fontSize = 12.sp, color = Color(0xFFEF5350))
+                Text("Close Poll", style = ButtonTextStyle.copy(fontSize = 14.sp, color = ChampagneGold))
               }
+            }
+            OutlinedButton(
+              onClick = onPromptDelete,
+              shape = RoundedCornerShape(ButtonRadius),
+              border = androidx.compose.foundation.BorderStroke(1.dp, ErrorColor.copy(alpha = 0.7f)),
+              modifier = Modifier.weight(1f).defaultMinSize(minHeight = 48.dp).testTag("delete_poll_btn")
+            ) {
+              Icon(Icons.Default.Delete, contentDescription = null, tint = ErrorColor, modifier = Modifier.size(16.dp))
+              Spacer(modifier = Modifier.width(4.dp))
+              Text("Delete Poll", style = ButtonTextStyle.copy(fontSize = 14.sp, color = ErrorColor))
             }
           }
         }
@@ -201,6 +190,7 @@ fun PollDetailScreen(
         title = "Delete Poll?",
         message = "Are you sure you want to permanently delete this poll? This cannot be undone.",
         confirmButtonText = "Delete",
+        confirmButtonColor = ErrorColor,
         isLoading = isActionLoading,
         onDismiss = onDismissDelete,
         onConfirm = onConfirmDelete

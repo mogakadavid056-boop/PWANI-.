@@ -41,16 +41,12 @@ fun SearchClassCard(
         Column(modifier = Modifier.weight(1f)) {
           Text(
             text = item.className,
-            fontSize = 16.sp,
-            fontWeight = FontWeight.Bold,
-            color = TextPrimary
+            style = CardTitleStyle
           )
           if (item.classCode.isNotBlank()) {
             Text(
               text = item.classCode,
-              fontSize = 12.sp,
-              fontWeight = FontWeight.Medium,
-              color = GoldLight
+              style = CaptionStyle.copy(color = ChampagneGold, fontWeight = FontWeight.Medium)
             )
           }
         }
@@ -61,25 +57,25 @@ fun SearchClassCard(
           Button(
             onClick = onOpen,
             colors = ButtonDefaults.buttonColors(containerColor = GoldPrimary, contentColor = DarkTextOnGold),
-            shape = RoundedCornerShape(8.dp),
+            shape = RoundedCornerShape(10.dp),
             contentPadding = PaddingValues(horizontal = 14.dp, vertical = 6.dp),
-            modifier = Modifier.height(34.dp).testTag("search_class_open_btn_${item.id}")
+            modifier = Modifier.height(48.dp).testTag("search_class_open_btn_${item.id}")
           ) {
-            Text("Open", fontSize = 12.sp, fontWeight = FontWeight.Bold)
+            Text("Open", fontFamily = MontserratFamily, fontSize = 13.sp, fontWeight = FontWeight.SemiBold)
           }
         } else {
           OutlinedButton(
             onClick = onAdd,
             enabled = !isClaiming,
             border = androidx.compose.foundation.BorderStroke(1.dp, GoldPrimary),
-            shape = RoundedCornerShape(8.dp),
+            shape = RoundedCornerShape(10.dp),
             contentPadding = PaddingValues(horizontal = 14.dp, vertical = 6.dp),
-            modifier = Modifier.height(34.dp).testTag("search_class_add_btn_${item.id}")
+            modifier = Modifier.height(48.dp).testTag("search_class_add_btn_${item.id}")
           ) {
             if (isClaiming) {
               CircularProgressIndicator(modifier = Modifier.size(16.dp), color = GoldPrimary, strokeWidth = 2.dp)
             } else {
-              Text("Add", fontSize = 12.sp, fontWeight = FontWeight.Bold, color = GoldPrimary)
+              Text("Add", fontFamily = MontserratFamily, fontSize = 13.sp, fontWeight = FontWeight.SemiBold, color = GoldPrimary)
             }
           }
         }
@@ -118,16 +114,17 @@ fun SearchClassCard(
           Box(
             modifier = Modifier
               .clip(RoundedCornerShape(6.dp))
-              .background(androidx.compose.ui.graphics.Color(0xFF332306))
-              .border(1.dp, androidx.compose.ui.graphics.Color(0xFFB27B17), RoundedCornerShape(6.dp))
-              .padding(horizontal = 7.dp, vertical = 2.dp)
+              .background(RoyalSurfaceHigh)
+              .border(1.dp, MetallicGold.copy(alpha = 0.6f), RoundedCornerShape(6.dp))
+              .padding(horizontal = 8.dp, vertical = 3.dp)
               .testTag("no_prefect_chip_${item.id}")
           ) {
             Text(
               text = "No prefect yet",
-              fontSize = 11.sp,
-              fontWeight = FontWeight.Medium,
-              color = androidx.compose.ui.graphics.Color(0xFFFFC043)
+              fontFamily = MontserratFamily,
+              fontSize = 12.sp,
+              fontWeight = FontWeight.SemiBold,
+              color = ChampagneGold
             )
           }
         }

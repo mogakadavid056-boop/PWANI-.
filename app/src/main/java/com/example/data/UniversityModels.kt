@@ -30,5 +30,6 @@ data class ProfileItem(
   val schoolName: String? = null,
   val programmeId: String? = null,
   val programmeName: String? = null,
-  val universityId: String? = null
+  val universityId: String? = null,
+  val showOnLeaderboard: Boolean = true
 )

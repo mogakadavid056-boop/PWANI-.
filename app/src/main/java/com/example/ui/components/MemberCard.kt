@@ -17,7 +17,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Person
-import androidx.compose.material.icons.filled.Star
+import androidx.compose.material.icons.filled.School
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Icon
@@ -29,13 +29,22 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.platform.testTag
-import androidx.compose.ui.text.font.FontFamily
-import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.compose.ui.unit.sp
 import com.example.data.ClassMemberItem
-import com.example.ui.theme.*
+import com.example.ui.theme.ButtonTextStyle
+import com.example.ui.theme.CaptionStyle
+import com.example.ui.theme.CardTitleStyle
+import com.example.ui.theme.ChampagneGold
+import com.example.ui.theme.DarkBorder
+import com.example.ui.theme.ElectricViolet
+import com.example.ui.theme.ErrorRed
+import com.example.ui.theme.Lavender
+import com.example.ui.theme.MetallicGold
+import com.example.ui.theme.Midnight
+import com.example.ui.theme.RoyalSurfaceHigh
+import com.example.ui.theme.SilverWhite
+import com.example.util.RoleHelper
 
 @Composable
 fun MemberCard(
@@ -48,31 +57,15 @@ fun MemberCard(
 ) {
   val isLecturer = member.memberRole.equals("lecturer", ignoreCase = true)
   val isPrefect = member.isRep || member.memberRole.equals("prefect", ignoreCase = true) || member.memberRole.equals("rep", ignoreCase = true)
-  val badgeLabel = when {
-    isLecturer -> "Lecturer"
-    isPrefect -> "Prefect"
-    else -> "Student"
-  }
-  val badgeBg = when {
-    isLecturer -> GoldLight.copy(alpha = 0.2f)
-    isPrefect -> GoldPrimary
-    else -> DarkSurfaceVariant
-  }
-  val badgeBorder = when {
-    isLecturer -> GoldLight
-    isPrefect -> GoldPrimary
-    else -> DarkBorder
-  }
-  val badgeTextColor = when {
-    isLecturer -> GoldLight
-    isPrefect -> DarkTextOnGold
-    else -> TextSecondary
+  val badgeRole = when {
+    isLecturer -> RoleHelper.ROLE_LECTURER
+    isPrefect -> RoleHelper.ROLE_CLASS_REP
+    else -> RoleHelper.ROLE_STUDENT
   }
 
-  ClassRepCard(
-    modifier = modifier
-      .then(if (isPrefect) Modifier.border(1.dp, GoldPrimary.copy(alpha = 0.5f), RoundedCornerShape(16.dp)) else Modifier)
-      .testTag("member_card_${member.userId}"),
+  RoyalCard(
+    borderColor = if (isPrefect) ElectricViolet else null,
+    modifier = modifier.testTag("member_card_${member.userId}"),
     onClick = {}
   ) {
     Column {
@@ -82,18 +75,17 @@ fun MemberCard(
       ) {
         Box(
           modifier = Modifier
-            .size(40.dp)
+            .size(42.dp)
             .clip(CircleShape)
-            .background(DarkSurfaceVariant)
-            .border(1.dp, if (isPrefect) GoldPrimary else DarkBorder, CircleShape),
+            .background(RoyalSurfaceHigh)
+            .border(1.dp, if (isPrefect) ElectricViolet else DarkBorder, CircleShape),
           contentAlignment = Alignment.Center
         ) {
-          Icon(
-            if (isPrefect) Icons.Default.Star else Icons.Default.Person,
-            contentDescription = null,
-            tint = if (isPrefect) GoldPrimary else TextSecondary,
-            modifier = Modifier.size(20.dp)
-          )
+          when {
+            isPrefect -> VioletGemIcon(size = 18.dp, tint = ElectricViolet)
+            isLecturer -> Icon(Icons.Default.School, contentDescription = null, tint = ChampagneGold, modifier = Modifier.size(20.dp))
+            else -> Icon(Icons.Default.Person, contentDescription = null, tint = Lavender, modifier = Modifier.size(20.dp))
+          }
         }
 
         Spacer(modifier = Modifier.width(12.dp))
@@ -102,27 +94,20 @@ fun MemberCard(
           Row(verticalAlignment = Alignment.CenterVertically) {
             Text(
               text = member.fullName.ifBlank { "Member" },
-              fontSize = 15.sp,
-              fontWeight = FontWeight.Bold,
-              color = TextPrimary
+              style = CardTitleStyle.copy(color = SilverWhite),
+              modifier = Modifier.weight(1f, fill = false)
             )
-            Spacer(modifier = Modifier.width(6.dp))
-            Box(
-              modifier = Modifier
-                .clip(RoundedCornerShape(6.dp))
-                .background(badgeBg)
-                .border(1.dp, badgeBorder, RoundedCornerShape(6.dp))
-                .padding(horizontal = 6.dp, vertical = 2.dp)
-                .testTag("member_role_badge_${member.userId}")
-            ) {
-              Text(badgeLabel, fontSize = 10.sp, fontWeight = FontWeight.ExtraBold, color = badgeTextColor)
-            }
+            Spacer(modifier = Modifier.width(8.dp))
+            RoleBadge(
+              role = badgeRole,
+              testTag = "member_role_badge_${member.userId}"
+            )
           }
           if (member.admissionNumber.isNotBlank()) {
+            Spacer(modifier = Modifier.height(2.dp))
             Text(
               text = "Adm: ${member.admissionNumber}",
-              fontSize = 13.sp,
-              color = TextSecondary
+              style = CaptionStyle.copy(color = Lavender)
             )
           }
         }
@@ -139,19 +124,19 @@ fun MemberCard(
           if (isPrefect) {
             OutlinedButton(
               onClick = onRemoveRep,
-              modifier = Modifier.height(34.dp).testTag("remove_rep_btn_${member.userId}"),
-              shape = RoundedCornerShape(8.dp)
+              modifier = Modifier.height(40.dp).testTag("remove_rep_btn_${member.userId}"),
+              shape = RoundedCornerShape(10.dp)
             ) {
-              Text("Remove Prefect", fontSize = 11.sp, color = TextSecondary)
+              Text("Remove Prefect", style = ButtonTextStyle.copy(fontSize = 13.sp, color = Lavender))
             }
           } else {
             Button(
               onClick = onAppointRep,
-              modifier = Modifier.height(34.dp).testTag("make_rep_btn_${member.userId}"),
-              shape = RoundedCornerShape(8.dp),
-              colors = ButtonDefaults.buttonColors(containerColor = GoldPrimary, contentColor = DarkTextOnGold)
+              modifier = Modifier.height(40.dp).testTag("make_rep_btn_${member.userId}"),
+              shape = RoundedCornerShape(10.dp),
+              colors = ButtonDefaults.buttonColors(containerColor = MetallicGold, contentColor = Midnight)
             ) {
-              Text("Make Prefect", fontSize = 12.sp, fontWeight = FontWeight.Bold, color = DarkTextOnGold)
+              Text("Make Prefect", style = ButtonTextStyle.copy(fontSize = 13.sp, color = Midnight))
             }
           }
           Spacer(modifier = Modifier.width(8.dp))
@@ -159,7 +144,7 @@ fun MemberCard(
 
         IconButton(
           onClick = onRemoveFromClass,
-          modifier = Modifier.size(34.dp).testTag("remove_from_class_btn_${member.userId}")
+          modifier = Modifier.size(40.dp).testTag("remove_from_class_btn_${member.userId}")
         ) {
           Icon(Icons.Default.Delete, contentDescription = "Remove from class", tint = ErrorRed, modifier = Modifier.size(18.dp))
         }

@@ -2,7 +2,6 @@ package com.example.ui.screens
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -35,22 +34,24 @@ import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import com.example.data.SupabaseConfig
 import com.example.ui.components.AppBrandHeader
 import com.example.ui.components.GoldButton
 import com.example.ui.components.GoldOutlinedButton
+import com.example.ui.components.RoyalCard
+import com.example.ui.components.RoyalDivider
+import com.example.ui.theme.CaptionStyle
+import com.example.ui.theme.CardTitleStyle
+import com.example.ui.theme.ChampagneGold
 import com.example.ui.theme.DarkBackground
 import com.example.ui.theme.DarkBorder
-import com.example.ui.theme.DarkSurface
-import com.example.ui.theme.DarkSurfaceVariant
-import com.example.ui.theme.GoldDark
-import com.example.ui.theme.GoldLight
-import com.example.ui.theme.GoldPrimary
+import com.example.ui.theme.FieldLabelStyle
+import com.example.ui.theme.Lavender
+import com.example.ui.theme.MetallicGold
+import com.example.ui.theme.RoyalSurfaceHigh
+import com.example.ui.theme.SectionHeadingStyle
+import com.example.ui.theme.SubtitleItalicStyle
 import com.example.ui.theme.SuccessGreen
-import com.example.ui.theme.TextMuted
-import com.example.ui.theme.TextPrimary
-import com.example.ui.theme.TextSecondary
 
 @Composable
 fun LandingScreen(
@@ -62,7 +63,6 @@ fun LandingScreen(
   Box(
     modifier = Modifier
       .fillMaxSize()
-      .background(DarkBackground)
       .testTag("landing_screen")
   ) {
     Column(
@@ -74,19 +74,17 @@ fun LandingScreen(
     ) {
       Spacer(modifier = Modifier.height(12.dp))
 
-      // App Header with Logo
       AppBrandHeader()
 
       Spacer(modifier = Modifier.height(16.dp))
 
-      // Connection Status Badge
       if (isConfigured) {
         Row(
           verticalAlignment = Alignment.CenterVertically,
           modifier = Modifier
             .clip(RoundedCornerShape(20.dp))
-            .background(DarkSurfaceVariant)
-            .border(1.dp, SuccessGreen.copy(alpha = 0.5f), RoundedCornerShape(20.dp))
+            .background(RoyalSurfaceHigh)
+            .border(1.dp, SuccessGreen.copy(alpha = 0.55f), RoundedCornerShape(20.dp))
             .padding(horizontal = 14.dp, vertical = 6.dp)
             .testTag("landing_supabase_connected_badge")
         ) {
@@ -99,70 +97,52 @@ fun LandingScreen(
           Spacer(modifier = Modifier.width(8.dp))
           Text(
             text = "Connected to Supabase",
-            fontSize = 12.sp,
-            fontWeight = FontWeight.SemiBold,
-            color = SuccessGreen
+            style = FieldLabelStyle.copy(color = SuccessGreen)
           )
         }
       } else {
-        Box(
-          modifier = Modifier
-            .fillMaxWidth()
-            .clip(RoundedCornerShape(12.dp))
-            .background(DarkSurfaceVariant)
-            .border(1.dp, GoldDark, RoundedCornerShape(12.dp))
-            .padding(12.dp)
-        ) {
+        RoyalCard(borderColor = MetallicGold.copy(alpha = 0.6f)) {
           Row(verticalAlignment = Alignment.Top) {
             Icon(
               imageVector = Icons.Default.Warning,
               contentDescription = null,
-              tint = GoldLight,
+              tint = ChampagneGold,
               modifier = Modifier.size(20.dp)
             )
             Spacer(modifier = Modifier.width(10.dp))
             Column {
               Text(
                 text = "Supabase Setup Required",
-                fontSize = 13.sp,
-                fontWeight = FontWeight.SemiBold,
-                color = GoldLight
+                style = FieldLabelStyle.copy(color = ChampagneGold)
               )
               Spacer(modifier = Modifier.height(2.dp))
               Text(
                 text = "Configure SUPABASE_URL and SUPABASE_ANON_KEY in AI Studio Secrets to connect live backend.",
-                fontSize = 12.sp,
-                color = TextSecondary,
-                lineHeight = 16.sp
+                style = CaptionStyle
               )
             }
           }
         }
       }
 
-      Spacer(modifier = Modifier.height(20.dp))
+      Spacer(modifier = Modifier.height(18.dp))
 
       Text(
         text = "Unified Class Leadership & Student Sync",
-        fontSize = 20.sp,
-        fontWeight = FontWeight.Bold,
-        color = TextPrimary,
-        textAlign = TextAlign.Center
+        style = SectionHeadingStyle.copy(textAlign = TextAlign.Center)
       )
 
       Spacer(modifier = Modifier.height(6.dp))
 
       Text(
         text = "Empowering university class representatives and students with real-time academic coordination.",
-        fontSize = 13.sp,
-        color = TextSecondary,
-        textAlign = TextAlign.Center,
-        lineHeight = 18.sp
+        style = SubtitleItalicStyle.copy(textAlign = TextAlign.Center)
       )
 
-      Spacer(modifier = Modifier.height(24.dp))
+      Spacer(modifier = Modifier.height(18.dp))
+      RoyalDivider()
+      Spacer(modifier = Modifier.height(18.dp))
 
-      // PROMINENT, FRONT-AND-CENTER ACTION BUTTONS
       GoldButton(
         text = "Sign In",
         onClick = onNavigateToLogin,
@@ -181,13 +161,11 @@ fun LandingScreen(
 
       Text(
         text = "Protected with Supabase Authentication",
-        fontSize = 12.sp,
-        color = TextMuted
+        style = CaptionStyle.copy(color = Lavender)
       )
 
-      Spacer(modifier = Modifier.height(28.dp))
+      Spacer(modifier = Modifier.height(24.dp))
 
-      // FEATURE HIGHLIGHT CARDS (CLICKABLE FOR EASY DISCOVERY)
       FeatureHighlightRow(
         icon = Icons.Default.School,
         title = "University Sync",
@@ -225,55 +203,49 @@ private fun FeatureHighlightRow(
   subtitle: String,
   onClick: () -> Unit
 ) {
-  Row(
-    modifier = Modifier
-      .fillMaxWidth()
-      .clip(RoundedCornerShape(14.dp))
-      .background(DarkSurface)
-      .border(1.dp, DarkBorder, RoundedCornerShape(14.dp))
-      .clickable(onClick = onClick)
-      .padding(horizontal = 16.dp, vertical = 12.dp),
-    verticalAlignment = Alignment.CenterVertically,
-    horizontalArrangement = Arrangement.SpaceBetween
-  ) {
-    Row(verticalAlignment = Alignment.CenterVertically) {
-      Box(
-        modifier = Modifier
-          .size(40.dp)
-          .clip(RoundedCornerShape(10.dp))
-          .background(DarkSurfaceVariant),
-        contentAlignment = Alignment.Center
-      ) {
-        Icon(
-          imageVector = icon,
-          contentDescription = null,
-          tint = GoldPrimary,
-          modifier = Modifier.size(22.dp)
-        )
+  RoyalCard(onClick = onClick) {
+    Row(
+      modifier = Modifier.fillMaxWidth(),
+      verticalAlignment = Alignment.CenterVertically,
+      horizontalArrangement = Arrangement.SpaceBetween
+    ) {
+      Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.weight(1f)) {
+        Box(
+          modifier = Modifier
+            .size(44.dp)
+            .clip(RoundedCornerShape(12.dp))
+            .background(RoyalSurfaceHigh)
+            .border(1.dp, DarkBorder, RoundedCornerShape(12.dp)),
+          contentAlignment = Alignment.Center
+        ) {
+          Icon(
+            imageVector = icon,
+            contentDescription = null,
+            tint = ChampagneGold,
+            modifier = Modifier.size(22.dp)
+          )
+        }
+
+        Spacer(modifier = Modifier.width(14.dp))
+
+        Column {
+          Text(
+            text = title,
+            style = CardTitleStyle.copy(fontWeight = FontWeight.SemiBold)
+          )
+          Text(
+            text = subtitle,
+            style = CaptionStyle
+          )
+        }
       }
 
-      Spacer(modifier = Modifier.width(14.dp))
-
-      Column {
-        Text(
-          text = title,
-          fontSize = 14.sp,
-          fontWeight = FontWeight.SemiBold,
-          color = TextPrimary
-        )
-        Text(
-          text = subtitle,
-          fontSize = 12.sp,
-          color = TextSecondary
-        )
-      }
+      Icon(
+        imageVector = Icons.Default.ChevronRight,
+        contentDescription = null,
+        tint = Lavender,
+        modifier = Modifier.size(20.dp)
+      )
     }
-
-    Icon(
-      imageVector = Icons.Default.ChevronRight,
-      contentDescription = null,
-      tint = TextMuted,
-      modifier = Modifier.size(18.dp)
-    )
   }
 }

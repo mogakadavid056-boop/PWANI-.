@@ -33,7 +33,9 @@ import com.example.ui.components.AppDropdownField
 import com.example.ui.components.MaterialFilePickerBox
 import com.example.ui.components.MaterialModeSelector
 import com.example.ui.components.OfflineToastHelper
+import com.example.ui.components.RoyalCardBorderBrush
 import com.example.ui.components.queryFileInfo
+import com.example.ui.components.royalOutlinedTextFieldColors
 import com.example.ui.theme.*
 import java.io.InputStream
 
@@ -95,28 +97,23 @@ fun AddEditMaterialDialog(
     }
   }
 
-  val fieldColors = OutlinedTextFieldDefaults.colors(
-    focusedBorderColor = GoldPrimary, unfocusedBorderColor = DarkBorder,
-    focusedLabelColor = GoldPrimary, unfocusedLabelColor = TextSecondary,
-    focusedTextColor = TextPrimary, unfocusedTextColor = TextPrimary,
-    focusedContainerColor = DarkSurfaceVariant, unfocusedContainerColor = DarkSurfaceVariant
-  )
+  val fieldColors = royalOutlinedTextFieldColors()
 
   Dialog(onDismissRequest = { if (!isLoading) onDismiss() }) {
     Column(
       modifier = Modifier
         .fillMaxWidth()
         .clip(RoundedCornerShape(20.dp))
-        .background(DarkSurface)
-        .border(1.dp, DarkBorder, RoundedCornerShape(20.dp))
+        .background(RoyalSurfaceHigh)
+        .border(1.dp, RoyalCardBorderBrush, RoundedCornerShape(20.dp))
         .padding(20.dp)
         .verticalScroll(rememberScrollState())
         .testTag("add_edit_material_dialog")
     ) {
       Row(verticalAlignment = Alignment.CenterVertically) {
-        Icon(Icons.Default.Description, contentDescription = null, tint = GoldPrimary, modifier = Modifier.size(22.dp))
+        Icon(Icons.Default.Description, contentDescription = null, tint = ChampagneGold, modifier = Modifier.size(22.dp))
         Spacer(modifier = Modifier.width(8.dp))
-        Text(if (isEditing) "Edit Material" else "Add Material", fontSize = 18.sp, fontWeight = FontWeight.Bold, color = TextPrimary)
+        Text(if (isEditing) "Edit Material" else "Add Material", style = SectionHeadingStyle.copy(fontSize = 18.sp))
       }
       Spacer(modifier = Modifier.height(14.dp))
 
@@ -125,19 +122,17 @@ fun AddEditMaterialDialog(
           Box(
             modifier = Modifier
               .fillMaxWidth()
-              .clip(RoundedCornerShape(12.dp))
-              .background(Color(0xFF332005))
-              .border(1.dp, Color(0xFFFFB300), RoundedCornerShape(12.dp))
+              .clip(RoundedCornerShape(14.dp))
+              .background(RoyalSurface)
+              .border(1.dp, MetallicGold.copy(alpha = 0.6f), RoundedCornerShape(14.dp))
               .padding(12.dp)
           ) {
             Row(verticalAlignment = Alignment.Top) {
-              Icon(Icons.Default.Info, contentDescription = null, tint = Color(0xFFFFB300), modifier = Modifier.size(18.dp))
+              Icon(Icons.Default.Info, contentDescription = null, tint = ChampagneGold, modifier = Modifier.size(18.dp))
               Spacer(modifier = Modifier.width(8.dp))
               Text(
                 text = "No approved units yet. A lecturer must register a unit and the admin must approve it.",
-                fontSize = 12.sp,
-                color = Color(0xFFFFE082),
-                lineHeight = 18.sp
+                style = CaptionStyle.copy(color = ChampagneGold)
               )
             }
           }
@@ -194,25 +189,31 @@ fun AddEditMaterialDialog(
 
       if (uploadProgress != null) {
         Spacer(modifier = Modifier.height(12.dp))
-        Text("Uploading: ${(uploadProgress * 100).toInt()}%", fontSize = 12.sp, color = GoldLight, fontWeight = FontWeight.SemiBold)
+        Text("Uploading: ${(uploadProgress * 100).toInt()}%", style = FieldLabelStyle)
         Spacer(modifier = Modifier.height(4.dp))
         LinearProgressIndicator(
           progress = { uploadProgress },
           modifier = Modifier.fillMaxWidth().height(6.dp).clip(RoundedCornerShape(3.dp)),
-          color = GoldPrimary, trackColor = DarkSurfaceVariant
+          color = MetallicGold, trackColor = RoyalSurface
         )
       }
 
       if (!validationError.isNullOrBlank()) {
         Spacer(modifier = Modifier.height(10.dp))
-        Text(validationError!!, color = ErrorRed, fontSize = 12.sp, modifier = Modifier.testTag("material_validation_error"))
+        Text(validationError!!, style = CaptionStyle.copy(color = ErrorColor), modifier = Modifier.testTag("material_validation_error"))
       }
 
       Spacer(modifier = Modifier.height(18.dp))
       val canSubmit = isEditing || approvedUnits.isNotEmpty()
       Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
-        OutlinedButton(onClick = onDismiss, enabled = !isLoading, shape = RoundedCornerShape(10.dp), modifier = Modifier.testTag("cancel_material_btn")) {
-          Text("Cancel", color = TextSecondary)
+        OutlinedButton(
+          onClick = onDismiss,
+          enabled = !isLoading,
+          shape = RoundedCornerShape(ButtonRadius),
+          border = androidx.compose.foundation.BorderStroke(1.dp, MetallicGold.copy(alpha = 0.55f)),
+          modifier = Modifier.defaultMinSize(minHeight = 48.dp).testTag("cancel_material_btn")
+        ) {
+          Text("Cancel", style = ButtonTextStyle.copy(color = Lavender, fontSize = 14.sp))
         }
         Spacer(modifier = Modifier.width(10.dp))
         val isOnline by com.example.data.NetworkMonitor.isOnline.collectAsState()
@@ -238,12 +239,12 @@ fun AddEditMaterialDialog(
             }
           },
           enabled = !isLoading && canSubmit,
-          colors = ButtonDefaults.buttonColors(containerColor = GoldPrimary, contentColor = DarkTextOnGold),
-          shape = RoundedCornerShape(10.dp),
-          modifier = Modifier.alpha(if (!isOnline) 0.5f else 1f).testTag("submit_material_btn")
+          colors = ButtonDefaults.buttonColors(containerColor = MetallicGold, contentColor = Midnight),
+          shape = RoundedCornerShape(ButtonRadius),
+          modifier = Modifier.defaultMinSize(minHeight = 48.dp).alpha(if (!isOnline) 0.5f else 1f).testTag("submit_material_btn")
         ) {
-          if (isLoading) CircularProgressIndicator(color = DarkTextOnGold, modifier = Modifier.size(16.dp), strokeWidth = 2.dp)
-          else Text(if (isEditing) "Save" else "Upload", fontWeight = FontWeight.Bold)
+          if (isLoading) CircularProgressIndicator(color = Midnight, modifier = Modifier.size(16.dp), strokeWidth = 2.dp)
+          else Text(if (isEditing) "Save" else "Upload", style = ButtonTextStyle.copy(color = Midnight, fontSize = 14.sp))
         }
       }
     }

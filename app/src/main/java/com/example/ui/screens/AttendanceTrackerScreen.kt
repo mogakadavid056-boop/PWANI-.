@@ -31,10 +31,15 @@ import com.example.data.StudentRiskItem
 import com.example.data.UserSession
 import com.example.export.AttendanceRiskPdfExporter
 import com.example.ui.AttendanceTrackerUiState
+import androidx.compose.ui.focus.onFocusChanged
 import com.example.ui.components.ClassRepPullToRefresh
 import com.example.ui.components.EmptyAttendanceState
 import com.example.ui.components.ErrorBanner
 import com.example.ui.components.LoadingSkeleton
+import com.example.ui.components.MetallicGoldText
+import com.example.ui.components.RoyalCard
+import com.example.ui.components.royalOutlinedTextFieldColors
+import com.example.ui.components.violetGlowShadow
 import com.example.ui.theme.*
 import kotlinx.coroutines.launch
 import java.util.Locale
@@ -80,7 +85,7 @@ fun AttendanceTrackerScreen(
   var isExportingPdf by remember { mutableStateOf(false) }
   var exportError by remember { mutableStateOf<String?>(null) }
 
-  Box(modifier = Modifier.fillMaxSize().background(DarkBackground).testTag("attendance_tracker_screen")) {
+  Box(modifier = Modifier.fillMaxSize().testTag("attendance_tracker_screen")) {
     Column(modifier = Modifier.fillMaxSize().padding(horizontal = 16.dp, vertical = 14.dp)) {
       Row(
         modifier = Modifier.fillMaxWidth(),
@@ -89,16 +94,16 @@ fun AttendanceTrackerScreen(
       ) {
         Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.weight(1f)) {
           IconButton(onClick = onBack, modifier = Modifier.size(48.dp)) {
-            Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back", tint = GoldLight)
+            Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back", tint = ChampagneGold)
           }
           Column {
-            Text("Attendance Tracker", fontSize = 18.sp, fontWeight = FontWeight.Bold, color = GoldLight)
-            Text(className, fontSize = 13.sp, color = TextSecondary)
+            MetallicGoldText("Attendance Tracker", style = ScreenTitleStyle.copy(fontSize = 20.sp))
+            Text(className, style = SubtitleItalicStyle.copy(fontSize = 14.sp))
           }
         }
         Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
-          IconButton(onClick = onRefresh, modifier = Modifier.size(44.dp)) {
-            Icon(Icons.Default.Refresh, contentDescription = "Refresh", tint = GoldLight)
+          IconButton(onClick = onRefresh, modifier = Modifier.size(48.dp)) {
+            Icon(Icons.Default.Refresh, contentDescription = "Refresh", tint = ChampagneGold)
           }
           Button(
             onClick = {
@@ -116,14 +121,14 @@ fun AttendanceTrackerScreen(
               }
             },
             enabled = !isExportingPdf && uiState.students.isNotEmpty(),
-            shape = RoundedCornerShape(10.dp),
-            colors = ButtonDefaults.buttonColors(containerColor = GoldPrimary, contentColor = DarkTextOnGold),
+            shape = RoundedCornerShape(ButtonRadius),
+            colors = ButtonDefaults.buttonColors(containerColor = MetallicGold, contentColor = Midnight),
             contentPadding = PaddingValues(horizontal = 12.dp, vertical = 8.dp),
-            modifier = Modifier.testTag("tracker_export_pdf_btn")
+            modifier = Modifier.defaultMinSize(minHeight = 48.dp).testTag("tracker_export_pdf_btn")
           ) {
-            Icon(Icons.Default.PictureAsPdf, contentDescription = null, tint = DarkTextOnGold, modifier = Modifier.size(16.dp))
+            Icon(Icons.Default.PictureAsPdf, contentDescription = null, tint = Midnight, modifier = Modifier.size(16.dp))
             Spacer(modifier = Modifier.width(6.dp))
-            Text(if (isExportingPdf) "PDF..." else "Export PDF", fontSize = 13.sp, fontWeight = FontWeight.Bold, color = DarkTextOnGold)
+            Text(if (isExportingPdf) "PDF..." else "Export PDF", style = ButtonTextStyle.copy(fontSize = 13.sp, color = Midnight))
           }
         }
       }
@@ -137,11 +142,11 @@ fun AttendanceTrackerScreen(
         RiskLevel.entries.forEach { lvl ->
           val selected = uiState.selectedLevel == lvl
           val chipColor = when (lvl) {
-            RiskLevel.CRITICAL -> ErrorRed
-            RiskLevel.HIGH -> Color(0xFFFF9800)
-            RiskLevel.WATCH -> Color(0xFFFFD54F)
-            RiskLevel.OK -> SuccessGreen
-            RiskLevel.ALL -> GoldPrimary
+            RiskLevel.CRITICAL -> ErrorColor
+            RiskLevel.HIGH -> ElectricViolet
+            RiskLevel.WATCH -> ChampagneGold
+            RiskLevel.OK -> SuccessColor
+            RiskLevel.ALL -> MetallicGold
           }
           FilterChip(
             selected = selected,
@@ -149,12 +154,14 @@ fun AttendanceTrackerScreen(
             label = {
               Text(
                 text = "${lvl.label} (${uiState.countFor(lvl)})",
-                fontWeight = if (selected) FontWeight.Bold else FontWeight.Medium,
-                color = if (selected) DarkTextOnGold else chipColor
+                style = FieldLabelStyle.copy(
+                  fontSize = 13.sp,
+                  color = if (selected) Midnight else chipColor
+                )
               )
             },
             colors = FilterChipDefaults.filterChipColors(
-              containerColor = DarkCard,
+              containerColor = RoyalSurfaceHigh,
               selectedContainerColor = chipColor
             )
           )
@@ -163,20 +170,20 @@ fun AttendanceTrackerScreen(
 
       Spacer(modifier = Modifier.height(8.dp))
 
+      var searchFocused by remember { mutableStateOf(false) }
       OutlinedTextField(
         value = uiState.searchQuery,
         onValueChange = onSearchChange,
-        placeholder = { Text("Search student name or admission no.") },
-        leadingIcon = { Icon(Icons.Default.Search, contentDescription = null, tint = GoldLight) },
+        placeholder = { Text("Search student name or admission no.", style = CaptionStyle) },
+        leadingIcon = { Icon(Icons.Default.Search, contentDescription = null, tint = ChampagneGold) },
         singleLine = true,
-        modifier = Modifier.fillMaxWidth().testTag("tracker_search_input"),
-        shape = RoundedCornerShape(12.dp),
-        colors = OutlinedTextFieldDefaults.colors(
-          focusedBorderColor = GoldPrimary,
-          unfocusedBorderColor = DarkBorder,
-          focusedTextColor = TextPrimary,
-          unfocusedTextColor = TextPrimary
-        )
+        modifier = Modifier
+          .fillMaxWidth()
+          .then(violetGlowShadow(searchFocused))
+          .onFocusChanged { searchFocused = it.isFocused }
+          .testTag("tracker_search_input"),
+        shape = RoundedCornerShape(ButtonRadius),
+        colors = royalOutlinedTextFieldColors()
       )
 
       val activeErr = uiState.errorMessage ?: exportError
@@ -216,35 +223,28 @@ private fun StudentRiskCard(item: StudentRiskItem, onClick: () -> Unit) {
   val lastDate = item.lastAttendedAt.takeIf { it.isNotBlank() && !it.equals("null", true) }
     ?.take(10) ?: "Never"
 
-  Column(
-    modifier = Modifier
-      .fillMaxWidth()
-      .clip(RoundedCornerShape(12.dp))
-      .background(DarkCard)
-      .border(1.dp, DarkBorder, RoundedCornerShape(12.dp))
-      .clickable(onClick = onClick)
-      .padding(14.dp)
-      .testTag("tracker_student_card_${item.studentId}"),
-    verticalArrangement = Arrangement.spacedBy(6.dp)
+  RoyalCard(
+    onClick = onClick,
+    modifier = Modifier.testTag("tracker_student_card_${item.studentId}")
   ) {
     Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
       Column(modifier = Modifier.weight(1f)) {
-        Text(item.fullName, fontSize = 15.sp, fontWeight = FontWeight.Bold, color = TextPrimary)
-        Text("Adm: ${item.admissionNumber}", fontSize = 13.sp, color = GoldLight)
+        Text(item.fullName, style = CardTitleStyle)
+        Text("Adm: ${item.admissionNumber}", style = CaptionStyle.copy(color = ChampagneGold))
       }
       RiskBadgeChip(item.riskLevel)
     }
     Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
-      Text("$attendedTotal of ${item.totalSessions} ($pctStr)", fontSize = 13.sp, color = TextPrimary)
+      Text("$attendedTotal of ${item.totalSessions} ($pctStr)", style = BodyStyle.copy(fontSize = 14.sp))
       if (item.missStreak >= 2) {
         Box(
-          modifier = Modifier.clip(RoundedCornerShape(6.dp)).background(ErrorRed.copy(alpha = 0.16f))
+          modifier = Modifier.clip(RoundedCornerShape(8.dp)).background(ErrorColor.copy(alpha = 0.16f))
             .padding(horizontal = 8.dp, vertical = 2.dp)
         ) {
-          Text("Missed ${item.missStreak} in a row", fontSize = 12.sp, fontWeight = FontWeight.Bold, color = ErrorRed)
+          Text("Missed ${item.missStreak} in a row", style = FieldLabelStyle.copy(fontSize = 12.sp, color = ErrorColor))
         }
       }
     }
-    Text("Last attended: $lastDate", fontSize = 13.sp, color = TextSecondary)
+    Text("Last attended: $lastDate", style = CaptionStyle)
   }
 }

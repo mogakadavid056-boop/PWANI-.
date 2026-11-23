@@ -32,6 +32,22 @@ object JsonHelper {
     return obj.optInt(key, default)
   }
 
+  fun doubleVal(obj: JSONObject?, key: String, default: Double = 0.0): Double {
+    if (obj == null || !obj.has(key) || obj.isNull(key)) return default
+    val v = obj.optDouble(key, Double.NaN)
+    if (!v.isNaN()) return v
+    return obj.optString(key, "").trim().toDoubleOrNull() ?: default
+  }
+
+  fun doubleOrNull(obj: JSONObject?, key: String): Double? {
+    if (obj == null || !obj.has(key) || obj.isNull(key)) return null
+    val raw = obj.opt(key) ?: return null
+    if (raw === JSONObject.NULL) return null
+    val d = obj.optDouble(key, Double.NaN)
+    if (!d.isNaN()) return d
+    return obj.optString(key, "").trim().toDoubleOrNull()
+  }
+
   fun orDash(value: String?): String {
     val v = value?.trim().orEmpty()
     return if (v.isBlank() || v.equals("null", ignoreCase = true)) "-" else v

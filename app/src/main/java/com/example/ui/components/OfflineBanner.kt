@@ -20,8 +20,10 @@ import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.example.ui.theme.ChampagneGold
 import com.example.ui.theme.DarkBorder
 import com.example.ui.theme.GoldAccent
+import com.example.ui.theme.RoyalSurfaceHigh
 
 object OfflineToastHelper {
   fun show(context: Context) {
@@ -43,7 +45,7 @@ fun OfflineBanner(
     Box(
       modifier = modifier
         .fillMaxWidth()
-        .background(Color(0xFF261C08))
+        .background(RoyalSurfaceHigh)
         .border(1.dp, DarkBorder)
         .padding(horizontal = 16.dp, vertical = 6.dp)
         .testTag("offline_status_banner")
@@ -56,8 +58,8 @@ fun OfflineBanner(
         Icon(
           imageVector = Icons.Default.WifiOff,
           contentDescription = null,
-          tint = GoldAccent,
-          modifier = Modifier.size(14.dp)
+          tint = ChampagneGold,
+          modifier = Modifier.size(16.dp)
         )
         Spacer(modifier = Modifier.width(6.dp))
         Text(
@@ -67,7 +69,7 @@ fun OfflineBanner(
             "You are offline. Showing saved information."
           },
           color = GoldAccent,
-          fontSize = 11.sp,
+          fontSize = 14.sp,
           fontWeight = FontWeight.Medium
         )
       }

@@ -1,11 +1,13 @@
 package com.example.admin.ui.screens
 
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.defaultMinSize
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -37,25 +39,31 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
+import com.example.admin.assistant.AdminAssistantSparkleButton
 import com.example.admin.data.AdminSearchClassItem
 import com.example.admin.data.SchoolItem
 import com.example.admin.ui.AdminClassesSearchState
 import com.example.admin.ui.components.AdminEmptyState
 import com.example.admin.ui.components.AdminGlassCard
+import com.example.admin.ui.components.AdminMetallicGoldText
 import com.example.admin.ui.components.AdminNotificationBellButton
 import com.example.admin.ui.components.AdminOptionPickerDialog
 import com.example.admin.ui.components.AdminSearchField
 import com.example.admin.ui.components.AdminStatusPill
+import com.example.admin.ui.theme.AdminBorder
+import com.example.admin.ui.theme.AdminCaptionStyle
+import com.example.admin.ui.theme.AdminCardTitleStyle
+import com.example.admin.ui.theme.AdminNavLabelStyle
+import com.example.admin.ui.theme.AdminScreenTitleStyle
 import com.example.admin.ui.theme.AdminSurface
 import com.example.admin.ui.theme.AmberWarning
+import com.example.admin.ui.theme.ChampagneGold
 import com.example.admin.ui.theme.DarkTextOnGold
 import com.example.admin.ui.theme.EmeraldSuccess
-import com.example.admin.ui.theme.GoldLight
 import com.example.admin.ui.theme.GoldPrimary
-import com.example.admin.ui.theme.TextMuted
-import com.example.admin.ui.theme.TextPrimary
-import com.example.admin.ui.theme.TextSecondary
+import com.example.admin.ui.theme.Lavender
+import com.example.admin.ui.theme.MontserratFamily
+import com.example.admin.ui.theme.SilverWhite
 import com.example.admin.util.AdminJsonHelper
 
 @Composable
@@ -63,6 +71,7 @@ fun AdminClassesSearchScreen(
   state: AdminClassesSearchState,
   schools: List<SchoolItem>,
   unreadNotifications: Int,
+  isOnline: Boolean = true,
   onSearchChanged: (String) -> Unit,
   onSchoolFilterChanged: (String?) -> Unit,
   onYearFilterChanged: (Int?) -> Unit,
@@ -70,6 +79,7 @@ fun AdminClassesSearchScreen(
   onRefresh: () -> Unit,
   onLoadMore: () -> Unit,
   onOpenClass: (AdminSearchClassItem) -> Unit,
+  onOpenAssistant: () -> Unit = {},
   onOpenNotifications: () -> Unit
 ) {
   var showSchoolPicker by remember { mutableStateOf(false) }
@@ -77,11 +87,14 @@ fun AdminClassesSearchScreen(
   Column(modifier = Modifier.fillMaxSize().padding(horizontal = 16.dp, vertical = 14.dp).testTag("admin_classes_screen")) {
     Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
       Column(modifier = Modifier.weight(1f)) {
-        Text("Classes", fontSize = 22.sp, fontWeight = FontWeight.Bold, color = TextPrimary)
-        Text("Tap any class to open Class Monitor", fontSize = 12.sp, color = TextSecondary)
+        AdminMetallicGoldText(text = "Classes", style = AdminScreenTitleStyle)
+        Text("Tap any class to open Class Monitor", style = AdminCaptionStyle)
       }
       Row {
-        IconButton(onClick = onRefresh) { Icon(Icons.Default.Refresh, contentDescription = "Refresh classes", tint = GoldPrimary) }
+        AdminAssistantSparkleButton(isOnline = isOnline, onClick = onOpenAssistant)
+        IconButton(onClick = onRefresh, modifier = Modifier.size(48.dp)) {
+          Icon(Icons.Default.Refresh, contentDescription = "Refresh classes", tint = ChampagneGold)
+        }
         AdminNotificationBellButton(unreadCount = unreadNotifications, onClick = onOpenNotifications)
       }
     }
@@ -99,30 +112,36 @@ fun AdminClassesSearchScreen(
       FilterChip(
         selected = state.schoolFilter != null,
         onClick = { showSchoolPicker = true },
+        modifier = Modifier.defaultMinSize(minHeight = 48.dp),
         leadingIcon = { Icon(Icons.Default.FilterList, contentDescription = null, modifier = Modifier.size(16.dp)) },
-        label = { Text(state.schoolFilter ?: "All Schools", fontSize = 12.sp) },
+        label = { Text(state.schoolFilter ?: "All Schools", style = AdminNavLabelStyle) },
+        border = FilterChipDefaults.filterChipBorder(enabled = true, selected = state.schoolFilter != null, borderColor = AdminBorder, selectedBorderColor = ChampagneGold),
         colors = FilterChipDefaults.filterChipColors(
-          selectedContainerColor = GoldPrimary, selectedLabelColor = DarkTextOnGold,
-          containerColor = AdminSurface, labelColor = TextSecondary
+          selectedContainerColor = ChampagneGold, selectedLabelColor = DarkTextOnGold,
+          containerColor = AdminSurface, labelColor = Lavender
         )
       )
       FilterChip(
         selected = state.onlyWithoutPrefect,
         onClick = { onToggleNoPrefect(!state.onlyWithoutPrefect) },
-        label = { Text("Without Prefect", fontSize = 12.sp) },
+        modifier = Modifier.defaultMinSize(minHeight = 48.dp),
+        label = { Text("Without Prefect", style = AdminNavLabelStyle) },
+        border = FilterChipDefaults.filterChipBorder(enabled = true, selected = state.onlyWithoutPrefect, borderColor = AdminBorder, selectedBorderColor = AmberWarning),
         colors = FilterChipDefaults.filterChipColors(
           selectedContainerColor = AmberWarning, selectedLabelColor = DarkTextOnGold,
-          containerColor = AdminSurface, labelColor = TextSecondary
+          containerColor = AdminSurface, labelColor = Lavender
         )
       )
       listOf(null to "All Years", 1 to "Yr 1", 2 to "Yr 2", 3 to "Yr 3", 4 to "Yr 4", 5 to "Yr 5").forEach { (yr, label) ->
         FilterChip(
           selected = state.yearFilter == yr,
           onClick = { onYearFilterChanged(yr) },
-          label = { Text(label, fontSize = 12.sp) },
+          modifier = Modifier.defaultMinSize(minHeight = 48.dp),
+          label = { Text(label, style = AdminNavLabelStyle) },
+          border = FilterChipDefaults.filterChipBorder(enabled = true, selected = state.yearFilter == yr, borderColor = AdminBorder, selectedBorderColor = ChampagneGold),
           colors = FilterChipDefaults.filterChipColors(
-            selectedContainerColor = GoldPrimary, selectedLabelColor = DarkTextOnGold,
-            containerColor = AdminSurface, labelColor = TextSecondary
+            selectedContainerColor = ChampagneGold, selectedLabelColor = DarkTextOnGold,
+            containerColor = AdminSurface, labelColor = Lavender
           )
         )
       }
@@ -142,11 +161,11 @@ fun AdminClassesSearchScreen(
           AdminGlassCard(onClick = { onOpenClass(cls) }) {
             Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.Top) {
               Column(modifier = Modifier.weight(1f)) {
-                Text(cls.className, fontSize = 16.sp, fontWeight = FontWeight.SemiBold, color = TextPrimary)
+                Text(cls.className, style = AdminCardTitleStyle)
                 Spacer(modifier = Modifier.height(3.dp))
                 val meta = listOf(cls.schoolName, cls.programmeName).filter { it.isNotBlank() }.joinToString(" • ")
-                if (meta.isNotBlank()) Text(meta, fontSize = 12.sp, color = TextSecondary)
-                Text("Code: ${AdminJsonHelper.orDash(cls.classCode)} • ${cls.studentCount} students", fontSize = 12.sp, color = TextMuted)
+                if (meta.isNotBlank()) Text(meta, style = AdminCaptionStyle)
+                Text("Code: ${AdminJsonHelper.orDash(cls.classCode)} • ${cls.studentCount} students", style = AdminCaptionStyle.copy(color = SilverWhite.copy(alpha = 0.85f)))
               }
               Spacer(modifier = Modifier.width(8.dp))
               AdminStatusPill(
@@ -161,10 +180,11 @@ fun AdminClassesSearchScreen(
             OutlinedButton(
               onClick = onLoadMore,
               enabled = !state.isLoadingMore,
-              modifier = Modifier.fillMaxWidth().height(46.dp),
-              shape = RoundedCornerShape(10.dp)
+              border = BorderStroke(1.dp, GoldPrimary),
+              modifier = Modifier.fillMaxWidth().height(48.dp),
+              shape = RoundedCornerShape(14.dp)
             ) {
-              Text(if (state.isLoadingMore) "Loading..." else "Load more classes", color = GoldLight)
+              Text(if (state.isLoadingMore) "Loading..." else "Load more classes", fontFamily = MontserratFamily, fontWeight = FontWeight.SemiBold, color = ChampagneGold)
             }
           }
         }

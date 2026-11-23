@@ -9,7 +9,7 @@ import org.robolectric.RobolectricTestRunner
 import org.robolectric.annotation.Config
 
 @RunWith(RobolectricTestRunner::class)
-@Config(sdk = [36])
+@Config(sdk = [34])
 class ExampleRobolectricTest {
 
   @Test
@@ -267,6 +267,7 @@ class ExampleRobolectricTest {
     val manager = com.example.data.SessionManager(context)
     val data = com.example.data.SessionManager.PendingRegistrationData(
       email = "Pending@Uni.Edu",
+      fullName = "Jane Pending",
       isLecturer = false,
       idNumber = "ADM-101",
       phone = "+254700000000",
@@ -282,7 +283,8 @@ class ExampleRobolectricTest {
     manager.savePendingRegistration(data)
     val loaded = manager.getPendingRegistration("pending@uni.edu")
     org.junit.Assert.assertNotNull(loaded)
-    assertEquals("ADM-101", loaded!!.idNumber)
+    assertEquals("Jane Pending", loaded!!.fullName)
+    assertEquals("ADM-101", loaded.idNumber)
     assertEquals(2, loaded.yearOfStudy)
     org.junit.Assert.assertNull(manager.getPendingRegistration("other@uni.edu"))
     manager.clearPendingRegistration()

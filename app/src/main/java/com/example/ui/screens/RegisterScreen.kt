@@ -48,16 +48,20 @@ import com.example.data.ProgrammeItem
 import com.example.data.SchoolItem
 import com.example.ui.components.ErrorBanner
 import com.example.ui.components.GoldButton
+import com.example.ui.components.MetallicGoldText
 import com.example.ui.screens.register.RegisterStep1Role
 import com.example.ui.screens.register.RegisterStep2Details
 import com.example.ui.screens.register.RegisterStep3ClassOrLecturer
 import com.example.ui.screens.register.RegisterStep4Review
 import com.example.ui.screens.register.RegisterWizardState
+import com.example.ui.theme.BodyStyle
+import com.example.ui.theme.ChampagneGold
 import com.example.ui.theme.DarkBackground
-import com.example.ui.theme.DarkSurface
-import com.example.ui.theme.GoldLight
-import com.example.ui.theme.GoldPrimary
-import com.example.ui.theme.TextSecondary
+import com.example.ui.theme.FieldLabelStyle
+import com.example.ui.theme.Lavender
+import com.example.ui.theme.MetallicGold
+import com.example.ui.theme.RoyalSurface
+import com.example.ui.theme.ScreenTitleStyle
 
 @Composable
 fun RegisterScreen(
@@ -94,7 +98,6 @@ fun RegisterScreen(
   Box(
     modifier = Modifier
       .fillMaxSize()
-      .background(DarkBackground)
       .imePadding()
       .testTag("register_screen")
   ) {
@@ -114,16 +117,14 @@ fun RegisterScreen(
             enabled = !isLoading,
             modifier = Modifier.size(48.dp).testTag("register_back_button")
           ) {
-            Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back", tint = GoldLight)
+            Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back", tint = ChampagneGold)
           }
           Spacer(modifier = Modifier.width(4.dp))
-          Text("Create Account", fontSize = 20.sp, fontWeight = FontWeight.Bold, color = GoldLight)
+          MetallicGoldText("Create Account", style = ScreenTitleStyle.copy(fontSize = 22.sp, lineHeight = 28.sp))
         }
         Text(
           text = "Step ${wizard.step} of 4",
-          fontSize = 13.sp,
-          fontWeight = FontWeight.SemiBold,
-          color = GoldPrimary,
+          style = FieldLabelStyle.copy(color = MetallicGold),
           modifier = Modifier.testTag("register_step_label")
         )
       }
@@ -131,8 +132,8 @@ fun RegisterScreen(
       Spacer(modifier = Modifier.height(8.dp))
       LinearProgressIndicator(
         progress = { animatedProgress },
-        color = GoldPrimary,
-        trackColor = DarkSurface,
+        color = MetallicGold,
+        trackColor = RoyalSurface,
         modifier = Modifier
           .fillMaxWidth()
           .height(6.dp)
@@ -212,15 +213,13 @@ fun RegisterScreen(
         horizontalArrangement = Arrangement.Center,
         verticalAlignment = Alignment.CenterVertically
       ) {
-        Text("Already have an account? ", fontSize = 14.sp, color = TextSecondary)
+        Text("Already have an account? ", style = BodyStyle.copy(fontSize = 14.sp, lineHeight = 20.sp, color = Lavender))
         Text(
           text = "Sign In",
-          fontSize = 14.sp,
-          fontWeight = FontWeight.Bold,
-          color = GoldPrimary,
+          style = BodyStyle.copy(fontSize = 14.sp, lineHeight = 20.sp, fontWeight = FontWeight.SemiBold, color = MetallicGold),
           modifier = Modifier
             .clickable(enabled = !isLoading) { onNavigateToLogin() }
-            .padding(vertical = 4.dp)
+            .padding(vertical = 8.dp, horizontal = 4.dp)
             .testTag("register_to_login_link")
         )
       }

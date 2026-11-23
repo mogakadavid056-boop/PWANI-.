@@ -75,9 +75,10 @@ fun ClassCodeHeaderChip(
           )
           Text(
             text = joinCode,
-            fontSize = 14.sp,
-            fontWeight = FontWeight.Bold,
-            fontFamily = FontFamily.Monospace,
+            fontSize = 15.sp,
+            fontWeight = FontWeight.SemiBold,
+            fontFamily = MontserratFamily,
+            letterSpacing = 1.5.sp,
             color = GoldLight,
             modifier = Modifier.testTag("class_code_value_text")
           )
@@ -89,7 +90,7 @@ fun ClassCodeHeaderChip(
               clipboardManager.setText(AnnotatedString(joinCode))
               Toast.makeText(context, "Class code copied!", Toast.LENGTH_SHORT).show()
             },
-            modifier = Modifier.size(40.dp).testTag("class_code_copy_btn")
+            modifier = Modifier.size(48.dp).testTag("class_code_copy_btn")
           ) {
             Icon(Icons.Default.ContentCopy, contentDescription = "Copy class code", tint = GoldLight, modifier = Modifier.size(18.dp))
           }
@@ -101,7 +102,7 @@ fun ClassCodeHeaderChip(
               }
               context.startActivity(Intent.createChooser(sendIntent, "Share Class Code"))
             },
-            modifier = Modifier.size(40.dp).testTag("class_code_share_btn")
+            modifier = Modifier.size(48.dp).testTag("class_code_share_btn")
           ) {
             Icon(Icons.Default.Share, contentDescription = "Share class code", tint = GoldLight, modifier = Modifier.size(18.dp))
           }
@@ -119,12 +120,12 @@ fun ClassCodeHeaderChip(
                 context.startActivity(Intent.createChooser(fallback, "Share via"))
               }
             },
-            modifier = Modifier.size(40.dp).testTag("class_code_whatsapp_btn")
+            modifier = Modifier.size(48.dp).testTag("class_code_whatsapp_btn")
           ) {
             Icon(
               Icons.Default.Chat,
               contentDescription = "Share on WhatsApp",
-              tint = Color(0xFF25D366),
+              tint = SuccessColor,
               modifier = Modifier.size(18.dp)
             )
           }

@@ -34,14 +34,15 @@ fun BoxScope.ClassScreenFab(
   onAddScheduleClick: () -> Unit,
   onCreateGroupClick: () -> Unit,
   onAddMaterialClick: () -> Unit,
-  onCreatePollClick: () -> Unit
+  onCreatePollClick: () -> Unit,
+  onCreateChallengeClick: () -> Unit = {}
 ) {
   val showFab = when (selectedTab) {
     ClassTab.Notices -> canPostNotice
     ClassTab.Attendance -> canManageAttendance
     ClassTab.Timetable -> isStaff
     ClassTab.Groups -> isStaff
-    ClassTab.More -> (moreSubView == MoreSubView.Materials || moreSubView == MoreSubView.Polls) && isStaff
+    ClassTab.More -> (moreSubView == MoreSubView.Materials || moreSubView == MoreSubView.Polls || moreSubView == MoreSubView.Challenges) && isStaff
   }
 
   val isOnline by com.example.data.NetworkMonitor.isOnline.collectAsStateWithLifecycle()
@@ -58,7 +59,12 @@ fun BoxScope.ClassScreenFab(
             ClassTab.Attendance -> onStartAttendanceClick()
             ClassTab.Timetable -> onAddScheduleClick()
             ClassTab.Groups -> onCreateGroupClick()
-            ClassTab.More -> if (moreSubView == MoreSubView.Materials) onAddMaterialClick() else if (moreSubView == MoreSubView.Polls) onCreatePollClick()
+            ClassTab.More -> when (moreSubView) {
+              MoreSubView.Materials -> onAddMaterialClick()
+              MoreSubView.Polls -> onCreatePollClick()
+              MoreSubView.Challenges -> onCreateChallengeClick()
+              else -> {}
+            }
           }
         }
       },

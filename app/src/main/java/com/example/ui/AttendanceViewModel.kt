@@ -113,6 +113,25 @@ class AttendanceViewModel : ViewModel() {
     }
   }
 
+  fun applyExternalStartedSession(
+    sessionId: String,
+    sessionCode: String,
+    remainingSeconds: Long,
+    session: UserSession?
+  ) {
+    _uiState.update {
+      it.copy(
+        isActionLoading = false,
+        activeSessionId = sessionId,
+        activeSessionCode = sessionCode,
+        activeSessionRemainingSeconds = remainingSeconds,
+        canManageActiveSession = true
+      )
+    }
+    if (remainingSeconds > 0L) startCountdown(remainingSeconds)
+    loadSessions(_uiState.value.classId, isStaff = true, canSignAttendance = _uiState.value.canSignAttendance, session = session)
+  }
+
   fun fetchActiveSessionCode(sessionId: String, expiresAtIso: String, session: UserSession?) {
     if (sessionId.isBlank() || session == null || session.accessToken.isBlank()) return
     viewModelScope.launch {

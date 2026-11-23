@@ -25,13 +25,16 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.data.GroupMessageItem
+import com.example.ui.theme.BodyStyle
 import com.example.ui.theme.CaptionStyle
+import com.example.ui.theme.ChampagneGold
 import com.example.ui.theme.DarkBorder
 import com.example.ui.theme.DarkTextOnGold
 import com.example.ui.theme.GoldLight
 import com.example.ui.theme.GoldPrimary
-import com.example.ui.theme.TextPrimary
-import com.example.ui.theme.TextSecondary
+import com.example.ui.theme.Lavender
+import com.example.ui.theme.RoyalSurfaceHigh
+import com.example.ui.theme.SilverWhite
 import java.text.SimpleDateFormat
 import java.util.Locale
 import java.util.TimeZone
@@ -59,9 +62,7 @@ fun ChatMessageBubble(
       if (!isOwn) {
         Text(
           text = message.senderName,
-          fontSize = 11.sp,
-          fontWeight = FontWeight.Bold,
-          color = GoldLight,
+          style = CaptionStyle.copy(color = ChampagneGold, fontWeight = FontWeight.SemiBold),
           modifier = Modifier.padding(start = 6.dp, bottom = 3.dp)
         )
       }
@@ -77,10 +78,10 @@ fun ChatMessageBubble(
       Box(
         modifier = Modifier
           .clip(bubbleShape)
-          .background(if (isOwn) GoldPrimary else Color(0xFF25252B))
+          .background(if (isOwn) GoldPrimary else RoyalSurfaceHigh)
           .border(
             width = 1.dp,
-            color = if (isOwn) GoldLight.copy(alpha = 0.5f) else DarkBorder,
+            color = if (isOwn) GoldLight.copy(alpha = 0.55f) else DarkBorder,
             shape = bubbleShape
           )
           .combinedClickable(
@@ -92,9 +93,11 @@ fun ChatMessageBubble(
       ) {
         Text(
           text = message.messageText,
-          fontSize = 14.sp,
-          color = if (isOwn) DarkTextOnGold else TextPrimary,
-          lineHeight = 20.sp
+          style = BodyStyle.copy(
+            fontSize = 15.sp,
+            lineHeight = 22.sp,
+            color = if (isOwn) DarkTextOnGold else SilverWhite
+          )
         )
       }
 
@@ -103,7 +106,7 @@ fun ChatMessageBubble(
         Spacer(modifier = Modifier.height(2.dp))
         Text(
           text = formattedTime,
-          style = CaptionStyle.copy(fontSize = 10.sp, color = TextSecondary),
+          style = CaptionStyle.copy(fontSize = 12.sp, color = Lavender),
           modifier = Modifier.padding(horizontal = 4.dp)
         )
       }

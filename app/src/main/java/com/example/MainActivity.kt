@@ -43,16 +43,20 @@ class MainActivity : ComponentActivity() {
   private val materialsViewModel: MaterialsViewModel by viewModels()
   private val universityViewModel: UniversityViewModel by viewModels()
   private val pollsViewModel: PollsViewModel by viewModels()
+  private val challengesViewModel: ChallengesViewModel by viewModels()
   private val adminViewModel: AdminViewModel by viewModels()
+  private val assistantViewModel: com.example.assistant.AssistantViewModel by viewModels()
 
   private var pendingAlarmTarget by mutableStateOf<AlarmNavigationTarget?>(null)
   private var pendingNotifTarget by mutableStateOf<NotificationDeepLink?>(null)
 
   override fun onCreate(savedInstanceState: Bundle?) {
     super.onCreate(savedInstanceState)
+    com.example.assistant.configureAppCheck(this, intent)
     enableEdgeToEdge()
     OfflineCache.appContext = applicationContext
     NetworkMonitor.initialize(applicationContext)
+    AppBackgroundManager.initialize(applicationContext)
     AlarmNotificationHelper.ensureChannel(applicationContext)
     AppNotificationDispatcher.ensureChannels(applicationContext)
     AlarmPreferences.refreshState(applicationContext)
@@ -61,13 +65,14 @@ class MainActivity : ComponentActivity() {
     setContent {
       ClassRepTheme {
         val authUiState by authViewModel.uiState.collectAsStateWithLifecycle()
-        val isFirstScreen = authUiState.currentScreen is Screen.Welcome || authUiState.currentScreen is Screen.Landing
-        NatureBackground(isFirstScreen = isFirstScreen) {
+        val isAuthBg = isAuthBackgroundScreen(authUiState.currentScreen)
+        StarfieldBackground(useAuthBackground = isAuthBg) {
           Box(modifier = Modifier.fillMaxSize().safeDrawingPadding()) {
             ClassRepApp(
               authViewModel, classesViewModel, noticesViewModel, attendanceViewModel,
               trackerViewModel, notificationViewModel, membersViewModel, groupsViewModel,
-              timetableViewModel, materialsViewModel, universityViewModel, pollsViewModel, adminViewModel,
+              timetableViewModel, materialsViewModel, universityViewModel, pollsViewModel, challengesViewModel, adminViewModel,
+              assistantViewModel = assistantViewModel,
               pendingAlarmTarget = pendingAlarmTarget, onAlarmTargetHandled = { pendingAlarmTarget = null },
               pendingNotifTarget = pendingNotifTarget, onNotifTargetHandled = { pendingNotifTarget = null },
               onSaveLastClass = { id -> lifecycleScope.launch { authViewModel.sessionManager.saveLastClassId(id) } },
@@ -89,6 +94,20 @@ class MainActivity : ComponentActivity() {
   override fun onResume() {
     super.onResume()
     authViewModel.refreshUserRole()
+    AppBackgroundManager.refreshIfNeeded(authViewModel.uiState.value.session?.accessToken)
+  }
+}
+
+fun isAuthBackgroundScreen(screen: Screen): Boolean {
+  return when (screen) {
+    Screen.Splash,
+    Screen.Welcome,
+    Screen.Landing,
+    Screen.Register,
+    Screen.CheckEmail,
+    Screen.RegisterResult,
+    Screen.Login -> true
+    else -> false
   }
 }
 
@@ -106,7 +125,9 @@ fun ClassRepApp(
   materialsViewModel: MaterialsViewModel,
   universityViewModel: UniversityViewModel,
   pollsViewModel: PollsViewModel,
+  challengesViewModel: ChallengesViewModel,
   adminViewModel: AdminViewModel,
+  assistantViewModel: com.example.assistant.AssistantViewModel? = null,
   pendingAlarmTarget: AlarmNavigationTarget? = null,
   onAlarmTargetHandled: () -> Unit = {},
   pendingNotifTarget: NotificationDeepLink? = null,
@@ -126,6 +147,7 @@ fun ClassRepApp(
   val materialsUiState by materialsViewModel.uiState.collectAsStateWithLifecycle()
   val universityUiState by universityViewModel.uiState.collectAsStateWithLifecycle()
   val pollsUiState by pollsViewModel.uiState.collectAsStateWithLifecycle()
+  val challengesUiState by challengesViewModel.uiState.collectAsStateWithLifecycle()
   val adminUiState by adminViewModel.uiState.collectAsStateWithLifecycle()
   val isOnline by NetworkMonitor.isOnline.collectAsStateWithLifecycle()
   val lastUpdatedText by OfflineCache.lastUpdatedFlow.collectAsStateWithLifecycle()
@@ -135,6 +157,7 @@ fun ClassRepApp(
   var openTimetableSignal by remember { mutableIntStateOf(0) }
   var openTabSignal by remember { mutableStateOf<Triple<Int, ClassTab, MoreSubView>?>(null) }
   var notifReturnScreen by remember { mutableStateOf<Screen>(Screen.Home) }
+  var assistantReturnScreen by remember { mutableStateOf<Screen>(Screen.Home) }
   var resolvedDestinationKey by remember { mutableStateOf<String?>(null) }
 
   LaunchedEffect(uiState.session?.userId) {
@@ -159,6 +182,8 @@ fun ClassRepApp(
     timetableViewModel.loadSchedules(classItem.id, session)
     materialsViewModel.loadMaterials(classItem.id, session)
     pollsViewModel.loadPolls(classItem.id, session)
+    challengesViewModel.loadClassChallengesData(classItem.id, session)
+    if (universityUiState.profile == null) universityViewModel.loadProfile(session)
     viewModel.navigateTo(Screen.ClassDetail)
   }
 
@@ -174,17 +199,34 @@ fun ClassRepApp(
     }
   }
 
+  LaunchedEffect(isOnline, uiState.session?.accessToken) {
+    if (isOnline) {
+      AppBackgroundManager.refreshIfNeeded(
+        accessToken = uiState.session?.accessToken,
+        force = true
+      )
+    }
+  }
+
   LaunchedEffect(isOnline) {
     val s = uiState.session ?: return@LaunchedEffect
     if (!isOnline) return@LaunchedEffect
     OfflineCache.clearLastUpdated()
     when (uiState.currentScreen) {
-      Screen.Home -> { classesViewModel.loadClasses(s); noticesViewModel.loadLatestAnnouncements(s) }
+      Screen.Home -> {
+        classesViewModel.loadClasses(s)
+        noticesViewModel.loadLatestAnnouncements(s)
+        if (RoleHelper.isLecturer(s.role) || RoleHelper.isAdmin(s.role)) {
+          challengesViewModel.loadPapersToMark(s)
+        }
+      }
       Screen.ClassDetail -> noticesUiState.selectedClass?.let { sel ->
         noticesViewModel.selectClassAndLoad(sel, s)
         attendanceViewModel.loadSessions(sel.id, RoleHelper.canManageClassContent(s.role, noticesUiState.isRep), RoleHelper.canSignAttendance(s.role), s)
         timetableViewModel.loadSchedules(sel.id, s); materialsViewModel.loadMaterials(sel.id, s)
         pollsViewModel.loadPolls(sel.id, s); groupsViewModel.loadGroups(sel.id, s)
+        challengesViewModel.loadClassChallengesData(sel.id, s)
+        if (universityUiState.profile == null) universityViewModel.loadProfile(s)
       }
       Screen.Profile -> { universityViewModel.loadProfile(s); if (!RoleHelper.isStaffRole(s.role)) universityViewModel.loadSchools(s.accessToken) }
       Screen.ManageMembers -> noticesUiState.selectedClass?.let { membersViewModel.loadMembers(it.id, s) }
@@ -240,13 +282,29 @@ fun ClassRepApp(
     val handled = MainActivityNotificationRouter.routeDeepLink(
       link = link, session = s, classes = classesUiState.classes, selectedClass = noticesUiState.selectedClass,
       openClassDirectly = openClassDirectly,
-      onOpenTab = { tab, sub -> openTabSignal = Triple((openTabSignal?.first ?: 0) + 1, tab, sub); viewModel.navigateTo(Screen.ClassDetail) },
+      onOpenTab = { tab, sub ->
+        if (sub == MoreSubView.Challenges || sub == MoreSubView.Leaderboard) {
+          val cid = noticesUiState.selectedClass?.id?.ifBlank { link.classId } ?: link.classId
+          if (cid.isNotBlank()) challengesViewModel.loadClassChallengesData(cid, s)
+        }
+        openTabSignal = Triple((openTabSignal?.first ?: 0) + 1, tab, sub)
+        viewModel.navigateTo(Screen.ClassDetail)
+      },
       onOpenMyAttendance = { attendanceViewModel.openMyAttendance() },
       onOpenAttendanceTracker = { cid -> trackerViewModel.loadClassRisk(cid, s); attendanceViewModel.openAttendanceTracker() },
       onOpenSignAttendance = { sid -> attendanceViewModel.openSignAttendance(sid) },
       onOpenManageMembers = { cls -> noticesViewModel.selectClassAndLoad(cls, s); membersViewModel.loadMembers(cls.id, s); viewModel.navigateTo(Screen.ManageMembers) },
       onOpenHome = { viewModel.refreshUserRole(); viewModel.navigateTo(Screen.Home) },
-      onLoadClasses = { if (!classesUiState.isLoading) classesViewModel.loadClasses(it) }
+      onLoadClasses = { if (!classesUiState.isLoading) classesViewModel.loadClasses(it) },
+      onOpenQuizDetail = { kind, quizId, _ ->
+        if (kind == "paper_marked") {
+          challengesViewModel.openMarkedPaperForStudent(
+            context = context,
+            quiz = ChallengeItem(quizId = quizId, title = "Marked Paper"),
+            session = s
+          )
+        }
+      }
     )
     if (handled) notificationViewModel.consumeDeepLink()
   }
@@ -261,13 +319,72 @@ fun ClassRepApp(
     notificationViewModel.refresh(uiState.session)
     viewModel.navigateTo(Screen.Notifications)
   }
+  val onOpenAssistant: () -> Unit = {
+    if (uiState.currentScreen != Screen.Assistant) assistantReturnScreen = uiState.currentScreen
+    viewModel.navigateTo(Screen.Assistant)
+  }
+
+  val assistantExecutor = remember(uiState.session?.userId) {
+    com.example.assistant.ActionExecutor(
+      onNoticesChanged = { cid ->
+        val s = uiState.session
+        if (noticesUiState.selectedClass?.id == cid) noticesViewModel.refreshNotices(s)
+        noticesViewModel.loadLatestAnnouncements(s)
+      },
+      onPollsChanged = { cid ->
+        val s = uiState.session
+        if (pollsUiState.classId == cid) pollsViewModel.refreshPolls(s)
+      },
+      onAttendanceStarted = { cid, sessionId, code, _, remaining ->
+        val s = uiState.session
+        val target = classesUiState.classes.find { it.id == cid }
+          ?: noticesUiState.selectedClass?.takeIf { it.id == cid }
+          ?: ClassItem(id = cid, name = "Class", code = "")
+        if (noticesUiState.selectedClass?.id != cid) openClassDirectly(target)
+        attendanceViewModel.applyExternalStartedSession(sessionId, code, remaining, s)
+      },
+      onTimetableChanged = { cid ->
+        val s = uiState.session
+        if (timetableUiState.classId == cid) timetableViewModel.refreshSchedules(s)
+      },
+      onOpenChallengeDraft = { prefill ->
+        val target = classesUiState.classes.find { it.id == prefill.classId }
+          ?: noticesUiState.selectedClass?.takeIf { it.id == prefill.classId }
+          ?: ClassItem(id = prefill.classId, name = "Class", code = "")
+        if (noticesUiState.selectedClass?.id != target.id) openClassDirectly(target)
+        challengesViewModel.openCreateDialogWithDraft(prefill)
+        openTabSignal = Triple((openTabSignal?.first ?: 0) + 1, ClassTab.More, MoreSubView.Challenges)
+        viewModel.navigateTo(Screen.ClassDetail)
+      },
+      onNavigate = { target ->
+        when (target) {
+          com.example.assistant.MainNavigationTarget.Home -> viewModel.navigateTo(Screen.Home)
+          com.example.assistant.MainNavigationTarget.Profile -> navigateToProfileScreen()
+          com.example.assistant.MainNavigationTarget.Notifications -> onOpenNotifications()
+          is com.example.assistant.MainNavigationTarget.ClassDestination -> {
+            val resolvedClass = target.classId?.let { id ->
+              classesUiState.classes.find { it.id == id } ?: noticesUiState.selectedClass?.takeIf { it.id == id }
+            } ?: noticesUiState.selectedClass ?: classesUiState.classes.firstOrNull()
+            if (resolvedClass != null) {
+              if (noticesUiState.selectedClass?.id != resolvedClass.id) openClassDirectly(resolvedClass)
+              openTabSignal = Triple((openTabSignal?.first ?: 0) + 1, target.tab, target.moreSubView)
+              viewModel.navigateTo(Screen.ClassDetail)
+            } else {
+              viewModel.navigateTo(Screen.Home)
+            }
+          }
+        }
+      }
+    )
+  }
 
   ClassRepAppBackHandlers(
     uiState = uiState, classesUiState = classesUiState, noticesUiState = noticesUiState,
-    attendanceUiState = attendanceUiState, pollsUiState = pollsUiState,
-    notifReturnScreen = notifReturnScreen, viewModel = viewModel, classesViewModel = classesViewModel,
+    attendanceUiState = attendanceUiState, pollsUiState = pollsUiState, challengesUiState = challengesUiState,
+    notifReturnScreen = notifReturnScreen, assistantReturnScreen = assistantReturnScreen,
+    viewModel = viewModel, classesViewModel = classesViewModel,
     noticesViewModel = noticesViewModel, attendanceViewModel = attendanceViewModel,
-    membersViewModel = membersViewModel, pollsViewModel = pollsViewModel
+    membersViewModel = membersViewModel, pollsViewModel = pollsViewModel, challengesViewModel = challengesViewModel
   )
 
   Column(modifier = Modifier.fillMaxSize()) {
@@ -278,14 +395,37 @@ fun ClassRepApp(
         noticesUiState = noticesUiState, attendanceUiState = attendanceUiState, trackerUiState = trackerUiState,
         notificationUiState = notificationUiState, membersUiState = membersUiState, groupsUiState = groupsUiState,
         timetableUiState = timetableUiState, materialsUiState = materialsUiState, universityUiState = universityUiState,
-        pollsUiState = pollsUiState, adminUiState = adminUiState, authViewModel = viewModel,
+        pollsUiState = pollsUiState, challengesUiState = challengesUiState, adminUiState = adminUiState, authViewModel = viewModel,
         classesViewModel = classesViewModel, noticesViewModel = noticesViewModel, attendanceViewModel = attendanceViewModel,
         trackerViewModel = trackerViewModel, notificationViewModel = notificationViewModel, membersViewModel = membersViewModel,
         groupsViewModel = groupsViewModel, timetableViewModel = timetableViewModel, materialsViewModel = materialsViewModel,
-        universityViewModel = universityViewModel, pollsViewModel = pollsViewModel, adminViewModel = adminViewModel,
+        universityViewModel = universityViewModel, pollsViewModel = pollsViewModel, challengesViewModel = challengesViewModel,
+        adminViewModel = adminViewModel,
         openTimetableSignal = openTimetableSignal, openTabSignal = openTabSignal,
         onOpenNotifications = onOpenNotifications, onBackFromNotifications = { viewModel.navigateTo(notifReturnScreen) },
-        openClassDirectly = openClassDirectly, resolveDestination = resolveDestination, navigateToProfileScreen = navigateToProfileScreen
+        isOnline = isOnline,
+        assistantViewModel = assistantViewModel,
+        assistantExecutor = assistantExecutor,
+        assistantReturnScreen = assistantReturnScreen,
+        onOpenAssistant = onOpenAssistant,
+        onBackFromAssistant = { viewModel.navigateTo(assistantReturnScreen) },
+        openClassDirectly = openClassDirectly,
+        onOpenPaperToMark = { paperItem ->
+          val targetClass = classesUiState.classes.find { it.id == paperItem.classId }
+            ?: ClassItem(id = paperItem.classId, name = paperItem.className, code = "")
+          openClassDirectly(targetClass)
+          openTabSignal = Triple((openTabSignal?.first ?: 0) + 1, ClassTab.More, MoreSubView.Challenges)
+          challengesViewModel.openExamSubmissions(
+            ChallengeItem(
+              quizId = paperItem.quizId,
+              title = paperItem.title,
+              isExam = true,
+              answerFormat = ExamAnswerFormat.BOTH
+            ),
+            uiState.session
+          )
+        },
+        resolveDestination = resolveDestination, navigateToProfileScreen = navigateToProfileScreen
       )
     }
     SupportFooter(uiState.currentScreen in listOf(Screen.Welcome, Screen.Login, Screen.Register, Screen.CheckEmail, Screen.RegisterResult))

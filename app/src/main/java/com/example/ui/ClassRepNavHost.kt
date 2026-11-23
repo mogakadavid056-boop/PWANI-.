@@ -9,6 +9,8 @@ import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.animation.togetherWith
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.example.data.ClassItem
 import com.example.data.UserSession
 import com.example.ui.components.ClassTab
@@ -30,6 +32,7 @@ fun ClassRepNavHost(
   materialsUiState: MaterialsUiState,
   universityUiState: UniversityUiState,
   pollsUiState: PollsUiState,
+  challengesUiState: ChallengesUiState = ChallengesUiState(),
   adminUiState: AdminUiState,
   authViewModel: AuthViewModel,
   classesViewModel: ClassesViewModel,
@@ -43,12 +46,20 @@ fun ClassRepNavHost(
   materialsViewModel: MaterialsViewModel,
   universityViewModel: UniversityViewModel,
   pollsViewModel: PollsViewModel,
+  challengesViewModel: ChallengesViewModel? = null,
   adminViewModel: AdminViewModel,
   openTimetableSignal: Int = 0,
   openTabSignal: Triple<Int, ClassTab, MoreSubView>? = null,
   onOpenNotifications: () -> Unit = {},
   onBackFromNotifications: () -> Unit = {},
+  isOnline: Boolean = true,
+  assistantViewModel: com.example.assistant.AssistantViewModel? = null,
+  assistantExecutor: com.example.assistant.ActionExecutor? = null,
+  assistantReturnScreen: Screen = Screen.Home,
+  onOpenAssistant: () -> Unit = {},
+  onBackFromAssistant: () -> Unit = {},
   openClassDirectly: (ClassItem) -> Unit,
+  onOpenPaperToMark: (com.example.data.PaperToMarkItem) -> Unit = {},
   resolveDestination: (UserSession) -> Unit,
   navigateToProfileScreen: () -> Unit
 ) {
@@ -63,6 +74,7 @@ fun ClassRepNavHost(
     label = "main_screen_transition"
   ) { screen ->
     when (screen) {
+      Screen.Splash -> SplashScreen()
       Screen.Welcome, Screen.Landing -> WelcomeScreen(
         onNavigateToLogin = { authViewModel.navigateTo(Screen.Login) }
       )
@@ -136,8 +148,10 @@ fun ClassRepNavHost(
         session = authUiState.session, classesUiState = classesUiState, noticesUiState = noticesUiState,
         universityUiState = universityUiState, adminUiState = adminUiState, classesViewModel = classesViewModel,
         noticesViewModel = noticesViewModel, universityViewModel = universityViewModel, adminViewModel = adminViewModel,
+        challengesUiState = challengesUiState, challengesViewModel = challengesViewModel, onOpenPaperToMark = onOpenPaperToMark,
         authInfoMessage = authUiState.infoMessage, onDismissAuthInfo = { authViewModel.clearInfo() },
         unreadNotificationCount = unreadCount, onOpenNotifications = onOpenNotifications,
+        isOnline = isOnline, onOpenAssistant = onOpenAssistant,
         onNavigateToJoinClass = { classesViewModel.clearError(); authViewModel.navigateTo(Screen.JoinClass) },
         onNavigateToCreateClass = {
           classesViewModel.clearError()
@@ -153,7 +167,7 @@ fun ClassRepNavHost(
           authViewModel.navigateTo(Screen.ManageMembers)
         },
         onBecomeLecturer = { passcode, cb -> authViewModel.becomeLecturer(passcode, cb) },
-        onLogout = { classesViewModel.clearError(); noticesViewModel.clearSelectedClass(); notificationViewModel.stopAndClear(); authViewModel.logout() }
+        onLogout = { classesViewModel.clearError(); noticesViewModel.clearSelectedClass(); notificationViewModel.stopAndClear(); assistantViewModel?.clearOnLogout(); authViewModel.logout() }
       )
       Screen.Profile -> {
         val role = authUiState.session?.role.orEmpty()
@@ -166,10 +180,17 @@ fun ClassRepNavHost(
           onDismissError = { universityViewModel.clearError() }, onDismissSuccess = { universityViewModel.clearSuccess() },
           onSchoolSelected = { s -> universityViewModel.loadProgrammesForSchool(s.id, authUiState.session?.accessToken) },
           onSaveProfile = { name, s, prog, y -> authUiState.session?.let { universityViewModel.updateProfile(it.userId, it.accessToken, name, s, prog, y) } },
+          onToggleLeaderboardVisibility = { visible ->
+            val s = authUiState.session
+            universityViewModel.setLeaderboardVisibility(visible, s) {
+              val cid = noticesUiState.selectedClass?.id.orEmpty()
+              if (cid.isNotBlank()) challengesViewModel?.loadLeaderboard(classId = cid, session = s)
+            }
+          },
           onBecomeLecturer = { passcode, cb -> authViewModel.becomeLecturer(passcode, cb) },
           onShowError = { msg -> universityViewModel.showError(msg) }, onShowSuccess = { msg -> universityViewModel.showSuccess(msg) },
           unreadNotificationCount = unreadCount, onOpenNotifications = onOpenNotifications,
-          onLogout = { classesViewModel.clearError(); noticesViewModel.clearSelectedClass(); notificationViewModel.stopAndClear(); authViewModel.logout() },
+          onLogout = { classesViewModel.clearError(); noticesViewModel.clearSelectedClass(); notificationViewModel.stopAndClear(); assistantViewModel?.clearOnLogout(); authViewModel.logout() },
           onBack = {
             if (noticesUiState.selectedClass != null) authViewModel.navigateTo(Screen.ClassDetail)
             else authViewModel.navigateTo(Screen.Home)
@@ -207,6 +228,7 @@ fun ClassRepNavHost(
       Screen.FindClasses -> FindClassesScreen(
         session = authUiState.session, isAdmin = RoleHelper.isAdmin(authUiState.session?.role),
         unreadNotificationCount = unreadCount, onOpenNotifications = onOpenNotifications,
+        isOnline = isOnline, onOpenAssistant = onOpenAssistant,
         onBack = { authViewModel.navigateTo(Screen.Home) },
         onOpenClass = { cls -> classesViewModel.loadClasses(authUiState.session) { openClassDirectly(cls) } }
       )
@@ -219,15 +241,69 @@ fun ClassRepNavHost(
         onDismissError = { notificationViewModel.clearError() },
         onBack = onBackFromNotifications
       )
+      Screen.Assistant -> {
+        val avm = assistantViewModel
+        val exec = assistantExecutor
+        if (avm != null && exec != null) {
+          val aState by avm.uiState.collectAsStateWithLifecycle()
+          val screenName = if (assistantReturnScreen == Screen.ClassDetail) "class_detail" else "home"
+          com.example.assistant.ChatScreen(
+            uiState = aState,
+            session = authUiState.session,
+            isOnline = isOnline,
+            isRepInClass = noticesUiState.isRep,
+            activeClassId = noticesUiState.selectedClass?.id ?: classesUiState.classes.firstOrNull()?.id,
+            screenContextName = screenName,
+            executor = exec,
+            onEnterAssistant = { avm.onEnterAssistant(authUiState.session) },
+            onAcceptTerms = { avm.acceptTerms(authUiState.session) },
+            onInputChanged = { avm.onInputChanged(it) },
+            onToggleSpeechLanguage = { avm.toggleSpeechLanguage() },
+            onDictationResult = { avm.appendDictation(it) },
+            onNewChat = { avm.newChat(authUiState.session) },
+            onSendMessage = { msg, ctx -> avm.sendMessage(msg, authUiState.session, ctx, isOnline, noticesUiState.isRep) },
+            onConfirmAction = { msgId, actId ->
+              avm.confirmAction(
+                messageId = msgId,
+                actionId = actId,
+                fallbackClassId = noticesUiState.selectedClass?.id ?: classesUiState.classes.firstOrNull()?.id,
+                session = authUiState.session,
+                executor = exec
+              )
+            },
+            onUpdateActionArgs = { msgId, actId, args ->
+              avm.updateActionArgs(msgId, actId, args, authUiState.session?.userId.orEmpty())
+            },
+            onCancelAction = { msgId, actId ->
+              avm.cancelAction(msgId, actId, authUiState.session?.userId.orEmpty())
+            },
+            onDismissError = { avm.clearError() },
+            onBack = onBackFromAssistant
+          )
+        }
+      }
       Screen.ClassDetail -> ClassDetailRoute(
         session = authUiState.session, noticesUiState = noticesUiState, attendanceUiState = attendanceUiState,
         trackerUiState = trackerUiState, groupsUiState = groupsUiState, timetableUiState = timetableUiState,
-        materialsUiState = materialsUiState, pollsUiState = pollsUiState, noticesViewModel = noticesViewModel,
-        classesViewModel = classesViewModel, attendanceViewModel = attendanceViewModel, trackerViewModel = trackerViewModel,
-        membersViewModel = membersViewModel, groupsViewModel = groupsViewModel, timetableViewModel = timetableViewModel,
-        materialsViewModel = materialsViewModel, pollsViewModel = pollsViewModel, allClasses = classesUiState.classes,
+        materialsUiState = materialsUiState, pollsUiState = pollsUiState, challengesUiState = challengesUiState,
+        noticesViewModel = noticesViewModel, classesViewModel = classesViewModel, attendanceViewModel = attendanceViewModel,
+        trackerViewModel = trackerViewModel, membersViewModel = membersViewModel, groupsViewModel = groupsViewModel,
+        timetableViewModel = timetableViewModel, materialsViewModel = materialsViewModel, pollsViewModel = pollsViewModel,
+        challengesViewModel = challengesViewModel,
+        showOnLeaderboard = universityUiState.profile?.showOnLeaderboard ?: true,
+        onToggleLeaderboardVisibility = { visible ->
+          val s = authUiState.session
+          universityViewModel.setLeaderboardVisibility(visible, s) {
+            noticesUiState.selectedClass?.id?.let { cid ->
+              challengesViewModel?.loadLeaderboard(classId = cid, session = s)
+            }
+          }
+        },
+        allClasses = classesUiState.classes,
         unreadNotificationCount = unreadCount, openTimetableSignal = openTimetableSignal, openTabSignal = openTabSignal,
         onOpenNotifications = onOpenNotifications,
+        isOnline = isOnline,
+        onOpenAssistant = onOpenAssistant,
         onMemberDetailsSaved = { name, adm -> authViewModel.updateMemberDetails(name, adm) },
         onSwitchClass = openClassDirectly,
         onNavigateToJoinClass = { classesViewModel.clearError(); authViewModel.navigateTo(Screen.JoinClass) },

@@ -2,5 +2,7 @@
 <paths xmlns:android="http://schemas.android.com/apk/res/android">
     <cache-path name="export_files" path="exports/" />
     <cache-path name="materials" path="materials/" />
+    <cache-path name="marked_papers" path="marked_papers/" />
+    <cache-path name="exam_templates" path="exam_templates/" />
     <files-path name="offline_materials" path="materials/" />
 </paths>

@@ -23,6 +23,7 @@ object AppNotificationDispatcher {
   private const val EXTRA_NOTIF_CLASS_ID = "notif_extra_class_id"
   private const val EXTRA_NOTIF_SESSION_ID = "notif_extra_session_id"
   private const val EXTRA_NOTIF_COURSE_ID = "notif_extra_course_id"
+  private const val EXTRA_NOTIF_QUIZ_ID = "notif_extra_quiz_id"
 
   fun ensureChannels(context: Context) {
     if (Build.VERSION.SDK_INT < Build.VERSION_CODES.O) return
@@ -85,6 +86,7 @@ object AppNotificationDispatcher {
         classId = item.targetClassId,
         sessionId = item.data["session_id"].orEmpty(),
         courseId = item.data["course_id"].orEmpty(),
+        quizId = item.data["quiz_id"].orEmpty(),
         channelId = channelForKind(item.kind)
       )
       newlyShown.add(item.id)
@@ -107,6 +109,7 @@ object AppNotificationDispatcher {
     val classId = cleanExtra(data["class_id"])
     val sessionId = cleanExtra(data["session_id"])
     val courseId = cleanExtra(data["course_id"])
+    val quizId = cleanExtra(data["quiz_id"])
     val channelId = if (explicitChannelId == PUSH_CHANNEL_URGENT) {
       PUSH_CHANNEL_URGENT
     } else {
@@ -126,6 +129,7 @@ object AppNotificationDispatcher {
       classId = classId,
       sessionId = sessionId,
       courseId = courseId,
+      quizId = quizId,
       channelId = channelId
     )
     if (notifId.isNotBlank()) {
@@ -143,6 +147,7 @@ object AppNotificationDispatcher {
     classId: String,
     sessionId: String,
     courseId: String,
+    quizId: String,
     channelId: String
   ) {
     val nm = context.getSystemService(Context.NOTIFICATION_SERVICE) as? NotificationManager ?: return
@@ -153,6 +158,7 @@ object AppNotificationDispatcher {
       putExtra(EXTRA_NOTIF_CLASS_ID, classId)
       if (sessionId.isNotBlank()) putExtra(EXTRA_NOTIF_SESSION_ID, sessionId)
       if (courseId.isNotBlank()) putExtra(EXTRA_NOTIF_COURSE_ID, courseId)
+      if (quizId.isNotBlank()) putExtra(EXTRA_NOTIF_QUIZ_ID, quizId)
     }
     val notifHashId = 400_000 + (notifId.hashCode() and 0x7FFF)
     val pending = PendingIntent.getActivity(
@@ -189,18 +195,21 @@ object AppNotificationDispatcher {
       .ifBlank { cleanExtra(intent.getStringExtra("session_id")) }
     val courseId = cleanExtra(intent.getStringExtra(EXTRA_NOTIF_COURSE_ID))
       .ifBlank { cleanExtra(intent.getStringExtra("course_id")) }
+    val quizId = cleanExtra(intent.getStringExtra(EXTRA_NOTIF_QUIZ_ID))
+      .ifBlank { cleanExtra(intent.getStringExtra("quiz_id")) }
 
     val data = buildMap {
       if (notifId.isNotBlank()) put("notification_id", notifId)
       if (sessionId.isNotBlank()) put("session_id", sessionId)
       if (courseId.isNotBlank()) put("course_id", courseId)
+      if (quizId.isNotBlank()) put("quiz_id", quizId)
     }
     if (context != null && notifId.isNotBlank()) {
       NotificationPreferences.markShown(context, listOf(notifId))
     }
     listOf(
-      EXTRA_NOTIF_ID, EXTRA_NOTIF_KIND, EXTRA_NOTIF_CLASS_ID, EXTRA_NOTIF_SESSION_ID, EXTRA_NOTIF_COURSE_ID,
-      "notification_id", "kind", "class_id", "session_id", "course_id"
+      EXTRA_NOTIF_ID, EXTRA_NOTIF_KIND, EXTRA_NOTIF_CLASS_ID, EXTRA_NOTIF_SESSION_ID, EXTRA_NOTIF_COURSE_ID, EXTRA_NOTIF_QUIZ_ID,
+      "notification_id", "kind", "class_id", "session_id", "course_id", "quiz_id"
     ).forEach { intent.removeExtra(it) }
 
     return NotificationDeepLink(kind = kind, classId = classId, data = data)
