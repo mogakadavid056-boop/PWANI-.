@@ -180,14 +180,18 @@ class MembersViewModel : ViewModel() {
     _uiState.update { it.copy(memberPendingRemoval = null) }
   }
 
-  fun confirmRemoveMember(session: UserSession?) {
+  fun confirmRemoveMember(session: UserSession?, reason: String? = null) {
     val member = _uiState.value.memberPendingRemoval ?: return
     val cid = _uiState.value.classId
     if (session == null || cid.isBlank()) return
 
     viewModelScope.launch {
       _uiState.update { it.copy(isActionLoading = true, memberPendingRemoval = null, errorMessage = null) }
-      val result = membersService.removeFromClass(cid, member.userId, session.accessToken)
+      val result = if (com.example.util.RoleHelper.isAdmin(session.role)) {
+        membersService.adminRemoveMember(cid, member.userId, reason, session.accessToken)
+      } else {
+        membersService.removeFromClass(cid, member.userId, session.accessToken)
+      }
       if (result.isSuccess) {
         _uiState.update {
           it.copy(

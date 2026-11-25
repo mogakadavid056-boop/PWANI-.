@@ -171,8 +171,8 @@ fun ClassSwitcherBottomSheet(
       HorizontalDivider(color = DarkBorder, thickness = 1.dp)
       Spacer(modifier = Modifier.height(12.dp))
 
-      if (isStaff) {
-        // Staff action: Find more classes
+      if (isAdmin) {
+        // Admin action: Find more classes & Create class
         Button(
           onClick = {
             onDismiss()
@@ -190,28 +190,26 @@ fun ClassSwitcherBottomSheet(
           Text("Find more classes", fontSize = 16.sp, fontWeight = FontWeight.Bold, color = com.example.ui.theme.DarkTextOnGold)
         }
 
-        if (isAdmin) {
-          Spacer(modifier = Modifier.height(10.dp))
-          OutlinedButton(
-            onClick = {
-              onDismiss()
-              onCreateClass()
-            },
-            modifier = Modifier
-              .fillMaxWidth()
-              .height(48.dp)
-              .testTag("switcher_create_class_button"),
-            shape = RoundedCornerShape(10.dp),
-            colors = ButtonDefaults.outlinedButtonColors(containerColor = DarkSurface, contentColor = GoldPrimary),
-            border = androidx.compose.foundation.BorderStroke(1.5.dp, GoldPrimary)
-          ) {
-            Icon(Icons.Default.Add, contentDescription = null, tint = GoldPrimary, modifier = Modifier.size(18.dp))
-            Spacer(modifier = Modifier.width(8.dp))
-            Text("Create class", fontSize = 16.sp, fontWeight = FontWeight.Bold, color = GoldPrimary)
-          }
+        Spacer(modifier = Modifier.height(10.dp))
+        OutlinedButton(
+          onClick = {
+            onDismiss()
+            onCreateClass()
+          },
+          modifier = Modifier
+            .fillMaxWidth()
+            .height(48.dp)
+            .testTag("switcher_create_class_button"),
+          shape = RoundedCornerShape(10.dp),
+          colors = ButtonDefaults.outlinedButtonColors(containerColor = DarkSurface, contentColor = GoldPrimary),
+          border = androidx.compose.foundation.BorderStroke(1.5.dp, GoldPrimary)
+        ) {
+          Icon(Icons.Default.Add, contentDescription = null, tint = GoldPrimary, modifier = Modifier.size(18.dp))
+          Spacer(modifier = Modifier.width(8.dp))
+          Text("Create class", fontSize = 16.sp, fontWeight = FontWeight.Bold, color = GoldPrimary)
         }
       } else {
-        // Student: Join with code button
+        // Lecturer & Student: Join with code button
         OutlinedButton(
           onClick = {
             onDismiss()

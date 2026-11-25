@@ -2,7 +2,9 @@ package com.example.admin.ui
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.example.admin.data.AdminAttendancePollsGroupsRepository
 import com.example.admin.data.AdminDashboardStats
+import com.example.admin.data.AdminExamsRepository
 import com.example.admin.data.AdminSession
 import com.example.admin.data.AdminUserItem
 import com.example.admin.data.AdminUsersRepository
@@ -19,7 +21,7 @@ import kotlinx.coroutines.launch
 
 enum class AdminTab { OVERVIEW, CLASSES, APPROVALS, RISK, USERS, UNIVERSITY }
 enum class UserFilterChip(val label: String) {
-  ALL("All"), UNVERIFIED("Unverified"), LECTURERS("Lecturers"),
+  ALL("All"), UNVERIFIED("Suspended"), LECTURERS("Lecturers"),
   CLASS_REPS("Class Reps"), STUDENTS("Students"), ADMINS("Admins")
 }
 
@@ -38,7 +40,9 @@ data class AdminMainState(
 
 @OptIn(FlowPreview::class)
 class AdminMainViewModel(
-  private val usersRepo: AdminUsersRepository = AdminUsersRepository()
+  private val usersRepo: AdminUsersRepository = AdminUsersRepository(),
+  private val attendanceRepo: AdminAttendancePollsGroupsRepository = AdminAttendancePollsGroupsRepository(),
+  private val examsRepo: AdminExamsRepository = AdminExamsRepository()
 ) : ViewModel() {
 
   private val _state = MutableStateFlow(AdminMainState())
@@ -134,12 +138,42 @@ class AdminMainViewModel(
           _state.update {
             it.copy(
               isActionLoading = false,
-              successMessage = if (verified) "${user.fullName} verified as lecturer" else "Verification removed for ${user.fullName}"
+              successMessage = if (verified) "${user.fullName} lecturer access restored" else "Suspended lecturer access for ${user.fullName}"
             )
           }
           fetchUsers(_state.value.userSearch)
           refreshStats()
           onUpdated()
+        },
+        onFailure = { e -> _state.update { it.copy(isActionLoading = false, errorMessage = e.message) } }
+      )
+    }
+  }
+
+  fun deleteEmptyExpiredSessionsGlobal() {
+    val token = session?.accessToken ?: return
+    _state.update { it.copy(isActionLoading = true, errorMessage = null) }
+    viewModelScope.launch {
+      attendanceRepo.deleteEmptyExpiredSessions(null, token).fold(
+        onSuccess = { count ->
+          val msg = if (count > 0) "Deleted $count empty expired session(s)" else "No empty expired sessions to clear"
+          _state.update { it.copy(isActionLoading = false, successMessage = msg) }
+          refreshStats()
+        },
+        onFailure = { e -> _state.update { it.copy(isActionLoading = false, errorMessage = e.message) } }
+      )
+    }
+  }
+
+  fun runExpiredAttemptsGlobal() {
+    val token = session?.accessToken ?: return
+    _state.update { it.copy(isActionLoading = true, errorMessage = null) }
+    viewModelScope.launch {
+      examsRepo.runExpiredAttempts(token).fold(
+        onSuccess = { count ->
+          val msg = if (count > 0) "Finalized $count expired exam attempt(s)" else "No expired exam attempts pending"
+          _state.update { it.copy(isActionLoading = false, successMessage = msg) }
+          refreshStats()
         },
         onFailure = { e -> _state.update { it.copy(isActionLoading = false, errorMessage = e.message) } }
       )

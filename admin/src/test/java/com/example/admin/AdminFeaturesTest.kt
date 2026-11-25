@@ -203,4 +203,25 @@ class AdminFeaturesTest {
     assertEquals("u3", restMembers[1].userId)
     assertTrue(restMembers[1].isRep)
   }
+
+  @Test
+  fun adminPowersRpcs_buildExpectedPayloadsWithoutLegacyReason() {
+    val delBody = com.example.admin.data.AdminAttendancePollsGroupsRepository.buildDeleteSessionBody("sess-9")
+    assertEquals("sess-9", delBody.getString("target_session_id"))
+    assertFalse(delBody.has("reason"))
+
+    val cleanClassBody = com.example.admin.data.AdminAttendancePollsGroupsRepository.buildDeleteEmptyExpiredSessionsBody("cls-1")
+    assertEquals("cls-1", cleanClassBody.getString("target_class_id"))
+    val cleanGlobalBody = com.example.admin.data.AdminAttendancePollsGroupsRepository.buildDeleteEmptyExpiredSessionsBody(null)
+    assertTrue(cleanGlobalBody.isNull("target_class_id"))
+    assertEquals(4, com.example.admin.data.AdminAttendancePollsGroupsRepository.parseScalarInt(" 4 "))
+
+    val remWithReason = com.example.admin.data.AdminMonitorContentRepository.buildAdminRemoveMemberBody("cls-1", "usr-2", "Transferred unit")
+    assertEquals("cls-1", remWithReason.getString("target_class_id"))
+    assertEquals("usr-2", remWithReason.getString("target_user_id"))
+    assertEquals("Transferred unit", remWithReason.getString("removal_reason"))
+
+    val remNoReason = com.example.admin.data.AdminMonitorContentRepository.buildAdminRemoveMemberBody("cls-1", "usr-2", "  ")
+    assertTrue(remNoReason.isNull("removal_reason"))
+  }
 }

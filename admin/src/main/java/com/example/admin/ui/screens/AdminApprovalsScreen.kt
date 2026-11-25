@@ -108,7 +108,7 @@ fun AdminApprovalsScreen(
     Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
       Column(modifier = Modifier.weight(1f)) {
         AdminMetallicGoldText(text = "Approvals", style = AdminScreenTitleStyle)
-        Text("Verify lecturers, review units & class join requests", style = AdminCaptionStyle)
+        Text("Manage lecturer access, review units & class join requests", style = AdminCaptionStyle)
       }
       Row {
         AdminAssistantSparkleButton(isOnline = isOnline, onClick = onOpenAssistant)
@@ -136,7 +136,7 @@ fun AdminApprovalsScreen(
         selected = state.subTab == ApprovalsSubTab.LECTURERS,
         onClick = { onSelectSubTab(ApprovalsSubTab.LECTURERS) },
         modifier = Modifier.defaultMinSize(minHeight = 48.dp).testTag("approvals_tab_lecturers"),
-        label = { Text("Lecturers ($pendingLecturersCount pending)", style = AdminNavLabelStyle) },
+        label = { Text("Lecturers ($pendingLecturersCount suspended)", style = AdminNavLabelStyle) },
         border = FilterChipDefaults.filterChipBorder(enabled = true, selected = state.subTab == ApprovalsSubTab.LECTURERS, borderColor = AdminBorder, selectedBorderColor = ChampagneGold),
         colors = FilterChipDefaults.filterChipColors(selectedContainerColor = ChampagneGold, selectedLabelColor = DarkTextOnGold, containerColor = AdminSurface, labelColor = Lavender)
       )
@@ -221,7 +221,7 @@ fun AdminApprovalsScreen(
                   Column(modifier = Modifier.weight(1f)) {
                     Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                       Text(lec.fullName.ifBlank { lec.email }, style = AdminCardTitleStyle, modifier = Modifier.weight(1f, fill = false))
-                      AdminStatusPill(if (lec.isVerified) "Verified" else "Not verified", if (lec.isVerified) EmeraldSuccess else AmberWarning)
+                      AdminStatusPill(if (lec.isVerified) "Active" else "Suspended", if (lec.isVerified) EmeraldSuccess else AmberWarning)
                     }
                     if (lec.email.isNotBlank()) Text(lec.email, style = AdminCaptionStyle)
                     if (lec.admissionNumber.isNotBlank()) Text("Staff No: ${lec.admissionNumber}", style = AdminCaptionStyle)
@@ -235,7 +235,7 @@ fun AdminApprovalsScreen(
                     contentPadding = PaddingValues(horizontal = 12.dp, vertical = 8.dp),
                     modifier = Modifier.defaultMinSize(minHeight = 48.dp).testTag("approvals_verify_lecturer_${lec.id}")
                   ) {
-                    Text(if (lec.isVerified) "Remove" else "Verify", fontFamily = MontserratFamily, fontSize = 13.sp, color = if (lec.isVerified) AmberWarning else GoldLight, fontWeight = FontWeight.SemiBold)
+                    Text(if (lec.isVerified) "Suspend" else "Restore", fontFamily = MontserratFamily, fontSize = 13.sp, color = if (lec.isVerified) AmberWarning else GoldLight, fontWeight = FontWeight.SemiBold)
                   }
                 }
               }

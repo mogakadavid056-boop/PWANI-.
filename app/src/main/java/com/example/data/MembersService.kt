@@ -166,4 +166,18 @@ class MembersService(
       Result.failure(Exception(SupabaseConfig.formatExceptionMessage(e, "Failed to remove member from class")))
     }
   }
+
+  suspend fun adminRemoveMember(
+    classId: String,
+    targetUserId: String,
+    removalReason: String? = null,
+    accessToken: String
+  ): Result<Unit> {
+    val payload = JSONObject().apply {
+      put("target_class_id", classId)
+      put("target_user_id", targetUserId)
+      put("removal_reason", if (removalReason.isNullOrBlank()) JSONObject.NULL else removalReason.trim())
+    }
+    return postRpcRaw("admin_remove_member", payload, accessToken)
+  }
 }

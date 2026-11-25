@@ -67,7 +67,7 @@ class ExamSecurityAndTimingTest {
   @Test
   fun challengesService_serializesSecurityAndTimingConfigAndLongTimers() {
     val config = ExamSecurityConfig(
-      timeLimitSeconds = 2 * 86_400L,
+      timeLimitSeconds = 2 * 86_400L, // exceeds 24h -> clamped to 86_400L (1440 min)
       perQuestionSeconds = 45L,
       countdownMode = CountdownMode.BOTH,
       countdownStyle = CountdownStyle.BAR,
@@ -104,7 +104,8 @@ class ExamSecurityAndTimingTest {
       securityConfig = config
     )
 
-    assertEquals(172_800L, payload.getLong("p_time_limit_seconds"))
+    assertEquals(86_400L, payload.getLong("p_time_limit_seconds"))
+    assertEquals(1440, payload.getInt("time_limit"))
     assertEquals(45L, payload.getLong("p_per_question_seconds"))
     assertEquals("both", payload.getString("p_countdown_mode"))
     assertEquals("bar", payload.getString("p_countdown_style"))
@@ -119,18 +120,71 @@ class ExamSecurityAndTimingTest {
     val rem = ChallengesService.computeRemainingSeconds(
       startedAtIso = "2026-11-22T08:00:00Z",
       closesAtIso = "2026-11-30T08:00:00Z",
-      timeLimitSeconds = 172_800L,
-      nowMillis = Instant.parse("2026-11-23T08:00:00Z").toEpochMilli()
+      timeLimitSeconds = 86_400L,
+      nowMillis = Instant.parse("2026-11-22T20:00:00Z").toEpochMilli()
     )
-    assertEquals(86_400L, rem)
+    assertEquals(43_200L, rem)
 
     val submitPayload = ChallengesService.buildSubmitQuizPayload(
       quizId = "q-1",
       questionsInOrder = listOf(PlayQuestion("id1", 1, QuestionType.MCQ, "Q1", listOf("A", "B"))),
-      selectedAnswersByOrd = mapOf(1 to 0),
-      autoSubmittedReason = "SECURITY_APP_EXIT"
+      selectedAnswersByOrd = mapOf(1 to 0)
     )
-    assertEquals("SECURITY_APP_EXIT", submitPayload.getString("p_auto_submitted_reason"))
+    assertEquals("q-1", submitPayload.getString("target_quiz_id"))
+    assertFalse(submitPayload.has("p_auto_submitted_reason"))
+  }
+
+  @Test
+  fun examV2SqlContracts_progressViolationFlagsWarnSubmitAndSparseStartQuiz() {
+    assertEquals("warn_submit", ExamExitAction.WARN.apiValue)
+    assertEquals(ExamExitAction.WARN, ExamExitAction.fromApi("warn_submit"))
+    assertEquals(ExamExitAction.WARN, ExamExitAction.fromApi("warn"))
+
+    val playQs = listOf(
+      PlayQuestion("q1", 1, QuestionType.MCQ, "Q1", listOf("A", "B")),
+      PlayQuestion("q2", 2, QuestionType.WRITTEN, "Q2", emptyList())
+    )
+    val savePayload = ChallengesService.buildSaveProgressPayload(
+      quizId = "qz-9",
+      questionsInOrder = playQs,
+      selectedAnswersByOrd = mapOf(1 to 1),
+      writtenAnswersByOrd = mapOf(2 to "w".repeat(8200))
+    )
+    assertEquals("qz-9", savePayload.getString("target_quiz_id"))
+    assertEquals(1, savePayload.getJSONArray("chosen_answers").getInt(0))
+    assertEquals(-1, savePayload.getJSONArray("chosen_answers").getInt(1))
+    assertEquals(8000, savePayload.getJSONObject("written_answers").getString("2").length)
+
+    val progress = ChallengesService.parseSavedExamProgress(
+      """[{"chosen_answers":[1,-1],"written_answers":{"2":"Answer text"},"saved_at":"2026-11-24T09:00:00Z","exit_violations":2}]"""
+    )
+    assertEquals(mapOf(1 to 1), progress?.chosenAnswersByOrd)
+    assertEquals(mapOf(2 to "Answer text"), progress?.writtenAnswersByOrd)
+    assertEquals(2, progress?.exitViolations)
+
+    val violation = ChallengesService.parseViolationResult(
+      """[{"violations":3,"max_violations":3,"auto_submitted":true}]"""
+    )
+    assertEquals(3, violation.focusLossCount)
+    assertEquals(3, violation.maxExitViolations)
+    assertTrue(violation.shouldAutoSubmit)
+
+    val flags = ChallengesService.parseExamFlags(
+      """[{"student_id":"s1","full_name":"Ada","admission_number":"CS/01","exit_violations":3,"auto_submitted":true,"auto_submit_reason":"exit_limit","late":false,"submitted_at":"2026-11-24T09:10:00Z"}]"""
+    )
+    assertEquals(1, flags.size)
+    assertEquals("exit_limit", flags[0].autoSubmitReason)
+    assertTrue(flags[0].autoSubmitted)
+    assertEquals(3, flags[0].exitViolations)
+
+    val sparseStart = ChallengesService.parseStartQuizQuestions(
+      """[{"question_id":"qq-1","ord":1,"question_type":"mcq","question":"Q1","options":["A","B"],"marks":2,"time_limit_minutes":30,"started_at":"2026-11-24T08:00:00Z"}]"""
+    )
+    assertEquals(1, sparseStart.size)
+    assertNull(sparseStart[0].oneWayNavigation)
+    assertNull(sparseStart[0].lockOnAnswer)
+    assertNull(sparseStart[0].noCopyPaste)
+    assertNull(sparseStart[0].onExitAction)
   }
 
   @Test

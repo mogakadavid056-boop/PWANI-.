@@ -28,7 +28,7 @@ fun AdminVerifyLecturerConfirmDialog(
     onDismissRequest = { if (!isActionLoading) onDismiss() },
     title = {
       Text(
-        text = if (targetVerified) "Verify Lecturer" else "Remove Verification",
+        text = if (targetVerified) "Restore Lecturer Access" else "Suspend Lecturer Access",
         color = GoldLight,
         fontWeight = androidx.compose.ui.text.font.FontWeight.Bold
       )
@@ -36,9 +36,9 @@ fun AdminVerifyLecturerConfirmDialog(
     text = {
       Text(
         text = if (targetVerified) {
-          "Are you sure you want to verify ${user.fullName} as an official lecturer?"
+          "Restore lecturer access for ${user.fullName}?"
         } else {
-          "Are you sure you want to remove lecturer verification for ${user.fullName}?"
+          "Suspend lecturer access for ${user.fullName}? They will not be able to manage classes until restored."
         },
         color = TextSecondary
       )
@@ -52,7 +52,7 @@ fun AdminVerifyLecturerConfirmDialog(
           contentColor = DarkTextOnGold
         )
       ) {
-        Text(if (targetVerified) "Verify" else "Remove")
+        Text(if (targetVerified) "Restore" else "Suspend")
       }
     },
     dismissButton = {

@@ -250,6 +250,35 @@ class AssistantApi(
     }
   }
 
+  suspend fun aiCheckAndCount(accessToken: String): Result<Int> = withContext(Dispatchers.IO) {
+    if (!SupabaseConfig.isConfigured()) {
+      return@withContext Result.failure(IllegalStateException(SupabaseConfig.MISSING_CONFIG_ERROR))
+    }
+    if (accessToken.isBlank()) {
+      return@withContext Result.failure(IllegalStateException("Please sign in to use the assistant."))
+    }
+    val req = Request.Builder()
+      .url("${SupabaseConfig.url}/rest/v1/rpc/ai_check_and_count")
+      .addHeader("apikey", SupabaseConfig.anonKey)
+      .addHeader("Authorization", "Bearer $accessToken")
+      .addHeader("Content-Type", "application/json")
+      .addHeader("Accept", "application/json")
+      .post("{}".toRequestBody(jsonMediaType))
+      .build()
+    try {
+      client.newCall(req).execute().use { resp ->
+        val body = resp.body?.string().orEmpty().trim()
+        if (!resp.isSuccessful) {
+          return@withContext Result.failure(Exception(SupabaseConfig.extractErrorMessage(body, resp.code)))
+        }
+        val remaining = body.trim().trim('"').toIntOrNull() ?: 0
+        Result.success(remaining)
+      }
+    } catch (e: Exception) {
+      Result.failure(Exception(SupabaseConfig.formatExceptionMessage(e, "Failed to check assistant availability.")))
+    }
+  }
+
   suspend fun sendChat(
     messages: List<AssistantMessage>,
     context: AssistantContext,

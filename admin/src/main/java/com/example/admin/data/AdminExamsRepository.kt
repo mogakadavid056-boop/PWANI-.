@@ -66,4 +66,41 @@ class AdminExamsRepository(
         }
       }
     }
+
+  suspend fun listExamFlags(quizId: String, accessToken: String): Result<List<AdminExamFlagItem>> =
+    withContext(Dispatchers.IO) {
+      val body = JSONObject().apply { put("target_quiz_id", quizId) }
+      AdminHttpHelper.postRpc(client, "list_exam_flags", body, accessToken).mapCatching { raw ->
+        parseExamFlags(raw)
+      }
+    }
+
+  suspend fun runExpiredAttempts(accessToken: String): Result<Int> =
+    withContext(Dispatchers.IO) {
+      AdminHttpHelper.postRpc(client, "admin_run_expired_attempts", JSONObject(), accessToken).mapCatching { raw ->
+        parseScalarInt(raw)
+      }
+    }
+
+  companion object {
+    fun parseExamFlags(raw: String): List<AdminExamFlagItem> {
+      val arr = JSONArray(raw.ifBlank { "[]" })
+      return List(arr.length()) { i ->
+        val o = arr.getJSONObject(i)
+        AdminExamFlagItem(
+          studentId = AdminJsonHelper.firstStr(o, "student_id", "user_id"),
+          fullName = AdminJsonHelper.firstStr(o, "full_name", "name").ifBlank { "Student" },
+          admissionNumber = AdminJsonHelper.firstStr(o, "admission_number", "admission_no").ifBlank { "-" },
+          exitViolations = AdminJsonHelper.intVal(o, "exit_violations", 0),
+          autoSubmitted = AdminJsonHelper.bool(o, "auto_submitted", false),
+          autoSubmitReason = AdminJsonHelper.str(o, "auto_submit_reason"),
+          late = AdminJsonHelper.bool(o, "late", false),
+          submittedAt = AdminJsonHelper.str(o, "submitted_at")
+        )
+      }
+    }
+
+    fun parseScalarInt(raw: String): Int =
+      raw.trim().removeSurrounding("\"").toIntOrNull() ?: 0
+  }
 }

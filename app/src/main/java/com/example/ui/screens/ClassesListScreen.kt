@@ -133,17 +133,16 @@ fun ClassesListScreen(
       } else if (classes.isEmpty()) {
         val emptyMessage = when {
           isAdmin -> "You haven't created any classes yet. Tap the button below to add your first class."
-          isLecturer -> "You haven't added any classes yet. Use 'Find my classes' to search and claim your classes."
+          isLecturer -> "You haven't joined any classes yet. Use a class code from your class prefect or department."
           else -> "You haven't joined any classes yet. Use a join code from your class prefect."
         }
         val emptyActionLabel = when {
           isAdmin -> "Create Class"
-          isLecturer -> "Find my classes"
+          isLecturer -> "Join with code"
           else -> "Join Class"
         }
         val emptyAction = when {
           isAdmin -> onNavigateToCreateClass
-          isLecturer -> onNavigateToFindClasses
           else -> onNavigateToJoinClass
         }
         EmptyState(

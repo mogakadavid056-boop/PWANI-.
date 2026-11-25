@@ -510,6 +510,20 @@ fun CreateChallengeDialog(
                 localError = "Exams require a time limit, per-question timer, or closing window countdown."
                 return@Button
               }
+              val overallSecs = securityConfig.timeLimitSeconds
+              if (overallSecs != null && (overallSecs < 30L || overallSecs > 86_400L)) {
+                localError = "Overall time limit must be between 30 seconds and 24 hours."
+                return@Button
+              }
+              val perQSecs = securityConfig.perQuestionSeconds
+              if (perQSecs != null && (perQSecs < 5L || perQSecs > 3600L)) {
+                localError = "Per-question timer must be between 5 seconds and 60 minutes."
+                return@Button
+              }
+              if (selectedClosePreset == "Custom" && (customCloseWindowSeconds ?: 0L) < 60L) {
+                localError = "Availability window must be at least 1 minute."
+                return@Button
+              }
               val validationErr = validateDraftQuestionsList(questions, asExam, answerFormat)
               if (validationErr != null) {
                 localError = validationErr
@@ -521,7 +535,7 @@ fun CreateChallengeDialog(
                 customOpenDelaySeconds = customOpenDelaySeconds,
                 customCloseWindowSeconds = customCloseWindowSeconds
               )
-              val legacyMinutes = securityConfig.timeLimitSeconds?.let { (it / 60L).toInt().coerceAtLeast(1) }
+              val legacyMinutes = overallSecs?.let { kotlin.math.ceil(it / 60.0).toInt().coerceIn(1, 1440) }
               onCreate(
                 cleanTitle,
                 description.trim(),

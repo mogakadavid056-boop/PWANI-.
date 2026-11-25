@@ -1,8 +1,10 @@
 package com.example.admin
 
 import com.example.admin.data.AdminExamResultsPdfExporter
+import com.example.admin.data.AdminExamsRepository
 import com.example.admin.data.AdminQuizResultRow
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertTrue
 import org.junit.Test
 import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
@@ -30,5 +32,20 @@ class AdminExamsTest {
     assertEquals("C", ranked[2].gradeLabel)
     assertEquals(4, ranked[3].rank)
     assertEquals("Pend", ranked[3].gradeLabel)
+  }
+
+  @Test
+  fun adminExamsRepository_parsesFlagsAndExpiredSweepCounts() {
+    val flags = AdminExamsRepository.parseExamFlags(
+      """[{"student_id":"st-1","full_name":"Grace","admission_number":"CS/09","exit_violations":2,"auto_submitted":true,"auto_submit_reason":"exit_limit","late":false,"submitted_at":"2026-11-24T10:00:00Z"}]"""
+    )
+    assertEquals(1, flags.size)
+    assertEquals("Grace", flags[0].fullName)
+    assertEquals("exit_limit", flags[0].autoSubmitReason)
+    assertTrue(flags[0].autoSubmitted)
+    assertEquals(2, flags[0].exitViolations)
+
+    assertEquals(7, AdminExamsRepository.parseScalarInt("7"))
+    assertEquals(0, AdminExamsRepository.parseScalarInt("null"))
   }
 }

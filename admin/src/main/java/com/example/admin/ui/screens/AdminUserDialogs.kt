@@ -113,7 +113,7 @@ fun AdminVerifyDialog(
     shape = RoundedCornerShape(16.dp),
     title = {
       Text(
-        text = if (targetVerified) "Verify Lecturer" else "Remove Verification",
+        text = if (targetVerified) "Restore Lecturer Access" else "Suspend Lecturer Access",
         fontWeight = FontWeight.Bold,
         color = GoldLight
       )
@@ -121,9 +121,9 @@ fun AdminVerifyDialog(
     text = {
       Text(
         text = if (targetVerified) {
-          "Verify ${user.fullName.ifBlank { user.email }} as an official university lecturer?"
+          "Restore lecturer access for ${user.fullName.ifBlank { user.email }} so they can manage classes and exams?"
         } else {
-          "Remove verification badge from ${user.fullName.ifBlank { user.email }}?"
+          "Suspend lecturer access for ${user.fullName.ifBlank { user.email }}? They will remain blocked until restored."
         },
         color = TextSecondary
       )
@@ -136,7 +136,7 @@ fun AdminVerifyDialog(
           containerColor = if (targetVerified) GoldPrimary else CrimsonError,
           contentColor = DarkTextOnGold
         )
-      ) { Text(if (targetVerified) "Verify" else "Remove") }
+      ) { Text(if (targetVerified) "Restore" else "Suspend") }
     },
     dismissButton = {
       TextButton(onClick = onDismiss, enabled = !isActionLoading) {

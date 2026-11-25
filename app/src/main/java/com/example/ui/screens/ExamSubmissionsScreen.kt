@@ -56,6 +56,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.data.ChallengeItem
+import com.example.data.ExamFlagItem
 import com.example.data.ExamSubmissionRow
 import com.example.data.MarkingStatus
 import com.example.data.formatMarks
@@ -96,6 +97,7 @@ fun ExamSubmissionsScreen(
   waitingFirst: Boolean,
   searchQuery: String,
   isLoading: Boolean,
+  examFlags: List<ExamFlagItem> = emptyList(),
   readyToBatchReturnCount: Int = 0,
   isBatchReleasing: Boolean = false,
   batchReleaseDone: Int = 0,
@@ -174,6 +176,33 @@ fun ExamSubmissionsScreen(
               if (isLoadingPdf) "Generating Ranked PDF..." else "Export Ranked Results PDF (Staff Only)",
               style = ButtonTextStyle.copy(fontSize = 13.5.sp, color = ChampagneGold)
             )
+          }
+        }
+      }
+
+      if (examFlags.isNotEmpty()) {
+        RoyalCard(borderColor = ErrorColor.copy(alpha = 0.55f)) {
+          Text(
+            text = "Integrity Flags (${examFlags.size})",
+            style = CardTitleStyle.copy(fontSize = 15.sp, color = ErrorColor),
+            modifier = Modifier.testTag("exam_flags_card")
+          )
+          examFlags.take(8).forEach { flag ->
+            val tags = buildList {
+              if (flag.exitViolations > 0) add("Exits: ${flag.exitViolations}")
+              if (flag.autoSubmitted) {
+                val r = flag.autoSubmitReason.ifBlank { "auto" }
+                add("Auto ($r)")
+              }
+              if (flag.late) add("Late")
+            }.joinToString(" • ")
+            Text(
+              text = "${flag.fullName} (${flag.admissionNumber}) — $tags",
+              style = CaptionStyle.copy(color = Lavender)
+            )
+          }
+          if (examFlags.size > 8) {
+            Text("+${examFlags.size - 8} more flagged submission(s)", style = CaptionStyle.copy(color = ChampagneGold))
           }
         }
       }

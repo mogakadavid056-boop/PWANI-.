@@ -44,7 +44,8 @@ fun ClassSubScreensRoute(
     }
     Screen.ManageMembers -> {
       val selectedClass = noticesUiState.selectedClass
-      val canManageReps = session?.role?.equals("admin", ignoreCase = true) == true ||
+      val isAdminRole = session?.role?.equals("admin", ignoreCase = true) == true
+      val canManageReps = isAdminRole ||
         session?.role?.equals("lecturer", ignoreCase = true) == true
       if (selectedClass == null || !noticesUiState.isStaff) {
         LaunchedEffect(Unit) { authViewModel.navigateTo(Screen.Home) }
@@ -52,13 +53,14 @@ fun ClassSubScreensRoute(
         ManageMembersScreen(
           className = selectedClass.name,
           canManageReps = canManageReps,
+          isAdmin = isAdminRole,
           uiState = membersUiState,
           onRefresh = { membersViewModel.refreshMembers(session) },
           onAppointRep = { m -> membersViewModel.appointRep(m, session) },
           onRemoveRep = { m -> membersViewModel.removeRep(m, session) },
           onPromptRemoveMember = { m -> membersViewModel.promptRemoveMember(m) },
           onDismissPromptRemoveMember = { membersViewModel.dismissPromptRemoveMember() },
-          onConfirmRemoveMember = { membersViewModel.confirmRemoveMember(session) },
+          onConfirmRemoveMember = { reason -> membersViewModel.confirmRemoveMember(session, reason) },
           onApproveLecturer = { l -> membersViewModel.approveLecturer(l, session) },
           onPromptRejectLecturer = { l -> membersViewModel.promptRejectLecturer(l) },
           onDismissPromptRejectLecturer = { membersViewModel.dismissPromptRejectLecturer() },

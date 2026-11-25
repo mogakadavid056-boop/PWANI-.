@@ -277,10 +277,13 @@ class MainActivity : ComponentActivity() {
                     pendingApprovalsCount = pendingCount,
                     unverifiedLecturersCount = unverifiedLecturersCount,
                     isLoading = mainState.isStatsLoading,
+                    isActionLoading = mainState.isActionLoading,
                     isOnline = isOnline,
                     onRefresh = { mainViewModel.refreshAll(); manageViewModel.refreshUniversityData(); approvalsViewModel.refresh(); notifViewModel.refresh(session) },
                     onJumpToUnverified = { approvalsViewModel.selectSubTab(ApprovalsSubTab.LECTURERS); selectAdminTab(AdminTab.APPROVALS) },
                     onNavigateTab = selectAdminTab,
+                    onClearEmptySessions = mainViewModel::deleteEmptyExpiredSessionsGlobal,
+                    onSweepExpiredAttempts = mainViewModel::runExpiredAttemptsGlobal,
                     onOpenAssistant = openAssistant,
                     onOpenNotifications = { showNotifications = true },
                     onOpenSettings = { showSettings = true }

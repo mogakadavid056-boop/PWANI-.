@@ -65,7 +65,8 @@ fun RegisterResultScreen(
   onOpenMyClass: (String) -> Unit,
   onRetryAutoJoin: () -> Unit,
   onJoinWithCode: (String) -> Unit,
-  onOpenFindClasses: () -> Unit,
+  onOpenFindClasses: () -> Unit = {},
+  onOpenJoinClass: () -> Unit = onOpenFindClasses,
   onOpenProfile: () -> Unit,
   onContinueHome: () -> Unit
 ) {
@@ -189,20 +190,24 @@ fun RegisterResultScreen(
 
         is RegisterResultState.LecturerPasscodeRight -> {
           MetallicGoldText(
-            text = if (result.isVerified) "Welcome, Lecturer!" else "Account Created",
+            text = if (result.isVerified) "Welcome, Lecturer!" else "Access Suspended",
             style = ScreenTitleStyle,
             textAlign = TextAlign.Center
           )
           Spacer(modifier = Modifier.height(10.dp))
           Text(
-            text = "Account created. An administrator will verify you shortly. Once verified, add your classes from Find my classes.",
+            text = if (result.isVerified) {
+              "Your lecturer account is active. Join a class using its class code from your prefect or department."
+            } else {
+              "Your lecturer access is currently suspended. Contact an administrator."
+            },
             style = BodyStyle.copy(color = SilverWhite, textAlign = TextAlign.Center)
           )
           Spacer(modifier = Modifier.height(28.dp))
           if (result.isVerified) {
             GoldButton(
-              text = "Find my classes",
-              onClick = onOpenFindClasses,
+              text = "Join with class code",
+              onClick = onOpenJoinClass,
               testTag = "result_find_classes_button"
             )
           } else {

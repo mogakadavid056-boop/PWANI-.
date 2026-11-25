@@ -72,13 +72,14 @@ import com.example.ui.theme.SilverWhite
 fun ManageMembersScreen(
   className: String,
   canManageReps: Boolean,
+  isAdmin: Boolean = false,
   uiState: MembersUiState,
   onRefresh: () -> Unit,
   onAppointRep: (ClassMemberItem) -> Unit,
   onRemoveRep: (ClassMemberItem) -> Unit,
   onPromptRemoveMember: (ClassMemberItem) -> Unit,
   onDismissPromptRemoveMember: () -> Unit,
-  onConfirmRemoveMember: () -> Unit,
+  onConfirmRemoveMember: (reason: String?) -> Unit,
   onApproveLecturer: (com.example.data.PendingLecturerItem) -> Unit = {},
   onPromptRejectLecturer: (com.example.data.PendingLecturerItem) -> Unit = {},
   onDismissPromptRejectLecturer: () -> Unit = {},
@@ -238,15 +239,64 @@ fun ManageMembersScreen(
     }
 
     uiState.memberPendingRemoval?.let { target ->
-      ConfirmActionDialog(
-        title = "Remove from Class",
-        message = "Are you sure you want to remove ${target.fullName} from this class? They will lose access to all class notices and attendance.",
-        confirmButtonText = "Remove",
-        confirmButtonColor = ErrorRed,
-        isLoading = uiState.isActionLoading,
-        onConfirm = onConfirmRemoveMember,
-        onDismiss = onDismissPromptRemoveMember
-      )
+      if (isAdmin) {
+        var removalReason by remember(target.userId) { mutableStateOf("") }
+        androidx.compose.material3.AlertDialog(
+          onDismissRequest = { if (!uiState.isActionLoading) onDismissPromptRemoveMember() },
+          shape = RoundedCornerShape(16.dp),
+          containerColor = com.example.ui.theme.DarkSurface,
+          title = {
+            Text("Remove from Class", fontSize = 18.sp, fontWeight = FontWeight.Bold, color = ChampagneGold)
+          },
+          text = {
+            Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+              Text(
+                text = "Remove ${target.fullName} from this class? They will lose access to class notices and attendance.",
+                fontSize = 13.sp,
+                color = Lavender
+              )
+              OutlinedTextField(
+                value = removalReason,
+                onValueChange = { removalReason = it },
+                label = { Text("Reason (optional)") },
+                minLines = 2,
+                modifier = Modifier.fillMaxWidth().testTag("admin_remove_member_reason_input"),
+                colors = royalOutlinedTextFieldColors()
+              )
+            }
+          },
+          confirmButton = {
+            androidx.compose.material3.Button(
+              onClick = { onConfirmRemoveMember(removalReason.trim().ifBlank { null }) },
+              enabled = !uiState.isActionLoading,
+              modifier = Modifier.testTag("confirm_dialog_action_button"),
+              colors = androidx.compose.material3.ButtonDefaults.buttonColors(containerColor = ErrorRed, contentColor = androidx.compose.ui.graphics.Color.White)
+            ) {
+              Text("Remove", fontWeight = FontWeight.Bold)
+            }
+          },
+          dismissButton = {
+            androidx.compose.material3.TextButton(
+              onClick = onDismissPromptRemoveMember,
+              enabled = !uiState.isActionLoading,
+              modifier = Modifier.testTag("confirm_dialog_cancel_button")
+            ) {
+              Text("Cancel", color = Lavender)
+            }
+          },
+          modifier = Modifier.testTag("confirm_action_dialog")
+        )
+      } else {
+        ConfirmActionDialog(
+          title = "Remove from Class",
+          message = "Are you sure you want to remove ${target.fullName} from this class? They will lose access to all class notices and attendance.",
+          confirmButtonText = "Remove",
+          confirmButtonColor = ErrorRed,
+          isLoading = uiState.isActionLoading,
+          onConfirm = { onConfirmRemoveMember(null) },
+          onDismiss = onDismissPromptRemoveMember
+        )
+      }
     }
 
     uiState.lecturerPendingRejection?.let { lecturer ->

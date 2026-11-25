@@ -107,6 +107,7 @@ fun ClassRepNavHost(
         onRetryAutoJoin = { authViewModel.retryStudentAutoJoin() },
         onJoinWithCode = { code -> authViewModel.retryStudentJoinByCode(code) },
         onOpenFindClasses = { authViewModel.navigateTo(Screen.FindClasses) },
+        onOpenJoinClass = { classesViewModel.clearError(); authViewModel.navigateTo(Screen.JoinClass) },
         onOpenProfile = navigateToProfileScreen,
         onContinueHome = { authViewModel.navigateTo(Screen.Home) }
       )

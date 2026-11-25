@@ -146,13 +146,9 @@ class AttendanceRegisterService(
 
   suspend fun deleteAttendanceSession(
     sessionId: String,
-    reason: String,
     accessToken: String
   ): Result<Unit> = withContext(Dispatchers.IO) {
-    val body = JSONObject().apply {
-      put("target_session_id", sessionId)
-      put("reason", reason.trim())
-    }
+    val body = JSONObject().apply { put("target_session_id", sessionId) }
     postRpc("delete_attendance_session", body, accessToken).map { Unit }
   }
 

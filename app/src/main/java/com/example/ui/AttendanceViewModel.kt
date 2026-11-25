@@ -205,11 +205,11 @@ class AttendanceViewModel : ViewModel() {
   fun correctRecord(recordId: String, newTimeIn: String, newTimeOut: String, reason: String, session: UserSession?) = runRegisterAction(session, "Record corrected") { registerService.correctAttendanceRecord(recordId, newTimeIn, newTimeOut, reason, it) }
   fun markStudentPresent(sessionId: String, studentId: String, newTimeIn: String, newTimeOut: String, reason: String, session: UserSession?) = runRegisterAction(session, "Marked present", true, sessionId) { registerService.markPresent(sessionId, studentId, newTimeIn, newTimeOut, reason, it) }
 
-  fun deleteRegisterSession(sessionId: String, reason: String, session: UserSession?) {
+  fun deleteRegisterSession(sessionId: String, session: UserSession?) {
     if (sessionId.isBlank() || session == null || session.accessToken.isBlank()) return
     viewModelScope.launch {
       _uiState.update { it.copy(isActionLoading = true, errorMessage = null, registerPendingDelete = null) }
-      registerService.deleteAttendanceSession(sessionId, reason, session.accessToken).fold(
+      registerService.deleteAttendanceSession(sessionId, session.accessToken).fold(
         onSuccess = {
           _uiState.update { st ->
             val wasOpen = st.selectedSessionId == sessionId && st.currentSubScreen == AttendanceSubScreen.AttendanceRegister

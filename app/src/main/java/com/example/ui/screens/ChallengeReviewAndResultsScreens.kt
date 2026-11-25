@@ -45,6 +45,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.data.ChallengeItem
 import com.example.data.ExamAnswerFormat
+import com.example.data.ExamFlagItem
 import com.example.data.MarkingStatus
 import com.example.data.QuestionType
 import com.example.data.QuizResultRow
@@ -292,6 +293,7 @@ fun ChallengeReviewScreen(
 fun ChallengeResultsScreen(
   quiz: ChallengeItem,
   rows: List<QuizResultRow>,
+  examFlags: List<ExamFlagItem> = emptyList(),
   isLoading: Boolean,
   errorMessage: String?,
   canMarkPapers: Boolean = false,
@@ -386,6 +388,33 @@ fun ChallengeResultsScreen(
 
     if (!errorMessage.isNullOrBlank()) {
       FriendlyErrorSnackbar(errorMessage = errorMessage, onDismiss = onDismissError)
+    }
+
+    if (examFlags.isNotEmpty()) {
+      RoyalCard(borderColor = ErrorColor.copy(alpha = 0.55f)) {
+        Text(
+          text = "Integrity Flags (${examFlags.size})",
+          style = CardTitleStyle.copy(fontSize = 15.sp, color = ErrorColor),
+          modifier = Modifier.testTag("results_exam_flags_card")
+        )
+        examFlags.take(8).forEach { flag ->
+          val tags = buildList {
+            if (flag.exitViolations > 0) add("Exits: ${flag.exitViolations}")
+            if (flag.autoSubmitted) {
+              val r = flag.autoSubmitReason.ifBlank { "auto" }
+              add("Auto ($r)")
+            }
+            if (flag.late) add("Late")
+          }.joinToString(" • ")
+          Text(
+            text = "${flag.fullName} (${flag.admissionNumber}) — $tags",
+            style = CaptionStyle.copy(color = Lavender)
+          )
+        }
+        if (examFlags.size > 8) {
+          Text("+${examFlags.size - 8} more flagged submission(s)", style = CaptionStyle.copy(color = ChampagneGold))
+        }
+      }
     }
 
     if (isLoading) {

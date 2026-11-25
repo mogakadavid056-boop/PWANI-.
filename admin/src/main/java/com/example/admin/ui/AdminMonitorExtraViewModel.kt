@@ -28,6 +28,7 @@ data class AdminMonitorExtraState(
   val exams: List<AdminQuizSummary> = emptyList(),
   val selectedExam: AdminQuizSummary? = null,
   val examResults: List<AdminQuizResultRow> = emptyList(),
+  val examFlags: List<AdminExamFlagItem> = emptyList(),
   val isLoading: Boolean = false,
   val isActionLoading: Boolean = false,
   val errorMessage: String? = null,
@@ -54,7 +55,7 @@ class AdminMonitorExtraViewModel(
   fun loadForClass(classId: String) {
     currentClassId = classId
     stopCodeLoop()
-    _state.update { it.copy(selectedSession = null, selectedPoll = null, selectedGroup = null, selectedExam = null, examResults = emptyList(), errorMessage = null) }
+    _state.update { it.copy(selectedSession = null, selectedPoll = null, selectedGroup = null, selectedExam = null, examResults = emptyList(), examFlags = emptyList(), errorMessage = null) }
     refreshAll()
   }
 
@@ -145,12 +146,28 @@ class AdminMonitorExtraViewModel(
     }
   }
 
-  fun deleteAttendanceSession(sessionId: String, reason: String) {
+  fun deleteAttendanceSession(sessionId: String) {
     val token = session?.accessToken ?: return
     viewModelScope.launch {
-      _state.update { it.copy(isActionLoading = true) }
-      repo.deleteSession(sessionId, reason, token).fold(
+      _state.update { it.copy(isActionLoading = true, errorMessage = null) }
+      repo.deleteSession(sessionId, token).fold(
         onSuccess = { stopCodeLoop(); _state.update { it.copy(isActionLoading = false, selectedSession = null, successMessage = "Session deleted") }; refreshAll() },
+        onFailure = { e -> _state.update { it.copy(isActionLoading = false, errorMessage = e.message) } }
+      )
+    }
+  }
+
+  fun deleteEmptyExpiredSessions() {
+    val token = session?.accessToken ?: return
+    val cid = currentClassId.takeIf { it.isNotBlank() }
+    viewModelScope.launch {
+      _state.update { it.copy(isActionLoading = true, errorMessage = null) }
+      repo.deleteEmptyExpiredSessions(cid, token).fold(
+        onSuccess = { count ->
+          val msg = if (count > 0) "Deleted $count empty expired session(s)" else "No empty expired sessions to clear"
+          _state.update { it.copy(isActionLoading = false, successMessage = msg) }
+          refreshAll()
+        },
         onFailure = { e -> _state.update { it.copy(isActionLoading = false, errorMessage = e.message) } }
       )
     }
@@ -264,16 +281,37 @@ class AdminMonitorExtraViewModel(
 
   fun openExam(quiz: AdminQuizSummary) {
     val token = session?.accessToken ?: return
-    _state.update { it.copy(selectedExam = quiz, examResults = emptyList(), isLoading = true, errorMessage = null) }
+    _state.update { it.copy(selectedExam = quiz, examResults = emptyList(), examFlags = emptyList(), isLoading = true, errorMessage = null) }
     viewModelScope.launch {
-      examsRepo.getQuizResults(quiz.id, token).fold(
-        onSuccess = { list -> _state.update { it.copy(examResults = list, isLoading = false) } },
-        onFailure = { e -> _state.update { it.copy(isLoading = false, errorMessage = e.message) } }
+      val resultsRes = examsRepo.getQuizResults(quiz.id, token)
+      val flagsRes = examsRepo.listExamFlags(quiz.id, token)
+      _state.update { s ->
+        s.copy(
+          isLoading = false,
+          examResults = resultsRes.getOrElse { s.examResults },
+          examFlags = flagsRes.getOrElse { s.examFlags },
+          errorMessage = resultsRes.exceptionOrNull()?.message ?: flagsRes.exceptionOrNull()?.message
+        )
+      }
+    }
+  }
+
+  fun runExpiredAttempts() {
+    val token = session?.accessToken ?: return
+    viewModelScope.launch {
+      _state.update { it.copy(isActionLoading = true, errorMessage = null) }
+      examsRepo.runExpiredAttempts(token).fold(
+        onSuccess = { count ->
+          val msg = if (count > 0) "Finalized $count expired exam attempt(s)" else "No expired attempts pending"
+          _state.update { it.copy(isActionLoading = false, successMessage = msg) }
+          refreshAll()
+        },
+        onFailure = { e -> _state.update { it.copy(isActionLoading = false, errorMessage = e.message) } }
       )
     }
   }
 
-  fun closeExamDetail() = _state.update { it.copy(selectedExam = null, examResults = emptyList()) }
+  fun closeExamDetail() = _state.update { it.copy(selectedExam = null, examResults = emptyList(), examFlags = emptyList()) }
 
   fun exportRankedResultsPdf(context: android.content.Context, className: String, quiz: AdminQuizSummary) {
     val rows = _state.value.examResults

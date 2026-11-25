@@ -90,7 +90,7 @@ enum class CountdownStyle(val apiValue: String, val label: String) {
 
 enum class ExamExitAction(val apiValue: String, val label: String) {
   OFF("off", "Off"),
-  WARN("warn", "Warn & Auto-Submit at Max"),
+  WARN("warn_submit", "Warn & Auto-Submit at Max"),
   AUTO_SUBMIT("auto_submit", "Submit Immediately on Exit");
 
   companion object {
@@ -203,18 +203,36 @@ data class PlayQuestion(
   val timeLimitSeconds: Long? = timeLimitMinutes?.toLong()?.times(60L),
   val perQuestionSeconds: Long? = null,
   val questionTimeLimitSeconds: Long? = null,
-  val countdownMode: CountdownMode = CountdownMode.OVERALL,
-  val countdownStyle: CountdownStyle = CountdownStyle.DIGITAL,
-  val oneWayNavigation: Boolean = false,
-  val lockOnAnswer: Boolean = false,
-  val noCopyPaste: Boolean = false,
-  val onExitAction: ExamExitAction = ExamExitAction.WARN,
-  val maxExitViolations: Int = 2,
-  val strictDeadline: Boolean = true,
+  val countdownMode: CountdownMode? = null,
+  val countdownStyle: CountdownStyle? = null,
+  val oneWayNavigation: Boolean? = null,
+  val lockOnAnswer: Boolean? = null,
+  val noCopyPaste: Boolean? = null,
+  val onExitAction: ExamExitAction? = null,
+  val maxExitViolations: Int? = null,
+  val strictDeadline: Boolean? = null,
   val startedAt: String? = null,
   val serverNow: String? = null,
   val lockedQuestionOrds: List<Int> = emptyList(),
   val initialFocusLossCount: Int = 0
+)
+
+data class SavedExamProgress(
+  val chosenAnswersByOrd: Map<Int, Int> = emptyMap(),
+  val writtenAnswersByOrd: Map<Int, String> = emptyMap(),
+  val savedAt: String? = null,
+  val exitViolations: Int = 0
+)
+
+data class ExamFlagItem(
+  val studentId: String,
+  val fullName: String,
+  val admissionNumber: String,
+  val exitViolations: Int = 0,
+  val autoSubmitted: Boolean = false,
+  val autoSubmitReason: String = "",
+  val late: Boolean = false,
+  val submittedAt: String = ""
 )
 
 data class SecurityEventResult(

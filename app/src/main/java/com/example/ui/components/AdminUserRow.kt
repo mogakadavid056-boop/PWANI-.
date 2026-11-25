@@ -130,7 +130,7 @@ fun AdminUserRow(
 
           if (isLecturer) {
             StatusChip(
-              text = if (user.isVerified) "Verified" else "Not verified",
+              text = if (user.isVerified) "Active" else "Suspended",
               color = if (user.isVerified) SuccessGreen else ChampagneGold,
               tag = "admin_user_verified_badge_${user.id}"
             )
@@ -167,7 +167,7 @@ fun AdminUserRow(
               border = BorderStroke(1.dp, if (user.isVerified) ChampagneGold else GoldPrimary)
             ) {
               Text(
-                text = if (user.isVerified) "Remove verification" else "Verify",
+                text = if (user.isVerified) "Suspend Access" else "Restore Access",
                 fontSize = 12.sp,
                 fontWeight = FontWeight.SemiBold,
                 color = if (user.isVerified) ChampagneGold else GoldLight

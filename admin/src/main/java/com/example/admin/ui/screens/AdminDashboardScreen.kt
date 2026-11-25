@@ -19,8 +19,10 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.AccountBalance
 import androidx.compose.material.icons.filled.AssignmentTurnedIn
 import androidx.compose.material.icons.filled.AutoAwesome
+import androidx.compose.material.icons.filled.CleaningServices
 import androidx.compose.material.icons.filled.FactCheck
 import androidx.compose.material.icons.filled.Groups
+import androidx.compose.material.icons.filled.Quiz
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.School
 import androidx.compose.material.icons.filled.Settings
@@ -75,10 +77,13 @@ fun AdminDashboardScreen(
   pendingApprovalsCount: Int,
   unverifiedLecturersCount: Int = stats.unverifiedLecturers,
   isLoading: Boolean,
+  isActionLoading: Boolean = false,
   isOnline: Boolean = true,
   onRefresh: () -> Unit,
   onJumpToUnverified: () -> Unit,
   onNavigateTab: (AdminTab) -> Unit,
+  onClearEmptySessions: () -> Unit = {},
+  onSweepExpiredAttempts: () -> Unit = {},
   onOpenAssistant: () -> Unit = {},
   onOpenNotifications: () -> Unit,
   onOpenSettings: () -> Unit
@@ -125,13 +130,13 @@ fun AdminDashboardScreen(
         AdminGlassCard(borderColor = ChampagneGold.copy(alpha = 0.7f), isHero = true, onClick = onJumpToUnverified) {
           Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.SpaceBetween) {
             Column(modifier = Modifier.weight(1f)) {
-              AdminStatusPill(text = "Action Required", color = ChampagneGold)
+              AdminStatusPill(text = "Suspended Lecturers", color = AmberWarning)
               Spacer(modifier = Modifier.height(6.dp))
               Text(
-                text = "$unverifiedLecturersCount lecturer account(s) waiting verification",
+                text = "$unverifiedLecturersCount lecturer account(s) suspended",
                 style = AdminCardTitleStyle
               )
-              Text("Tap to review and verify them now", style = AdminCaptionStyle.copy(color = Lavender))
+              Text("Tap to review or restore lecturer access", style = AdminCaptionStyle.copy(color = Lavender))
             }
             Spacer(modifier = Modifier.width(8.dp))
             Button(
@@ -161,7 +166,7 @@ fun AdminDashboardScreen(
         KpiBentoCard(
           title = "Lecturers",
           value = stats.totalLecturers.toString(),
-          subtitle = "$unverifiedLecturersCount unverified • ${stats.totalAdmins} admins",
+          subtitle = "$unverifiedLecturersCount suspended • ${stats.totalAdmins} admins",
           icon = Icons.Default.VerifiedUser,
           accentColor = if (unverifiedLecturersCount > 0) AmberWarning else EmeraldSuccess,
           modifier = Modifier.weight(1f),
@@ -219,6 +224,31 @@ fun AdminDashboardScreen(
             Text("Attendance Risk", fontFamily = MontserratFamily, fontWeight = FontWeight.SemiBold, fontSize = 13.sp, color = SilverWhite, maxLines = 1)
           }
         }
+        Spacer(modifier = Modifier.height(10.dp))
+        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+          OutlinedButton(
+            onClick = onClearEmptySessions,
+            enabled = !isActionLoading && !isLoading,
+            modifier = Modifier.weight(1f).defaultMinSize(minHeight = 48.dp).testTag("dashboard_clear_empty_sessions_btn"),
+            shape = RoundedCornerShape(14.dp),
+            border = BorderStroke(1.dp, MetallicGold.copy(alpha = 0.7f))
+          ) {
+            Icon(Icons.Default.CleaningServices, contentDescription = null, modifier = Modifier.size(16.dp), tint = ChampagneGold)
+            Spacer(modifier = Modifier.width(6.dp))
+            Text("Empty Sessions", fontFamily = MontserratFamily, fontWeight = FontWeight.SemiBold, fontSize = 12.sp, color = ChampagneGold, maxLines = 1)
+          }
+          OutlinedButton(
+            onClick = onSweepExpiredAttempts,
+            enabled = !isActionLoading && !isLoading,
+            modifier = Modifier.weight(1f).defaultMinSize(minHeight = 48.dp).testTag("dashboard_sweep_expired_btn"),
+            shape = RoundedCornerShape(14.dp),
+            border = BorderStroke(1.dp, InfoBlue.copy(alpha = 0.7f))
+          ) {
+            Icon(Icons.Default.Quiz, contentDescription = null, modifier = Modifier.size(16.dp), tint = InfoBlue)
+            Spacer(modifier = Modifier.width(6.dp))
+            Text("Sweep Exams", fontFamily = MontserratFamily, fontWeight = FontWeight.SemiBold, fontSize = 12.sp, color = SilverWhite, maxLines = 1)
+          }
+        }
       }
     }
 
@@ -233,7 +263,7 @@ fun AdminDashboardScreen(
             Icon(Icons.Default.AutoAwesome, contentDescription = null, tint = ChampagneGold, modifier = Modifier.size(22.dp))
             Column(modifier = Modifier.weight(1f)) {
               Text("Ask ClassRep Assistant", style = AdminCardTitleStyle.copy(color = ChampagneGold))
-              Text("Check unverified lecturers, prefect gaps, system stats & draft notices", style = AdminCaptionStyle.copy(color = Lavender))
+              Text("Check suspended lecturers, prefect gaps, system stats & draft notices", style = AdminCaptionStyle.copy(color = Lavender))
             }
           }
         }

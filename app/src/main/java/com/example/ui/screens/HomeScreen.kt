@@ -207,10 +207,10 @@ fun HomeScreen(
           }
         }
 
-        // Lecturer verification banner if unverified
+        // Lecturer suspension banner if verified == false
         if (isLecturer && !isVerified) {
           RoyalCard(
-            borderColor = ChampagneGold.copy(alpha = 0.8f),
+            borderColor = ErrorRed.copy(alpha = 0.8f),
             backgroundColor = RoyalSurfaceHigh,
             modifier = Modifier.testTag("home_lecturer_unverified_banner")
           ) {
@@ -218,26 +218,26 @@ fun HomeScreen(
               Icon(
                 Icons.Default.Info,
                 contentDescription = null,
-                tint = ChampagneGold,
+                tint = ErrorRed,
                 modifier = Modifier.size(20.dp)
               )
               Spacer(modifier = Modifier.width(10.dp))
               Text(
-                text = "Your lecturer account is waiting for verification by an administrator.",
+                text = "Your lecturer access is currently suspended. Contact an administrator.",
                 style = BodyStyle.copy(fontSize = 14.sp, lineHeight = 20.sp, fontWeight = FontWeight.Medium, color = ChampagneGold)
               )
             }
           }
         }
 
-        // Quick Action Buttons depending on user role and verification
+        // Quick Action Buttons depending on user role and status
         if (isLecturer) {
           if (!isVerified) {
-            PrimaryButton(
-              text = "Join with class code",
-              leadingIcon = Icons.Default.GroupAdd,
-              onClick = onNavigateToJoinClass,
-              modifier = Modifier.fillMaxWidth().testTag("home_join_class_button")
+            ClassRepOutlinedButton(
+              text = "My classes",
+              leadingIcon = Icons.Default.Class,
+              onClick = onNavigateToMyClasses,
+              modifier = Modifier.fillMaxWidth().testTag("home_my_classes_button")
             )
           } else {
             Row(
@@ -245,10 +245,10 @@ fun HomeScreen(
               horizontalArrangement = Arrangement.spacedBy(10.dp)
             ) {
               PrimaryButton(
-                text = "Find my classes",
-                leadingIcon = Icons.Default.Search,
-                onClick = onNavigateToFindClasses,
-                modifier = Modifier.weight(1f).testTag("home_find_my_classes_button")
+                text = "Join with code",
+                leadingIcon = Icons.Default.GroupAdd,
+                onClick = onNavigateToJoinClass,
+                modifier = Modifier.weight(1f).testTag("home_join_class_button")
               )
               ClassRepOutlinedButton(
                 text = "My classes",

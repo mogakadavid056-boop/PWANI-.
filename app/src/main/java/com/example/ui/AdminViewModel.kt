@@ -178,7 +178,7 @@ class AdminViewModel(
               isActionLoading = false,
               verificationPendingUser = null,
               showVerificationConfirmDialog = false,
-              successMessage = if (targetStatus) "Lecturer verified successfully" else "Lecturer verification removed"
+              successMessage = if (targetStatus) "Lecturer access restored" else "Lecturer access suspended"
             )
           }
           refreshUsers()

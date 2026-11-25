@@ -132,7 +132,7 @@ class RegistrationHandler(
     if (pending.isLecturer) {
       updateState {
         it.copy(
-          infoMessage = "Email confirmed. Enter your lecturer passcode from Profile to complete verification.",
+          infoMessage = "Email confirmed. Enter your lecturer passcode from Profile to activate Lecturer mode.",
           isLoading = false
         )
       }
@@ -230,9 +230,9 @@ class RegistrationHandler(
       val updated = session.copy(role = newRole, isVerified = verified)
       sessionManager.updateRoleAndVerification(newRole, verified)
       val note = if (verified) {
-        "Lecturer account ready! Tap Find my classes to add your classes."
+        "Lecturer account ready! Join a class using its class code."
       } else {
-        "Lecturer account created! An administrator will verify you shortly."
+        "Lecturer access is currently suspended. Contact an administrator."
       }
       updateState {
         it.copy(

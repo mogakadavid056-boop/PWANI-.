@@ -42,7 +42,7 @@ fun ClassDialogs(
   onConfirmDeleteSessionWithReason: (String) -> Unit = {},
   registerPendingDelete: com.example.data.AttendanceRegisterListItem? = null,
   onDismissPromptDeleteRegister: () -> Unit = {},
-  onConfirmDeleteRegister: (String) -> Unit = {},
+  onConfirmDeleteRegister: () -> Unit = {},
   timetableUiState: TimetableUiState,
   onDismissAddEditSchedule: () -> Unit,
   onSaveAddSchedule: (String, Int, String, String, String, String) -> Unit,
@@ -192,7 +192,7 @@ fun ClassDialogs(
       registerTitle = reg.title.ifBlank { reg.registerNo },
       isLoading = isAttendanceActionLoading,
       onDismiss = onDismissPromptDeleteRegister,
-      onConfirmDelete = { reason -> onConfirmDeleteRegister(reason) }
+      onConfirmDelete = onConfirmDeleteRegister
     )
   }
 

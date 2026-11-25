@@ -91,9 +91,10 @@ class AdminMonitorContentRepository(
       }.map { }
     }
 
-  suspend fun removeFromClass(classId: String, userId: String, accessToken: String): Result<Unit> =
+  suspend fun removeFromClass(classId: String, userId: String, reason: String? = null, accessToken: String): Result<Unit> =
     withContext(Dispatchers.IO) {
-      AdminHttpHelper.deleteRest(client, "class_members?class_id=eq.$classId&user_id=eq.$userId", accessToken).map { }
+      val body = buildAdminRemoveMemberBody(classId, userId, reason)
+      AdminHttpHelper.postRpc(client, "admin_remove_member", body, accessToken).map { }
     }
 
   suspend fun listPendingLecturers(classId: String, accessToken: String): Result<List<AdminPendingLecturerItem>> =
@@ -226,6 +227,14 @@ class AdminMonitorContentRepository(
     }
 
   companion object {
+    fun buildAdminRemoveMemberBody(classId: String, userId: String, reason: String? = null): JSONObject =
+      JSONObject().apply {
+        put("target_class_id", classId)
+        put("target_user_id", userId)
+        val trimmed = reason?.trim()
+        put("removal_reason", if (trimmed.isNullOrBlank()) JSONObject.NULL else trimmed)
+      }
+
     fun parseRpcMembers(raw: String): List<AdminClassMemberItem> {
       val trimmed = raw.trim()
       if (trimmed.isBlank() || !trimmed.startsWith("[")) return emptyList()

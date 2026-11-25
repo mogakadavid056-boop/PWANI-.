@@ -14,16 +14,19 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.CleaningServices
 import androidx.compose.material.icons.filled.PictureAsPdf
 import androidx.compose.material.icons.filled.Quiz
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
@@ -95,46 +98,88 @@ fun AdminMonitorExamsTab(
 
       Spacer(modifier = Modifier.height(10.dp))
 
-      if (ranked.isEmpty()) {
+      if (ranked.isEmpty() && extraState.examFlags.isEmpty()) {
         AdminEmptyState(Icons.Default.Quiz, "No Submissions Yet", "Student attempts & security flags will appear here once submitted.")
       } else {
         LazyColumn(verticalArrangement = Arrangement.spacedBy(8.dp), contentPadding = PaddingValues(bottom = 24.dp)) {
-          itemsIndexed(ranked, key = { _, e -> e.row.studentId }) { _, entry ->
-            val r = entry.row
-            AdminGlassCard {
-              Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-              ) {
-                Row(modifier = Modifier.weight(1f), verticalAlignment = Alignment.CenterVertically) {
-                  AdminStatusPill("#${entry.rank}", if (entry.rank <= 3 && r.score != null) GoldPrimary else InfoBlue)
-                  Spacer(modifier = Modifier.width(10.dp))
+          if (extraState.examFlags.isNotEmpty()) {
+            item(key = "flags_header") {
+              Text(
+                text = "Integrity Flags (${extraState.examFlags.size})",
+                fontSize = 14.sp,
+                fontWeight = FontWeight.Bold,
+                color = CrimsonError,
+                modifier = Modifier.testTag("admin_exam_flags_header")
+              )
+            }
+            items(extraState.examFlags, key = { "flag_${it.studentId}" }) { flag ->
+              AdminGlassCard(borderColor = CrimsonError.copy(alpha = 0.45f)) {
+                Row(
+                  modifier = Modifier.fillMaxWidth(),
+                  horizontalArrangement = Arrangement.SpaceBetween,
+                  verticalAlignment = Alignment.CenterVertically
+                ) {
                   Column(modifier = Modifier.weight(1f)) {
-                    Text(r.fullName, fontSize = 15.sp, fontWeight = FontWeight.Bold, color = TextPrimary)
-                    Text("${r.admissionNumber} • ${r.markingStatus}", fontSize = 12.sp, color = TextSecondary)
-                    if (r.late || r.focusLossCount > 0 || r.autoSubmittedReason.isNotBlank()) {
-                      Spacer(modifier = Modifier.height(4.dp))
-                      Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                        if (r.late) AdminStatusPill("LATE", CrimsonError)
-                        if (r.focusLossCount > 0) AdminStatusPill("EXIT (${r.focusLossCount})", CrimsonError)
-                        if (r.autoSubmittedReason.isNotBlank()) AdminStatusPill("AUTO", GoldLight)
+                    Text(flag.fullName, fontSize = 14.sp, fontWeight = FontWeight.Bold, color = TextPrimary)
+                    Text(flag.admissionNumber, fontSize = 12.sp, color = TextSecondary)
+                  }
+                  Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                    if (flag.exitViolations > 0) AdminStatusPill("EXIT (${flag.exitViolations})", CrimsonError)
+                    if (flag.autoSubmitted) {
+                      val reasonTag = flag.autoSubmitReason.takeIf { it.isNotBlank() }?.let { "AUTO: $it" } ?: "AUTO"
+                      AdminStatusPill(reasonTag.uppercase(Locale.US), GoldLight)
+                    }
+                    if (flag.late) AdminStatusPill("LATE", CrimsonError)
+                  }
+                }
+              }
+            }
+          }
+
+          if (ranked.isNotEmpty()) {
+            if (extraState.examFlags.isNotEmpty()) {
+              item(key = "ranked_header") {
+                Spacer(modifier = Modifier.height(4.dp))
+                Text("Ranked Submissions (${ranked.size})", fontSize = 14.sp, fontWeight = FontWeight.Bold, color = GoldLight)
+              }
+            }
+            itemsIndexed(ranked, key = { _, e -> e.row.studentId }) { _, entry ->
+              val r = entry.row
+              AdminGlassCard {
+                Row(
+                  modifier = Modifier.fillMaxWidth(),
+                  horizontalArrangement = Arrangement.SpaceBetween,
+                  verticalAlignment = Alignment.CenterVertically
+                ) {
+                  Row(modifier = Modifier.weight(1f), verticalAlignment = Alignment.CenterVertically) {
+                    AdminStatusPill("#${entry.rank}", if (entry.rank <= 3 && r.score != null) GoldPrimary else InfoBlue)
+                    Spacer(modifier = Modifier.width(10.dp))
+                    Column(modifier = Modifier.weight(1f)) {
+                      Text(r.fullName, fontSize = 15.sp, fontWeight = FontWeight.Bold, color = TextPrimary)
+                      Text("${r.admissionNumber} • ${r.markingStatus}", fontSize = 12.sp, color = TextSecondary)
+                      if (r.late || r.focusLossCount > 0 || r.autoSubmittedReason.isNotBlank()) {
+                        Spacer(modifier = Modifier.height(4.dp))
+                        Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                          if (r.late) AdminStatusPill("LATE", CrimsonError)
+                          if (r.focusLossCount > 0) AdminStatusPill("EXIT (${r.focusLossCount})", CrimsonError)
+                          if (r.autoSubmittedReason.isNotBlank()) AdminStatusPill("AUTO", GoldLight)
+                        }
                       }
                     }
                   }
-                }
-                Column(horizontalAlignment = Alignment.End) {
-                  Text(
-                    text = r.score?.let { String.format(Locale.US, "%.1f / %.1f", it, r.total.coerceAtLeast(1.0)) } ?: "Pending",
-                    fontSize = 14.sp,
-                    fontWeight = FontWeight.Bold,
-                    color = if (r.score != null) EmeraldSuccess else TextMuted
-                  )
-                  Text(
-                    text = if (r.score != null) "${entry.percentage.toInt()}% (${entry.gradeLabel})" else "Pending",
-                    fontSize = 12.sp,
-                    color = ChampagneGold
-                  )
+                  Column(horizontalAlignment = Alignment.End) {
+                    Text(
+                      text = r.score?.let { String.format(Locale.US, "%.1f / %.1f", it, r.total.coerceAtLeast(1.0)) } ?: "Pending",
+                      fontSize = 14.sp,
+                      fontWeight = FontWeight.Bold,
+                      color = if (r.score != null) EmeraldSuccess else TextMuted
+                    )
+                    Text(
+                      text = if (r.score != null) "${entry.percentage.toInt()}% (${entry.gradeLabel})" else "Pending",
+                      fontSize = 12.sp,
+                      color = ChampagneGold
+                    )
+                  }
                 }
               }
             }
@@ -146,7 +191,23 @@ fun AdminMonitorExamsTab(
   }
 
   Column(modifier = Modifier.fillMaxSize().testTag("admin_monitor_exams_tab")) {
-    Text("Exams & Challenges (${extraState.exams.size})", fontSize = 16.sp, fontWeight = FontWeight.Bold, color = GoldLight)
+    Row(
+      modifier = Modifier.fillMaxWidth(),
+      horizontalArrangement = Arrangement.SpaceBetween,
+      verticalAlignment = Alignment.CenterVertically
+    ) {
+      Text("Exams & Challenges (${extraState.exams.size})", fontSize = 16.sp, fontWeight = FontWeight.Bold, color = GoldLight)
+      OutlinedButton(
+        onClick = { extraVm.runExpiredAttempts() },
+        enabled = !extraState.isActionLoading,
+        shape = RoundedCornerShape(10.dp),
+        modifier = Modifier.defaultMinSize(minHeight = 48.dp).testTag("admin_sweep_expired_attempts_btn")
+      ) {
+        Icon(Icons.Default.CleaningServices, contentDescription = null, tint = GoldLight, modifier = Modifier.size(16.dp))
+        Spacer(modifier = Modifier.width(6.dp))
+        Text("Sweep Expired", fontSize = 12.sp, color = GoldLight)
+      }
+    }
     Spacer(modifier = Modifier.height(10.dp))
     if (extraState.exams.isEmpty()) {
       AdminEmptyState(Icons.Default.Quiz, "No Exams or Challenges", "Assessments published by lecturers will appear here for ranking & monitoring.")

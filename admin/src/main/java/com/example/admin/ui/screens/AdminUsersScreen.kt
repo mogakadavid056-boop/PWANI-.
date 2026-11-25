@@ -250,7 +250,7 @@ private fun AdminUserCard(
           AdminStatusPill(text = user.displayRole, color = accent)
           if (user.isLecturer) {
             AdminStatusPill(
-              text = if (user.isVerified) "Verified" else "Not verified",
+              text = if (user.isVerified) "Active" else "Suspended",
               color = if (user.isVerified) EmeraldSuccess else AmberWarning
             )
           }
@@ -282,7 +282,7 @@ private fun AdminUserCard(
               border = BorderStroke(1.dp, if (user.isVerified) AmberWarning else GoldPrimary)
             ) {
               Text(
-                text = if (user.isVerified) "Remove Verification" else "Verify Lecturer",
+                text = if (user.isVerified) "Suspend Access" else "Restore Access",
                 fontFamily = MontserratFamily,
                 fontSize = 13.sp,
                 fontWeight = FontWeight.SemiBold,

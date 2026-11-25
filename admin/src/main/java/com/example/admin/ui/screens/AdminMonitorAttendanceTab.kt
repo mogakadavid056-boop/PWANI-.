@@ -6,6 +6,7 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.defaultMinSize
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -19,6 +20,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Analytics
+import androidx.compose.material.icons.filled.CleaningServices
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Download
 import androidx.compose.material.icons.filled.FactCheck
@@ -44,6 +46,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -145,7 +148,11 @@ fun AdminMonitorAttendanceTab(
   val openSession = extraState.sessions.firstOrNull { it.active || it.status.equals("open", true) }
   Column(modifier = Modifier.fillMaxSize()) {
     Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-      OutlinedButton(onClick = onOpenClassRisk, modifier = Modifier.weight(1f), shape = RoundedCornerShape(10.dp)) {
+      OutlinedButton(
+        onClick = onOpenClassRisk,
+        modifier = Modifier.weight(1f).defaultMinSize(minHeight = 48.dp),
+        shape = RoundedCornerShape(10.dp)
+      ) {
         Icon(Icons.Default.Analytics, contentDescription = null, tint = GoldLight, modifier = Modifier.size(16.dp))
         Spacer(modifier = Modifier.width(4.dp))
         Text("Attendance Tracker", fontSize = 12.sp, color = GoldLight)
@@ -153,13 +160,25 @@ fun AdminMonitorAttendanceTab(
       Button(
         onClick = { showStartDialog = true },
         enabled = !extraState.isActionLoading,
-        modifier = Modifier.weight(1f), shape = RoundedCornerShape(10.dp),
+        modifier = Modifier.weight(1f).defaultMinSize(minHeight = 48.dp),
+        shape = RoundedCornerShape(10.dp),
         colors = ButtonDefaults.buttonColors(containerColor = GoldPrimary, contentColor = DarkTextOnGold)
       ) {
         Icon(Icons.Default.Add, contentDescription = null, modifier = Modifier.size(16.dp))
         Spacer(modifier = Modifier.width(4.dp))
         Text("Start Session", fontSize = 12.sp, fontWeight = FontWeight.Bold)
       }
+    }
+    Spacer(modifier = Modifier.height(6.dp))
+    OutlinedButton(
+      onClick = { extraVm.deleteEmptyExpiredSessions() },
+      enabled = !extraState.isActionLoading,
+      modifier = Modifier.fillMaxWidth().defaultMinSize(minHeight = 48.dp).testTag("admin_clear_empty_sessions_btn"),
+      shape = RoundedCornerShape(10.dp)
+    ) {
+      Icon(Icons.Default.CleaningServices, contentDescription = null, tint = GoldLight, modifier = Modifier.size(16.dp))
+      Spacer(modifier = Modifier.width(6.dp))
+      Text("Clear Empty Expired Sessions", fontSize = 12.sp, color = GoldLight)
     }
 
     if (openSession != null) {
@@ -215,9 +234,15 @@ fun AdminMonitorAttendanceTab(
     StartSessionDialog(units, extraState.isActionLoading, { cid, title, mins -> extraVm.startSession(cid, title, mins); showStartDialog = false }) { showStartDialog = false }
   }
   deleteTarget?.let { target ->
-    AdminConfirmDialog("Delete Attendance Session?", "Provide a reason for deleting this session:", "Delete",
-      isDestructive = true, isActionLoading = extraState.isActionLoading, requireReason = true, reasonLabel = "Reason for deletion",
-      onConfirm = { reason -> extraVm.deleteAttendanceSession(target.id, reason); deleteTarget = null }, onDismiss = { deleteTarget = null })
+    AdminConfirmDialog(
+      title = "Delete Attendance Session?",
+      message = "Delete this closed or expired attendance session? Live sessions must be closed first.",
+      confirmLabel = "Delete",
+      isDestructive = true,
+      isActionLoading = extraState.isActionLoading,
+      onConfirm = { extraVm.deleteAttendanceSession(target.id); deleteTarget = null },
+      onDismiss = { deleteTarget = null }
+    )
   }
 }
 

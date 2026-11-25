@@ -83,10 +83,18 @@ class AdminAttendancePollsGroupsRepository(
       }
     }
 
-  suspend fun deleteSession(sessionId: String, reason: String, accessToken: String): Result<Unit> =
+  suspend fun deleteSession(sessionId: String, accessToken: String): Result<Unit> =
     withContext(Dispatchers.IO) {
-      val body = JSONObject().apply { put("target_session_id", sessionId); put("reason", reason.trim()) }
+      val body = buildDeleteSessionBody(sessionId)
       AdminHttpHelper.postRpc(client, "delete_attendance_session", body, accessToken).map { }
+    }
+
+  suspend fun deleteEmptyExpiredSessions(targetClassId: String? = null, accessToken: String): Result<Int> =
+    withContext(Dispatchers.IO) {
+      val body = buildDeleteEmptyExpiredSessionsBody(targetClassId)
+      AdminHttpHelper.postRpc(client, "admin_delete_empty_expired_sessions", body, accessToken).mapCatching { raw ->
+        parseScalarInt(raw)
+      }
     }
 
   suspend fun listPolls(classId: String, accessToken: String): Result<List<AdminPollItem>> =
@@ -203,4 +211,17 @@ class AdminAttendancePollsGroupsRepository(
 
   suspend fun deleteGroup(groupId: String, accessToken: String): Result<Unit> =
     withContext(Dispatchers.IO) { AdminHttpHelper.postRpc(client, "delete_group", JSONObject().apply { put("target_group_id", groupId) }, accessToken).map { } }
+
+  companion object {
+    fun buildDeleteSessionBody(sessionId: String): JSONObject =
+      JSONObject().apply { put("target_session_id", sessionId) }
+
+    fun buildDeleteEmptyExpiredSessionsBody(targetClassId: String? = null): JSONObject =
+      JSONObject().apply {
+        put("target_class_id", if (targetClassId.isNullOrBlank()) JSONObject.NULL else targetClassId)
+      }
+
+    fun parseScalarInt(raw: String): Int =
+      raw.trim().removeSurrounding("\"").toIntOrNull() ?: 0
+  }
 }

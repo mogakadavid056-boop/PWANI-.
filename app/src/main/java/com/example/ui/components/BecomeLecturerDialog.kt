@@ -52,7 +52,7 @@ fun BecomeLecturerDialog(
     text = {
       Column(modifier = Modifier.fillMaxWidth()) {
         Text(
-          text = "Enter the lecturer verification passcode to upgrade your account to Lecturer mode.",
+          text = "Enter the lecturer passcode to switch your account to Lecturer mode immediately. Students already in a class must ask an administrator.",
           fontSize = 13.sp,
           color = TextSecondary,
           lineHeight = 18.sp

@@ -1,0 +1,1046 @@
+-- CLASSREP V2 - EXAM RULES, INSTANT LECTURERS AND ADMIN POWERS
+-- Run once, after 27_ai_feedback.sql (or after 25 if you did not run 26 and 27).
+-- THIS FILE REPLACES 28_exam_settings.sql: if you did not run 28 yet, skip it and run only this one.
+-- If you already ran 28, running this is still safe.
+--
+-- FROM YOUR HANDWRITTEN NOTE
+--  1. Exam times: any length from 1 minute up to 24 hours, any access window (even 5 or 10 minutes).
+--  2. No copy and paste, no going back, locked answers: stored here, enforced by the app
+--     (the server also enforces locked answers and all the time rules).
+--  3. Leaving the exam: the app reports each exit. The lecturer or admin sets how many warnings;
+--     at the limit the exam is SUBMITTED IMMEDIATELY by the server, even if unfinished.
+--  4. Answers are saved on the server while the student works, so a crash, a dead battery or
+--     running out of time never loses the work.
+--  5. Lecturers get the lecturer role at once with the passcode. No admin approval.
+--     They join classes with a class code and register the unit they teach.
+--  6. Admin can remove a member and delete expired or empty attendance sessions.
+--
+-- IMPORTANT SAFETY NOTE ABOUT INSTANT LECTURERS
+-- Anyone who knows the passcode becomes a lecturer. To keep grades safe:
+--   * Change the passcode to something hard to guess, and change it every semester.
+--   * Only the lecturer who CREATED an exam, or a lecturer assigned to that exam's unit, or an admin can
+--     mark it. A stranger who joins a class cannot touch its grades.
+--   * Admins get a notification for every new lecturer and can suspend anyone in one tap.
+
+-- 1. Exam times up to 24 hours
+alter table public.quizzes drop constraint if exists quizzes_time_limit_minutes_range;
+
+do $$
+declare
+  c record;
+begin
+  for c in
+    select conname from pg_constraint
+    where conrelid = 'public.quizzes'::regclass
+      and contype = 'c'
+      and pg_get_constraintdef(oid) ilike '%time_limit_minutes%'
+  loop
+    execute format('alter table public.quizzes drop constraint %I', c.conname);
+  end loop;
+end $$;
+
+alter table public.quizzes add constraint quizzes_time_limit_minutes_range
+  check (time_limit_minutes is null or time_limit_minutes between 1 and 1440);
+
+-- 2. Settings and progress columns
+alter table public.quizzes add column if not exists time_limit_seconds integer;
+alter table public.quizzes add column if not exists countdown_mode text;
+alter table public.quizzes add column if not exists countdown_style text;
+alter table public.quizzes add column if not exists lock_on_answer boolean not null default false;
+alter table public.quizzes add column if not exists max_exit_violations integer;
+alter table public.quizzes add column if not exists no_copy_paste boolean not null default false;
+alter table public.quizzes add column if not exists on_exit_action text;
+alter table public.quizzes add column if not exists one_way_navigation boolean not null default false;
+alter table public.quizzes add column if not exists per_question_seconds integer;
+alter table public.quizzes add column if not exists strict_deadline boolean not null default false;
+
+alter table public.quiz_attempts add column if not exists exit_violations integer not null default 0;
+alter table public.quiz_attempts add column if not exists violation_log jsonb not null default '[]'::jsonb;
+alter table public.quiz_attempts add column if not exists progress_answers integer[];
+alter table public.quiz_attempts add column if not exists progress_written jsonb not null default '{}'::jsonb;
+alter table public.quiz_attempts add column if not exists progress_saved_at timestamptz;
+alter table public.quiz_attempts add column if not exists auto_submitted boolean not null default false;
+alter table public.quiz_attempts add column if not exists auto_submit_reason text;
+
+-- 3. One clear create_quiz (all new settings optional)
+do $$
+declare
+  f record;
+begin
+  for f in
+    select p.oid::regprocedure as sig
+    from pg_proc p
+    join pg_namespace n on n.oid = p.pronamespace
+    where n.nspname = 'public' and p.proname = 'create_quiz'
+  loop
+    execute 'drop function ' || f.sig;
+  end loop;
+end $$;
+
+create or replace function public.create_quiz(
+  target_class_id uuid,
+  quiz_title text,
+  quiz_description text,
+  quiz_opens_at timestamptz,
+  quiz_closes_at timestamptz,
+  time_limit integer,
+  questions jsonb,
+  target_course_id uuid default null,
+  as_exam boolean default false,
+  shuffle boolean default false,
+  answer_format text default 'choices',
+  p_countdown_mode text default null,
+  p_countdown_style text default null,
+  p_lock_on_answer boolean default false,
+  p_max_exit_violations integer default null,
+  p_no_copy_paste boolean default false,
+  p_on_exit_action text default null,
+  p_one_way_navigation boolean default false,
+  p_per_question_seconds integer default null,
+  p_strict_deadline boolean default false,
+  p_time_limit_seconds integer default null
+)
+returns uuid
+language plpgsql security definer set search_path = public
+as $$
+declare
+  new_id uuid;
+  n_mcq integer;
+  n_written integer;
+  minutes integer := time_limit;
+begin
+  if not public.is_class_staff(target_class_id) then
+    raise exception 'Only lecturers, prefects and administrators can create challenges';
+  end if;
+
+  if as_exam and not (public.is_admin() or public.is_class_lecturer(target_class_id)) then
+    raise exception 'Only lecturers and administrators can create exams';
+  end if;
+
+  if answer_format not in ('choices', 'written', 'both') then
+    raise exception 'The format must be choices, written or both';
+  end if;
+
+  if answer_format <> 'choices' and not as_exam then
+    raise exception 'Written questions are only allowed in exams';
+  end if;
+
+  if quiz_title is null or char_length(trim(quiz_title)) = 0 then
+    raise exception 'Please give it a title';
+  end if;
+
+  if quiz_closes_at <= quiz_opens_at or quiz_closes_at <= now() then
+    raise exception 'The closing time must be in the future and after the opening time';
+  end if;
+
+  if quiz_closes_at < quiz_opens_at + interval '1 minute' then
+    raise exception 'The access window must be at least 1 minute long';
+  end if;
+
+  if p_time_limit_seconds is not null then
+    if p_time_limit_seconds < 30 or p_time_limit_seconds > 86400 then
+      raise exception 'The time limit must be between 30 seconds and 24 hours';
+    end if;
+    minutes := ceil(p_time_limit_seconds / 60.0)::integer;
+  end if;
+
+  if as_exam and minutes is null and p_per_question_seconds is null then
+    raise exception 'An exam needs a time limit';
+  end if;
+
+  if minutes is not null and (minutes < 1 or minutes > 1440) then
+    raise exception 'The time limit must be between 1 minute and 24 hours';
+  end if;
+
+  if jsonb_typeof(questions) <> 'array' or jsonb_array_length(questions) < 1 or jsonb_array_length(questions) > 200 then
+    raise exception 'It needs 1 to 200 questions';
+  end if;
+
+  if target_course_id is not null and not exists (
+    select 1 from public.class_courses cc
+    where cc.class_id = target_class_id and cc.course_id = target_course_id and cc.status = 'approved'
+  ) then
+    raise exception 'Choose an approved unit of this class';
+  end if;
+
+  insert into public.quizzes (
+    class_id, course_id, title, description, opens_at, closes_at,
+    time_limit_minutes, time_limit_seconds, is_exam, shuffle_questions, answer_format,
+    countdown_mode, countdown_style, lock_on_answer, max_exit_violations, no_copy_paste,
+    on_exit_action, one_way_navigation, per_question_seconds, strict_deadline, created_by
+  )
+  values (
+    target_class_id, target_course_id, trim(quiz_title), nullif(trim(quiz_description), ''),
+    quiz_opens_at, quiz_closes_at,
+    minutes, p_time_limit_seconds, as_exam, shuffle, answer_format,
+    left(p_countdown_mode, 30), left(p_countdown_style, 30), coalesce(p_lock_on_answer, false),
+    case when p_max_exit_violations is null then null else least(greatest(p_max_exit_violations, 0), 50) end,
+    coalesce(p_no_copy_paste, false),
+    left(p_on_exit_action, 30), coalesce(p_one_way_navigation, false),
+    case when p_per_question_seconds is null then null else least(greatest(p_per_question_seconds, 5), 3600) end,
+    coalesce(p_strict_deadline, false), auth.uid()
+  )
+  returning id into new_id;
+
+  perform public.insert_quiz_questions(new_id, questions, 0);
+
+  select count(*) filter (where k.question_type = 'mcq'),
+         count(*) filter (where k.question_type = 'written')
+  into n_mcq, n_written
+  from public.quiz_questions k
+  where k.quiz_id = new_id;
+
+  if answer_format = 'choices' and n_written > 0 then
+    raise exception 'This exam is set to choices only, but it has written questions';
+  end if;
+
+  if answer_format = 'written' and n_mcq > 0 then
+    raise exception 'This exam is set to written only, but it has choice questions';
+  end if;
+
+  insert into public.audit_logs (user_id, action, table_name, record_id, metadata)
+  values (auth.uid(), case when as_exam then 'create_exam' else 'create_challenge' end,
+          'quizzes', new_id,
+          jsonb_build_object('questions', jsonb_array_length(questions), 'format', answer_format));
+
+  return new_id;
+end;
+$$;
+
+grant execute on function public.create_quiz(
+  uuid, text, text, timestamptz, timestamptz, integer, jsonb, uuid, boolean, boolean, text,
+  text, text, boolean, integer, boolean, text, boolean, integer, boolean, integer
+) to authenticated;
+
+-- 4. Saving the work while the student writes (so nothing is lost)
+
+-- 4a. Save progress. With "lock on answer", a choice that was already saved cannot be changed.
+create or replace function public.save_exam_progress(
+  target_quiz_id uuid,
+  chosen_answers integer[],
+  written_answers jsonb default '{}'::jsonb
+)
+returns void
+language plpgsql security definer set search_path = public
+as $$
+#variable_conflict use_column
+declare
+  qz record;
+  att record;
+  merged integer[];
+  clean jsonb;
+  i integer;
+begin
+  if auth.uid() is null then
+    raise exception 'Authentication required';
+  end if;
+
+  if coalesce(array_length(chosen_answers, 1), 0) > 200 then
+    raise exception 'Too many answers';
+  end if;
+
+  select z.lock_on_answer into qz from public.quizzes z where z.id = target_quiz_id;
+
+  if not found then
+    raise exception 'Not found';
+  end if;
+
+  select a.progress_answers into att
+  from public.quiz_attempts a
+  where a.quiz_id = target_quiz_id and a.user_id = auth.uid() and a.submitted_at is null
+  for update;
+
+  if not found then
+    raise exception 'There is no exam in progress to save';
+  end if;
+
+  merged := chosen_answers;
+
+  if qz.lock_on_answer and att.progress_answers is not null then
+    for i in 1 .. coalesce(array_length(att.progress_answers, 1), 0) loop
+      if att.progress_answers[i] is not null and att.progress_answers[i] <> -1 then
+        merged[i] := att.progress_answers[i];
+      end if;
+    end loop;
+  end if;
+
+  select coalesce(jsonb_object_agg(e.key, to_jsonb(left(e.value, 8000))), '{}'::jsonb)
+  into clean
+  from jsonb_each_text(case when jsonb_typeof(written_answers) = 'object' then written_answers else '{}'::jsonb end) e
+  where e.key ~ '^[0-9]+$'
+    and exists (select 1 from public.quiz_questions k
+                 where k.quiz_id = target_quiz_id and k.ord = e.key::integer and k.question_type = 'written');
+
+  update public.quiz_attempts a
+  set progress_answers = merged,
+      progress_written = clean,
+      progress_saved_at = now()
+  where a.quiz_id = target_quiz_id and a.user_id = auth.uid();
+end;
+$$;
+
+grant execute on function public.save_exam_progress(uuid, integer[], jsonb) to authenticated;
+
+-- 4b. Read the saved progress back (after a restart or on another phone)
+create or replace function public.get_exam_progress(target_quiz_id uuid)
+returns table (
+  chosen_answers integer[],
+  written_answers jsonb,
+  saved_at timestamptz,
+  exit_violations integer
+)
+language plpgsql stable security definer set search_path = public
+as $$
+#variable_conflict use_column
+begin
+  return query
+  select a.progress_answers, a.progress_written, a.progress_saved_at, a.exit_violations
+  from public.quiz_attempts a
+  where a.quiz_id = target_quiz_id and a.user_id = auth.uid() and a.submitted_at is null;
+end;
+$$;
+
+grant execute on function public.get_exam_progress(uuid) to authenticated;
+
+-- 4c. Internal: grade and close an attempt (used by submit, by the exit limit and by the time-up sweep)
+create or replace function public.finalize_attempt(
+  p_quiz uuid,
+  p_user uuid,
+  p_chosen integer[],
+  p_written jsonb,
+  p_late boolean,
+  p_forced boolean,
+  p_reason text
+)
+returns table (
+  score numeric,
+  total numeric,
+  points_awarded integer,
+  needs_marking boolean
+)
+language plpgsql security definer set search_path = public
+as $$
+#variable_conflict use_column
+declare
+  qz record;
+  att record;
+  total_m numeric;
+  has_written boolean;
+  ans integer[];
+  wr jsonb;
+  got numeric := 0;
+  q record;
+  pts integer;
+  clean jsonb;
+  i integer;
+begin
+  select z.id, z.class_id, z.is_exam, z.lock_on_answer into qz from public.quizzes z where z.id = p_quiz;
+
+  if not found then
+    raise exception 'Not found';
+  end if;
+
+  select a.started_at, a.submitted_at, a.progress_answers, a.progress_written into att
+  from public.quiz_attempts a
+  where a.quiz_id = p_quiz and a.user_id = p_user
+  for update;
+
+  if not found then
+    raise exception 'Start it first';
+  end if;
+
+  if att.submitted_at is not null then
+    raise exception 'You have already submitted this';
+  end if;
+
+  ans := coalesce(p_chosen, att.progress_answers, '{}'::integer[]);
+  wr := coalesce(p_written, att.progress_written, '{}'::jsonb);
+
+  if qz.lock_on_answer and att.progress_answers is not null then
+    for i in 1 .. coalesce(array_length(att.progress_answers, 1), 0) loop
+      if att.progress_answers[i] is not null and att.progress_answers[i] <> -1 then
+        ans[i] := att.progress_answers[i];
+      end if;
+    end loop;
+  end if;
+
+  select coalesce(sum(k.marks), 0), coalesce(bool_or(k.question_type = 'written'), false)
+  into total_m, has_written
+  from public.quiz_questions k
+  where k.quiz_id = p_quiz;
+
+  if not p_late then
+    for q in
+      select k.ord as n, k.correct_index as correct, k.marks as mk
+      from public.quiz_questions k
+      where k.quiz_id = p_quiz and k.question_type = 'mcq'
+      order by k.ord
+    loop
+      if ans[q.n] is not null and ans[q.n] = q.correct then
+        got := got + q.mk;
+      end if;
+    end loop;
+  end if;
+
+  select coalesce(jsonb_object_agg(e.key, to_jsonb(left(e.value, 8000))), '{}'::jsonb)
+  into clean
+  from jsonb_each_text(case when jsonb_typeof(wr) = 'object' then wr else '{}'::jsonb end) e
+  where e.key ~ '^[0-9]+$'
+    and exists (select 1 from public.quiz_questions k
+                 where k.quiz_id = p_quiz and k.ord = e.key::integer and k.question_type = 'written');
+
+  pts := case when p_late or qz.is_exam then 0 else floor(got)::integer + 5 end;
+
+  update public.quiz_attempts a
+  set submitted_at = now(),
+      score = got,
+      total = total_m,
+      mcq_marks = got,
+      answers = ans,
+      written_answers = clean,
+      late = p_late,
+      auto_submitted = p_forced,
+      auto_submit_reason = p_reason,
+      marking_status = case when has_written then 'pending' else 'auto' end
+  where a.quiz_id = p_quiz and a.user_id = p_user;
+
+  perform public.award_points(p_user, qz.class_id, pts, 'quiz', p_quiz);
+
+  return query select got, total_m, pts, has_written;
+end;
+$$;
+
+revoke execute on function public.finalize_attempt(uuid, uuid, integer[], jsonb, boolean, boolean, text) from public, anon, authenticated;
+
+-- 4d. Start: the time limit is measured in exact seconds
+create or replace function public.start_quiz(target_quiz_id uuid)
+returns table (
+  question_id uuid,
+  ord integer,
+  question_type text,
+  question text,
+  options jsonb,
+  marks numeric,
+  time_limit_minutes integer,
+  started_at timestamptz
+)
+language plpgsql security definer set search_path = public
+as $$
+#variable_conflict use_column
+declare
+  qz record;
+  att record;
+  my_role public.app_role;
+  eff integer;
+begin
+  if auth.uid() is null then
+    raise exception 'Authentication required';
+  end if;
+
+  select z.id, z.class_id, z.active, z.opens_at, z.closes_at, z.time_limit_minutes,
+         z.time_limit_seconds, z.shuffle_questions
+  into qz
+  from public.quizzes z
+  where z.id = target_quiz_id;
+
+  if not found then
+    raise exception 'Not found';
+  end if;
+
+  eff := coalesce(qz.time_limit_seconds, qz.time_limit_minutes * 60);
+
+  select r.role into my_role from public.user_roles r where r.user_id = auth.uid();
+
+  if my_role is distinct from 'student' then
+    raise exception 'Only students can take this';
+  end if;
+
+  if not public.is_class_member(qz.class_id) then
+    raise exception 'You are not a member of this class';
+  end if;
+
+  if not qz.active or now() < qz.opens_at or now() > qz.closes_at then
+    raise exception 'This is not open';
+  end if;
+
+  select a.quiz_id, a.started_at, a.submitted_at
+  into att
+  from public.quiz_attempts a
+  where a.quiz_id = target_quiz_id and a.user_id = auth.uid();
+
+  if found then
+    if att.submitted_at is not null then
+      raise exception 'You have already taken this';
+    end if;
+
+    if eff is not null and now() > att.started_at + make_interval(secs => eff) + interval '30 seconds' then
+      raise exception 'Your time is up';
+    end if;
+  else
+    insert into public.quiz_attempts (quiz_id, user_id)
+    values (target_quiz_id, auth.uid());
+
+    select a.quiz_id, a.started_at, a.submitted_at
+    into att
+    from public.quiz_attempts a
+    where a.quiz_id = target_quiz_id and a.user_id = auth.uid();
+  end if;
+
+  return query
+  select q.id, q.ord, q.question_type, q.question, q.options, q.marks, qz.time_limit_minutes, att.started_at
+  from public.quiz_questions q
+  where q.quiz_id = target_quiz_id
+  order by case when qz.shuffle_questions then md5(auth.uid()::text || q.id::text) else null end, q.ord;
+end;
+$$;
+
+grant execute on function public.start_quiz(uuid) to authenticated;
+
+-- 4e. Submit (the student presses Submit, or the timer ends in the app)
+create or replace function public.submit_quiz(
+  target_quiz_id uuid,
+  chosen_answers integer[],
+  written_answers jsonb default '{}'::jsonb
+)
+returns table (
+  score numeric,
+  total numeric,
+  points_awarded integer,
+  needs_marking boolean
+)
+language plpgsql security definer set search_path = public
+as $$
+#variable_conflict use_column
+declare
+  qz record;
+  att record;
+  eff integer;
+  personal_end timestamptz;
+  late_flag boolean;
+begin
+  if auth.uid() is null then
+    raise exception 'Authentication required';
+  end if;
+
+  select z.id, z.closes_at, z.time_limit_minutes, z.time_limit_seconds, z.strict_deadline
+  into qz
+  from public.quizzes z
+  where z.id = target_quiz_id;
+
+  if not found then
+    raise exception 'Not found';
+  end if;
+
+  eff := coalesce(qz.time_limit_seconds, qz.time_limit_minutes * 60);
+
+  select a.started_at, a.submitted_at into att
+  from public.quiz_attempts a
+  where a.quiz_id = target_quiz_id and a.user_id = auth.uid()
+  for update;
+
+  if not found then
+    raise exception 'Start it first';
+  end if;
+
+  if att.submitted_at is not null then
+    raise exception 'You have already submitted this';
+  end if;
+
+  personal_end := case when eff is null then null else att.started_at + make_interval(secs => eff) end;
+
+  if qz.strict_deadline then
+    late_flag := now() > least(coalesce(personal_end, qz.closes_at), qz.closes_at) + interval '5 seconds';
+  else
+    late_flag := (personal_end is not null and now() > personal_end + interval '60 seconds')
+                 or now() > qz.closes_at + interval '5 minutes';
+  end if;
+
+  return query
+  select f.score, f.total, f.points_awarded, f.needs_marking
+  from public.finalize_attempt(target_quiz_id, auth.uid(), chosen_answers, written_answers, late_flag, false, null) f;
+end;
+$$;
+
+grant execute on function public.submit_quiz(uuid, integer[], jsonb) to authenticated;
+
+-- 4f. The student left the exam screen. At the warning limit the exam is submitted at once.
+drop function if exists public.report_exam_violation(uuid, text);
+
+create or replace function public.report_exam_violation(target_quiz_id uuid, violation_kind text default 'left_app')
+returns table (
+  violations integer,
+  max_violations integer,
+  auto_submitted boolean
+)
+language plpgsql security definer set search_path = public
+as $$
+#variable_conflict use_column
+declare
+  qz record;
+  n integer;
+  submitted boolean := false;
+begin
+  select z.max_exit_violations, z.on_exit_action into qz
+  from public.quizzes z where z.id = target_quiz_id;
+
+  if not found then
+    raise exception 'Not found';
+  end if;
+
+  update public.quiz_attempts a
+  set exit_violations = a.exit_violations + 1,
+      violation_log = case
+        when jsonb_array_length(a.violation_log) >= 50
+          then (a.violation_log - 0)
+               || jsonb_build_array(jsonb_build_object('kind', left(violation_kind, 30), 'at', now()))
+        else a.violation_log
+               || jsonb_build_array(jsonb_build_object('kind', left(violation_kind, 30), 'at', now()))
+      end
+  where a.quiz_id = target_quiz_id and a.user_id = auth.uid() and a.submitted_at is null
+  returning a.exit_violations into n;
+
+  if n is null then
+    return query select 0, qz.max_exit_violations, false;
+    return;
+  end if;
+
+  if qz.max_exit_violations is not null
+     and n >= qz.max_exit_violations
+     and lower(coalesce(qz.on_exit_action, '')) like '%submit%' then
+    perform public.finalize_attempt(target_quiz_id, auth.uid(), null, null, false, true, 'exit_limit');
+    submitted := true;
+  end if;
+
+  return query select n, qz.max_exit_violations, submitted;
+end;
+$$;
+
+grant execute on function public.report_exam_violation(uuid, text) to authenticated;
+
+-- 4g. Time is up and the app never submitted (dead battery, crash, no network): submit what was saved
+create or replace function public.process_expired_attempts()
+returns integer
+language plpgsql security definer set search_path = public
+as $$
+declare
+  r record;
+  n integer := 0;
+begin
+  for r in
+    select a.quiz_id, a.user_id
+    from public.quiz_attempts a
+    join public.quizzes z on z.id = a.quiz_id
+    where a.submitted_at is null
+      and (
+        (coalesce(z.time_limit_seconds, z.time_limit_minutes * 60) is not null
+         and now() > a.started_at
+                     + make_interval(secs => coalesce(z.time_limit_seconds, z.time_limit_minutes * 60))
+                     + interval '2 minutes')
+        or now() > z.closes_at + interval '2 minutes'
+      )
+    limit 200
+  loop
+    begin
+      perform public.finalize_attempt(r.quiz_id, r.user_id, null, null, false, true, 'time_up');
+      n := n + 1;
+    exception when others then
+      null;
+    end;
+  end loop;
+
+  return n;
+end;
+$$;
+
+revoke execute on function public.process_expired_attempts() from public, anon, authenticated;
+
+create or replace function public.admin_run_expired_attempts()
+returns integer
+language plpgsql security definer set search_path = public
+as $$
+begin
+  if not public.is_admin() then
+    raise exception 'Only administrators can do this';
+  end if;
+  return public.process_expired_attempts();
+end;
+$$;
+
+grant execute on function public.admin_run_expired_attempts() to authenticated;
+
+-- 4h. Lecturers and admins see who left the exam, was auto-submitted or was late
+create or replace function public.list_exam_flags(target_quiz_id uuid)
+returns table (
+  student_id uuid,
+  full_name text,
+  admission_number text,
+  exit_violations integer,
+  auto_submitted boolean,
+  auto_submit_reason text,
+  late boolean,
+  submitted_at timestamptz
+)
+language plpgsql stable security definer set search_path = public
+as $$
+#variable_conflict use_column
+declare
+  cid uuid;
+begin
+  select z.class_id into cid from public.quizzes z where z.id = target_quiz_id;
+
+  if cid is null then
+    raise exception 'Not found';
+  end if;
+
+  if not (public.is_admin() or public.is_class_lecturer(cid)) then
+    raise exception 'Not authorized';
+  end if;
+
+  return query
+  select a.user_id, p.full_name, p.admission_number, a.exit_violations, a.auto_submitted,
+         a.auto_submit_reason, a.late, a.submitted_at
+  from public.quiz_attempts a
+  join public.profiles p on p.id = a.user_id
+  where a.quiz_id = target_quiz_id
+    and (a.exit_violations > 0 or a.auto_submitted or a.late)
+  order by a.exit_violations desc, p.full_name;
+end;
+$$;
+
+grant execute on function public.list_exam_flags(uuid) to authenticated;
+
+-- 5. The AI assistant is paused while the student is inside an exam
+create or replace function public.ai_check_and_count()
+returns integer
+language plpgsql security definer set search_path = public
+as $$
+declare
+  my_role public.app_role;
+  lim integer;
+  today date := (now() at time zone 'Africa/Nairobi')::date;
+  used integer;
+begin
+  if auth.uid() is null then
+    raise exception 'Please sign in to use the assistant';
+  end if;
+
+  if exists (
+    select 1
+    from public.quiz_attempts a
+    join public.quizzes z on z.id = a.quiz_id
+    where a.user_id = auth.uid()
+      and a.submitted_at is null
+      and z.is_exam
+      and now() <= z.closes_at
+      and (coalesce(z.time_limit_seconds, z.time_limit_minutes * 60) is null
+           or now() <= a.started_at
+                       + make_interval(secs => coalesce(z.time_limit_seconds, z.time_limit_minutes * 60))
+                       + interval '1 minute')
+  ) then
+    raise exception 'The assistant is paused while you are in an exam.';
+  end if;
+
+  if not public.has_ai_consent() then
+    raise exception 'Please accept the assistant terms first';
+  end if;
+
+  select r.role into my_role from public.user_roles r where r.user_id = auth.uid();
+
+  lim := case my_role when 'admin' then 200 when 'lecturer' then 100 else 30 end;
+
+  if my_role = 'student' and exists (
+    select 1 from public.student_representatives sr
+    where sr.user_id = auth.uid() and sr.active = true
+  ) then
+    lim := 50;
+  end if;
+
+  insert into public.ai_usage (user_id, day, requests)
+  values (auth.uid(), today, 1)
+  on conflict (user_id, day) do update set requests = public.ai_usage.requests + 1
+  returning requests into used;
+
+  if used > lim then
+    raise exception 'You have used today''s % assistant questions. Please try again tomorrow.', lim;
+  end if;
+
+  return lim - used;
+end;
+$$;
+
+grant execute on function public.ai_check_and_count() to authenticated;
+
+-- 6. LECTURERS: the lecturer role is given at once with the passcode (no admin approval)
+create or replace function public.become_lecturer(passcode text)
+returns boolean
+language plpgsql security definer set search_path = public
+as $$
+declare
+  my_role public.app_role;
+  recent_fails integer;
+  stored text;
+begin
+  if auth.uid() is null then
+    raise exception 'Authentication required';
+  end if;
+
+  select r.role into my_role from public.user_roles r where r.user_id = auth.uid();
+
+  if my_role in ('lecturer', 'admin') then
+    return true;
+  end if;
+
+  if exists (
+    select 1 from public.class_members m
+    where m.user_id = auth.uid() and m.status = 'active'
+  ) then
+    raise exception 'Students who are already in a class cannot become lecturers. Ask an administrator.';
+  end if;
+
+  select count(*) into recent_fails
+  from public.passcode_attempts a
+  where a.user_id = auth.uid()
+    and a.success = false
+    and a.attempted_at > now() - interval '1 hour';
+
+  if recent_fails >= 5 then
+    raise exception 'Too many wrong attempts. Try again in an hour.';
+  end if;
+
+  select s.value_hash into stored from public.app_secrets s where s.key = 'lecturer_passcode';
+
+  if stored is not null
+     and encode(sha256(convert_to(public.normalize_passcode(passcode), 'UTF8')), 'hex') = stored then
+
+    update public.user_roles
+    set role = 'lecturer', verified = true, updated_at = now()
+    where user_id = auth.uid();
+
+    insert into public.passcode_attempts (user_id, success) values (auth.uid(), true);
+
+    insert into public.audit_logs (user_id, action, table_name, record_id)
+    values (auth.uid(), 'become_lecturer', 'user_roles', auth.uid());
+
+    return true;
+  end if;
+
+  insert into public.passcode_attempts (user_id, success) values (auth.uid(), false);
+  return false;
+end;
+$$;
+
+grant execute on function public.become_lecturer(text) to authenticated;
+
+-- Everyone who is already a lecturer is active now. Admin can still suspend anyone later.
+update public.user_roles set verified = true where role = 'lecturer';
+
+-- Admins hear about every new lecturer (for information, no approval needed)
+create or replace function public.trg_role_changed()
+returns trigger
+language plpgsql security definer set search_path = public
+as $$
+declare
+  pname text;
+begin
+  if new.role = 'lecturer' and old.role is distinct from 'lecturer' then
+    select p.full_name into pname from public.profiles p where p.id = new.user_id;
+
+    perform public.notify_users(
+      public.admin_audience(),
+      'lecturer_registered',
+      'New lecturer registered',
+      coalesce(pname, 'Someone') || ' registered as a lecturer with the passcode.',
+      null,
+      jsonb_build_object('user_id', new.user_id)
+    );
+  end if;
+
+  if new.role = 'lecturer' and old.role = 'lecturer' and new.verified and old.verified is distinct from true then
+    perform public.notify_users(
+      array[new.user_id],
+      'lecturer_verified',
+      'Your lecturer access is active again',
+      'You can join and manage your classes with their class codes.'
+    );
+  end if;
+
+  return new;
+end;
+$$;
+
+-- Lecturers join classes with the class code, not by browsing a list
+create or replace function public.claim_class(target_class_id uuid)
+returns void
+language plpgsql security definer set search_path = public
+as $$
+begin
+  if not public.is_admin() then
+    raise exception 'Lecturers join a class with its class code. Ask the class prefect or your department for the code.';
+  end if;
+
+  if not exists (select 1 from public.classes c where c.id = target_class_id) then
+    raise exception 'Class not found';
+  end if;
+
+  insert into public.class_members (class_id, user_id, status)
+  values (target_class_id, auth.uid(), 'active')
+  on conflict (class_id, user_id) do update set status = 'active';
+
+  insert into public.audit_logs (user_id, action, table_name, record_id)
+  values (auth.uid(), 'admin_join_class', 'classes', target_class_id);
+end;
+$$;
+
+grant execute on function public.claim_class(uuid) to authenticated;
+
+-- Grades are safe: only the exam's creator, a lecturer assigned to its unit, or an admin can mark it
+create or replace function public.can_mark_quiz(p_quiz uuid)
+returns boolean
+language sql stable security definer set search_path = public
+as $$
+  select coalesce((
+    select public.is_admin()
+        or (
+          public.is_class_lecturer(qz.class_id)
+          and (
+            qz.created_by = auth.uid()
+            or (qz.course_id is not null
+                and exists (select 1 from public.course_lecturers cl
+                             where cl.course_id = qz.course_id and cl.lecturer_id = auth.uid()))
+          )
+        )
+    from public.quizzes qz
+    where qz.id = p_quiz
+  ), false);
+$$;
+
+grant execute on function public.can_mark_quiz(uuid) to authenticated;
+
+-- 7. ADMIN POWERS
+
+-- Remove a member from a class (they are told, and it is recorded)
+create or replace function public.admin_remove_member(
+  target_class_id uuid,
+  target_user_id uuid,
+  removal_reason text default null
+)
+returns void
+language plpgsql security definer set search_path = public
+as $$
+declare
+  cname text;
+begin
+  if not public.is_admin() then
+    raise exception 'Only administrators can do this';
+  end if;
+
+  select c.name into cname from public.classes c where c.id = target_class_id;
+
+  delete from public.class_members m
+  where m.class_id = target_class_id and m.user_id = target_user_id;
+
+  if not found then
+    raise exception 'That person is not a member of this class';
+  end if;
+
+  update public.student_representatives sr
+  set active = false
+  where sr.class_id = target_class_id and sr.user_id = target_user_id;
+
+  insert into public.audit_logs (user_id, action, table_name, record_id, metadata)
+  values (auth.uid(), 'admin_remove_member', 'class_members', target_user_id,
+          jsonb_build_object('class_id', target_class_id, 'reason', left(removal_reason, 300)));
+
+  perform public.notify_users(
+    array[target_user_id],
+    'removed_from_class',
+    'You were removed from ' || coalesce(cname, 'a class'),
+    coalesce(nullif(trim(removal_reason), ''), 'If this is a mistake, please contact your lecturer or class prefect.'),
+    null
+  );
+end;
+$$;
+
+grant execute on function public.admin_remove_member(uuid, uuid, text) to authenticated;
+
+-- Delete one attendance session that is closed or expired (a live session must be closed first)
+create or replace function public.delete_attendance_session(target_session_id uuid)
+returns void
+language plpgsql security definer set search_path = public
+as $$
+declare
+  cid uuid;
+  stitle text;
+  still_open boolean;
+  records integer;
+begin
+  select s.class_id, s.title, (s.active and s.expires_at > now())
+  into cid, stitle, still_open
+  from public.attendance_sessions s
+  where s.id = target_session_id;
+
+  if cid is null then
+    raise exception 'Session not found';
+  end if;
+
+  if not (public.is_admin() or public.is_class_lecturer(cid)) then
+    raise exception 'Only lecturers and administrators can delete sessions';
+  end if;
+
+  if still_open then
+    raise exception 'This session is still open. Close it first.';
+  end if;
+
+  select count(*) into records from public.attendance_records r where r.session_id = target_session_id;
+
+  delete from public.attendance_sessions s where s.id = target_session_id;
+
+  insert into public.audit_logs (user_id, action, table_name, record_id, metadata)
+  values (auth.uid(), 'delete_attendance_session', 'attendance_sessions', target_session_id,
+          jsonb_build_object('class_id', cid, 'title', stitle, 'records_deleted', records));
+end;
+$$;
+
+grant execute on function public.delete_attendance_session(uuid) to authenticated;
+
+-- Admin: clear expired or closed sessions that nobody signed (started by mistake). Optional class filter.
+create or replace function public.admin_delete_empty_expired_sessions(target_class_id uuid default null)
+returns integer
+language plpgsql security definer set search_path = public
+as $$
+declare
+  n integer;
+begin
+  if not public.is_admin() then
+    raise exception 'Only administrators can do this';
+  end if;
+
+  with gone as (
+    delete from public.attendance_sessions s
+    where (s.active = false or s.expires_at <= now())
+      and not exists (select 1 from public.attendance_records r where r.session_id = s.id)
+      and (target_class_id is null or s.class_id = target_class_id)
+    returning s.id
+  )
+  select count(*) into n from gone;
+
+  insert into public.audit_logs (user_id, action, table_name, metadata)
+  values (auth.uid(), 'delete_empty_expired_sessions', 'attendance_sessions',
+          jsonb_build_object('deleted', n, 'class_id', target_class_id));
+
+  return n;
+end;
+$$;
+
+grant execute on function public.admin_delete_empty_expired_sessions(uuid) to authenticated;
+
+-- 8. Make everything visible to the app straight away
+notify pgrst, 'reload schema';
+
+-- 9. AUTOMATIC SUBMIT WHEN TIME IS UP (run this part SEPARATELY, as its own query, after everything above worked)
+-- If you already scheduled the attendance warnings, pg_cron is already switched on.
+--
+-- create extension if not exists pg_cron with schema pg_catalog;
+-- select cron.schedule('classrep-expired-attempts', '*/5 * * * *', $$select public.process_expired_attempts();$$);
+
+-- END OF EXAM RULES AND ROLES SQL

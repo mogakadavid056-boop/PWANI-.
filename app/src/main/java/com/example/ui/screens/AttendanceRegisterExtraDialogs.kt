@@ -130,10 +130,8 @@ fun DeleteRegisterDialog(
   registerTitle: String,
   isLoading: Boolean,
   onDismiss: () -> Unit,
-  onConfirmDelete: (reason: String) -> Unit
+  onConfirmDelete: () -> Unit
 ) {
-  var reason by remember { mutableStateOf("") }
-  val canConfirm = reason.trim().length >= 5 && !isLoading
   Dialog(onDismissRequest = { if (!isLoading) onDismiss() }) {
     Box(
       modifier = Modifier.fillMaxWidth().clip(RoundedCornerShape(16.dp)).background(DarkSurface)
@@ -146,28 +144,17 @@ fun DeleteRegisterDialog(
           Text("Delete Attendance History", fontSize = 17.sp, fontWeight = FontWeight.Bold, color = GoldLight)
         }
         Spacer(modifier = Modifier.height(8.dp))
-        Text("Delete \"$registerTitle\"? Enter a reason (minimum 5 characters).", fontSize = 13.sp, color = TextSecondary)
-        Spacer(modifier = Modifier.height(12.dp))
-        OutlinedTextField(
-          value = reason, onValueChange = { reason = it },
-          label = { Text("Reason for deletion") }, minLines = 2,
-          modifier = Modifier.fillMaxWidth().testTag("delete_register_reason_input"),
-          colors = OutlinedTextFieldDefaults.colors(
-            focusedBorderColor = GoldPrimary, unfocusedBorderColor = DarkBorder,
-            focusedContainerColor = DarkSurfaceVariant, unfocusedContainerColor = DarkSurfaceVariant,
-            focusedTextColor = TextPrimary, unfocusedTextColor = TextPrimary
-          )
-        )
+        Text("Delete \"$registerTitle\"? Make sure the session is closed first. This cannot be undone.", fontSize = 13.sp, color = TextSecondary)
         Spacer(modifier = Modifier.height(16.dp))
         Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
           OutlinedButton(
-            onClick = onDismiss, enabled = !isLoading, modifier = Modifier.weight(1f).height(44.dp),
+            onClick = onDismiss, enabled = !isLoading, modifier = Modifier.weight(1f).height(48.dp),
             border = BorderStroke(1.5.dp, GoldPrimary),
             colors = ButtonDefaults.outlinedButtonColors(containerColor = DarkSurface, contentColor = GoldLight)
           ) { Text("Cancel", fontSize = 14.sp, color = GoldLight, maxLines = 1, softWrap = false) }
           Button(
-            onClick = { onConfirmDelete(reason.trim()) }, enabled = canConfirm,
-            modifier = Modifier.weight(1f).height(44.dp).testTag("confirm_delete_register_btn"),
+            onClick = onConfirmDelete, enabled = !isLoading,
+            modifier = Modifier.weight(1f).height(48.dp).testTag("confirm_delete_register_btn"),
             colors = ButtonDefaults.buttonColors(containerColor = ErrorRed, contentColor = Color.White, disabledContainerColor = ErrorRed.copy(alpha = 0.4f), disabledContentColor = Color.White.copy(alpha = 0.6f))
           ) { Text("Delete", fontSize = 14.sp, fontWeight = FontWeight.Bold, color = Color.White, maxLines = 1, softWrap = false) }
         }
@@ -248,7 +235,7 @@ fun AttendanceRegisterModals(
   onDismissVoid: () -> Unit,
   onConfirmVoid: (String) -> Unit,
   onDismissDelete: () -> Unit,
-  onConfirmDelete: (String) -> Unit,
+  onConfirmDelete: () -> Unit,
   onDismissEditDetails: () -> Unit,
   onSaveEditDetails: (String, String, String, String, String) -> Unit,
   onDismissSignRole: () -> Unit,

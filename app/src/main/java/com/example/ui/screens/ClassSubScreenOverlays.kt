@@ -32,7 +32,7 @@ fun HandleClassSubScreenOverlay(
   onSignAttendanceSubmit: (code: String, signatureBase64: String, memberFullName: String, memberAdmissionNo: String) -> Unit,
   onCloseRegisterSession: () -> Unit = {},
   onVoidRegisterSession: (String) -> Unit = {},
-  onDeleteRegisterSession: (String) -> Unit = {},
+  onDeleteRegisterSession: () -> Unit = {},
   onSignOutRegisterSession: () -> Unit = {},
   onSignRegister: (String, String) -> Unit = { _, _ -> },
   onCorrectRegisterTime: (String, String, String, String) -> Unit = { _, _, _, _ -> },
@@ -109,6 +109,7 @@ fun HandleClassSubScreenOverlay(
       waitingFirst = challengesUiState.submissionsWaitingFirst,
       searchQuery = challengesUiState.submissionsSearchQuery,
       isLoading = challengesUiState.isLoadingSubmissions || challengesUiState.isLoadingPaper,
+      examFlags = challengesUiState.examFlags,
       readyToBatchReturnCount = challengesUiState.readyToBatchReturnCount,
       isBatchReleasing = challengesUiState.isBatchReleasing,
       batchReleaseDone = challengesUiState.batchReleaseDone,
@@ -169,15 +170,18 @@ fun HandleClassSubScreenOverlay(
 
   val resultsQuiz = challengesUiState.resultsQuiz
   if (resultsQuiz != null) {
-    val canMark = com.example.util.RoleHelper.isAdmin(session?.role) ||
-      com.example.util.RoleHelper.isLecturer(session?.role)
+    val isAdminRole = com.example.util.RoleHelper.isAdmin(session?.role)
+    val isLecturerRole = com.example.util.RoleHelper.isLecturer(session?.role)
+    val canMark = isAdminRole || (isLecturerRole && (challengesUiState.canMarkByQuizId[resultsQuiz.quizId] ?: (resultsQuiz.createdBy == session?.userId)))
+    val canExport = isAdminRole || isLecturerRole
     ChallengeResultsScreen(
       quiz = resultsQuiz,
       rows = challengesUiState.resultsRows,
+      examFlags = challengesUiState.examFlags,
       isLoading = challengesUiState.isLoadingResults,
       errorMessage = challengesUiState.errorMessage,
       canMarkPapers = canMark,
-      canExportRankedPdf = canMark,
+      canExportRankedPdf = canExport,
       isLoadingPdf = challengesUiState.isLoadingPdf,
       onOpenAnswerKey = {
         challengesCallbacks.onCloseResults()

@@ -20,7 +20,7 @@ data class ClassAttendanceCallbacks(
   val onCloseSession: (sessionId: String) -> Unit = {},
   val onSignOutSession: (sessionId: String) -> Unit = {},
   val onVoidRegisterSession: (reason: String) -> Unit = {},
-  val onDeleteRegisterSession: (reason: String) -> Unit = {},
+  val onDeleteRegisterSession: () -> Unit = {},
   val onSignRegister: (signerRole: String, signatureBase64: String) -> Unit = { _, _ -> },
   val onCorrectRegisterTime: (recordId: String, newTimeIn: String, newTimeOut: String, reason: String) -> Unit = { _, _, _, _ -> },
   val onMarkPresent: (studentId: String, timeIn: String, timeOut: String, reason: String) -> Unit = { _, _, _, _ -> },
@@ -31,7 +31,7 @@ data class ClassAttendanceCallbacks(
   val onDismissPromptVoidSession: () -> Unit,
   val onPromptDeleteRegister: (AttendanceRegisterListItem) -> Unit = {},
   val onDismissPromptDeleteRegister: () -> Unit = {},
-  val onConfirmDeleteRegister: (reason: String) -> Unit = {},
+  val onConfirmDeleteRegister: () -> Unit = {},
   val onDismissAttendanceError: () -> Unit,
   val onDismissAttendanceSuccess: () -> Unit
 )

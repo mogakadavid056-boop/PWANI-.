@@ -2,6 +2,7 @@ package com.example.ui
 
 import com.example.data.ActivityStats
 import com.example.data.ChallengeItem
+import com.example.data.ExamFlagItem
 import com.example.data.ExamPaperDetail
 import com.example.data.ExamSubmissionRow
 import com.example.data.LeaderboardEntry
@@ -29,6 +30,9 @@ data class ChallengesUiState(
   val quizzes: List<ChallengeItem> = emptyList(),
   val selectedFilter: QuizStatusFilter = QuizStatusFilter.ALL,
   val isLoadingQuizzes: Boolean = false,
+  val canMarkByQuizId: Map<String, Boolean> = emptyMap(),
+  val examFlags: List<ExamFlagItem> = emptyList(),
+  val isLoadingFlags: Boolean = false,
   val activityStats: ActivityStats? = null,
   val isLoadingStats: Boolean = false,
   val leaderboardPeriod: LeaderboardPeriod = LeaderboardPeriod.WEEK,

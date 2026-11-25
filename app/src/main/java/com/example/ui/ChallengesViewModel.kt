@@ -22,10 +22,15 @@ import com.example.data.QuestionMarkingDraft
 import com.example.data.QuestionType
 import com.example.data.QuizResultRow
 import com.example.data.QuizStatusFilter
+import com.example.data.QuizSubmissionResult
 import com.example.data.UserSession
 import com.example.util.MarkedPaperPdfGenerator
+import com.example.util.RoleHelper
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.async
+import kotlinx.coroutines.awaitAll
+import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -46,6 +51,7 @@ class ChallengesViewModel(
   val uiState: StateFlow<ChallengesUiState> = _uiState.asStateFlow()
 
   private var countdownJob: Job? = null
+  private var progressSaveJob: Job? = null
   private var activeSessionForTimer: UserSession? = null
   private var lastViolationEventAtMs: Long = 0L
 
@@ -64,7 +70,23 @@ class ChallengesViewModel(
     _uiState.update { it.copy(classId = classId, isLoadingQuizzes = true, errorMessage = null) }
     viewModelScope.launch {
       service.listQuizzes(classId, token).fold(
-        onSuccess = { list -> _uiState.update { it.copy(quizzes = list, isLoadingQuizzes = false) } },
+        onSuccess = { list ->
+          val canMarkMap = if (RoleHelper.isLecturer(session?.role) && !RoleHelper.isAdmin(session?.role)) {
+            val examsToCheck = list.filter { it.isExam && it.answerFormat != ExamAnswerFormat.CHOICES }
+            coroutineScope {
+              examsToCheck.map { q ->
+                async { q.quizId to service.canMarkQuiz(q.quizId, token).getOrDefault(q.createdBy == session?.userId) }
+              }.awaitAll().toMap()
+            }
+          } else emptyMap()
+          _uiState.update {
+            it.copy(
+              quizzes = list,
+              canMarkByQuizId = if (canMarkMap.isNotEmpty()) canMarkMap else it.canMarkByQuizId,
+              isLoadingQuizzes = false
+            )
+          }
+        },
         onFailure = { err -> _uiState.update { it.copy(isLoadingQuizzes = false, errorMessage = err.message) } }
       )
     }
@@ -216,6 +238,7 @@ class ChallengesViewModel(
     val token = session?.accessToken.orEmpty()
     if (token.isBlank()) return
     stopCountdown()
+    progressSaveJob?.cancel()
     activeSessionForTimer = session
     lastViolationEventAtMs = 0L
     _uiState.update {
@@ -243,22 +266,30 @@ class ChallengesViewModel(
     viewModelScope.launch {
       service.startQuiz(quiz.quizId, token).fold(
         onSuccess = { questions ->
+          val savedProgress = service.getExamProgress(quiz.quizId, token).getOrNull()
           val first = questions.firstOrNull()
           val mergedQuiz = if (first != null) {
             quiz.copy(
               timeLimitSeconds = first.timeLimitSeconds ?: quiz.effectiveTimeLimitSeconds,
               perQuestionSeconds = first.perQuestionSeconds ?: quiz.perQuestionSeconds,
-              countdownMode = first.countdownMode,
-              countdownStyle = first.countdownStyle,
-              oneWayNavigation = first.oneWayNavigation,
-              lockOnAnswer = first.lockOnAnswer,
-              noCopyPaste = first.noCopyPaste,
-              onExitAction = first.onExitAction,
-              maxExitViolations = first.maxExitViolations,
-              strictDeadline = first.strictDeadline
+              countdownMode = first.countdownMode ?: quiz.countdownMode,
+              countdownStyle = first.countdownStyle ?: quiz.countdownStyle,
+              oneWayNavigation = first.oneWayNavigation ?: quiz.oneWayNavigation,
+              lockOnAnswer = first.lockOnAnswer ?: quiz.lockOnAnswer,
+              noCopyPaste = first.noCopyPaste ?: quiz.noCopyPaste,
+              onExitAction = first.onExitAction ?: quiz.onExitAction,
+              maxExitViolations = first.maxExitViolations ?: quiz.maxExitViolations,
+              strictDeadline = first.strictDeadline ?: quiz.strictDeadline
             )
           } else quiz
-          val lockedSet = first?.lockedQuestionOrds?.toSet().orEmpty()
+          val restoredSelected = savedProgress?.chosenAnswersByOrd.orEmpty()
+          val restoredWritten = savedProgress?.writtenAnswersByOrd.orEmpty()
+          val lockedSet = buildSet {
+            addAll(first?.lockedQuestionOrds.orEmpty())
+            if (mergedQuiz.lockOnAnswer) {
+              addAll(restoredSelected.keys)
+            }
+          }
           val firstUnlockedIdx = questions.indexOfFirst { it.ord !in lockedSet }.coerceAtLeast(0)
           val startQ = questions.getOrNull(firstUnlockedIdx)
           val serverSkewMs = first?.serverNow?.let { rawNow ->
@@ -266,12 +297,15 @@ class ChallengesViewModel(
           } ?: 0L
           val initialOverall = computeOverallRemaining(mergedQuiz, first?.startedAt, serverSkewMs)
           val qSecs = startQ?.questionTimeLimitSeconds ?: mergedQuiz.perQuestionSeconds
+          val initialViolations = maxOf(first?.initialFocusLossCount ?: 0, savedProgress?.exitViolations ?: 0)
 
           _uiState.update {
             it.copy(
               playingQuiz = mergedQuiz,
               playQuestions = questions,
               playCurrentIndex = firstUnlockedIdx,
+              playSelectedAnswers = restoredSelected,
+              playWrittenAnswers = restoredWritten,
               playLockedQuestionOrds = lockedSet,
               playStartedAt = first?.startedAt,
               playTimeLimitMinutes = first?.timeLimitMinutes ?: mergedQuiz.timeLimitMinutes,
@@ -281,7 +315,7 @@ class ChallengesViewModel(
               playQuestionRemainingSeconds = if (mergedQuiz.countdownMode == CountdownMode.PER_QUESTION ||
                 mergedQuiz.countdownMode == CountdownMode.BOTH || qSecs != null
               ) qSecs else null,
-              playFocusLossCount = first?.initialFocusLossCount ?: 0,
+              playFocusLossCount = initialViolations,
               isLoadingPlay = false
             )
           }
@@ -387,6 +421,7 @@ class ChallengesViewModel(
     _uiState.update { state ->
       state.copy(playSelectedAnswers = state.playSelectedAnswers + (questionOrd to optionIndex))
     }
+    scheduleDebouncedProgressSave(activeSessionForTimer)
   }
 
   fun updateWrittenAnswer(questionOrd: Int, text: String) {
@@ -398,6 +433,7 @@ class ChallengesViewModel(
       if (clipped.isBlank()) next.remove(questionOrd) else next[questionOrd] = clipped
       state.copy(playWrittenAnswers = next)
     }
+    scheduleDebouncedProgressSave(activeSessionForTimer)
   }
 
   fun goToQuestion(index: Int, session: UserSession? = activeSessionForTimer) {
@@ -437,22 +473,44 @@ class ChallengesViewModel(
     syncProgressInBackground(session)
   }
 
-  private fun syncProgressInBackground(session: UserSession?) {
+  private fun scheduleDebouncedProgressSave(session: UserSession?) {
     val st = _uiState.value
     val quiz = st.playingQuiz ?: return
     val token = session?.accessToken.orEmpty()
     if (token.isBlank() || st.submissionResult != null) return
-    val curOrd = st.playQuestions.getOrNull(st.playCurrentIndex)?.ord ?: 1
-    viewModelScope.launch {
-      service.syncExamProgress(
-        quizId = quiz.quizId,
-        questionsInOrder = st.playQuestions,
-        selectedAnswersByOrd = st.playSelectedAnswers,
-        writtenAnswersByOrd = st.playWrittenAnswers,
-        lockedQuestionOrds = st.playLockedQuestionOrds,
-        currentOrd = curOrd,
-        accessToken = token
-      )
+    progressSaveJob?.cancel()
+    progressSaveJob = viewModelScope.launch {
+      delay(1200L)
+      saveProgressSnapshot(quiz.quizId, session)
+    }
+  }
+
+  private fun syncProgressInBackground(session: UserSession?) {
+    val quizId = _uiState.value.playingQuiz?.quizId ?: return
+    progressSaveJob?.cancel()
+    progressSaveJob = viewModelScope.launch {
+      saveProgressSnapshot(quizId, session)
+    }
+  }
+
+  private suspend fun saveProgressSnapshot(quizId: String, session: UserSession?) {
+    val st = _uiState.value
+    val quiz = st.playingQuiz ?: return
+    val token = session?.accessToken.orEmpty()
+    if (quiz.quizId != quizId || token.isBlank() || st.submissionResult != null || st.playQuestions.isEmpty()) return
+    val savedOrds = st.playSelectedAnswers.keys.toSet()
+    val res = service.saveExamProgress(
+      quizId = quiz.quizId,
+      questionsInOrder = st.playQuestions,
+      selectedAnswersByOrd = st.playSelectedAnswers,
+      writtenAnswersByOrd = st.playWrittenAnswers,
+      accessToken = token
+    )
+    if (res.isSuccess && quiz.lockOnAnswer && savedOrds.isNotEmpty()) {
+      _uiState.update { cur ->
+        if (cur.playingQuiz?.quizId != quizId || cur.submissionResult != null) cur
+        else cur.copy(playLockedQuestionOrds = cur.playLockedQuestionOrds + savedOrds)
+      }
     }
   }
 
@@ -460,13 +518,13 @@ class ChallengesViewModel(
     val st = _uiState.value
     val quiz = st.playingQuiz ?: return
     if (st.submissionResult != null || st.playQuestions.isEmpty()) return
-    if (!quiz.isExam && quiz.onExitAction == ExamExitAction.OFF) return
     if (quiz.onExitAction == ExamExitAction.OFF) return
 
     val now = System.currentTimeMillis()
     if (now - lastViolationEventAtMs < 1500L) return
     lastViolationEventAtMs = now
 
+    progressSaveJob?.cancel()
     val token = session?.accessToken.orEmpty()
     val localNext = st.playFocusLossCount + 1
     _uiState.update {
@@ -484,16 +542,44 @@ class ChallengesViewModel(
     }
 
     viewModelScope.launch {
-      syncProgressInBackground(session)
-      service.recordExamSecurityEvent(quiz.quizId, eventType, detail, token).onSuccess { res ->
-        _uiState.update {
-          it.copy(
-            playFocusLossCount = res.focusLossCount,
-            playSecurityWarning = "Security Alert (${res.focusLossCount}/${res.maxExitViolations}): App exit/focus loss recorded."
-          )
-        }
-        if (res.shouldAutoSubmit && !_uiState.value.isActionLoading && _uiState.value.submissionResult == null) {
-          submitQuiz(session, autoSubmittedReason = "SECURITY_APP_EXIT")
+      // Save latest work BEFORE reporting exit violation so server-side finalize_attempt has up-to-date answers
+      saveProgressSnapshot(quiz.quizId, session)
+      service.reportExamViolation(quiz.quizId, eventType, token).onSuccess { res ->
+        val updatedCount = if (res.focusLossCount > 0) res.focusLossCount else localNext
+        val limitText = if (res.maxExitViolations > 0) "/${res.maxExitViolations}" else ""
+        if (res.shouldAutoSubmit) {
+          // Server already finalized the attempt with reason 'exit_limit'
+          stopCountdown()
+          progressSaveJob?.cancel()
+          _uiState.update { cur ->
+            cur.copy(
+              isActionLoading = false,
+              playFocusLossCount = updatedCount,
+              playSecurityWarning = null,
+              playRemainingSeconds = null,
+              playQuestionRemainingSeconds = null,
+              playAutoSubmittedReason = "SECURITY_APP_EXIT",
+              submissionResult = QuizSubmissionResult(
+                score = 0.0,
+                total = quiz.totalMarks,
+                pointsAwarded = 0,
+                needsMarking = quiz.answerFormat != ExamAnswerFormat.CHOICES
+              )
+            )
+          }
+          val cid = _uiState.value.classId
+          if (cid.isNotBlank()) {
+            loadQuizzes(cid, session)
+            loadActivityStats(cid, session)
+            loadLeaderboard(cid, _uiState.value.leaderboardPeriod, session)
+          }
+        } else {
+          _uiState.update {
+            it.copy(
+              playFocusLossCount = updatedCount,
+              playSecurityWarning = "Security Alert ($updatedCount$limitText): App exit/focus loss recorded."
+            )
+          }
         }
       }.onFailure {
         if (quiz.onExitAction == ExamExitAction.AUTO_SUBMIT || localNext >= quiz.maxExitViolations) {
@@ -509,8 +595,9 @@ class ChallengesViewModel(
     val state = _uiState.value
     val quiz = state.playingQuiz ?: return
     val token = session?.accessToken.orEmpty()
-    if (token.isBlank() || state.isActionLoading) return
+    if (token.isBlank() || state.isActionLoading || state.submissionResult != null) return
     stopCountdown()
+    progressSaveJob?.cancel()
     _uiState.update {
       it.copy(
         isActionLoading = true,
@@ -524,7 +611,6 @@ class ChallengesViewModel(
         questionsInOrder = state.playQuestions,
         selectedAnswersByOrd = state.playSelectedAnswers,
         writtenAnswersByOrd = state.playWrittenAnswers,
-        autoSubmittedReason = autoSubmittedReason,
         accessToken = token
       ).fold(
         onSuccess = { res ->
@@ -544,7 +630,27 @@ class ChallengesViewModel(
           }
         },
         onFailure = { err ->
-          _uiState.update { it.copy(isActionLoading = false, errorMessage = err.message) }
+          val msg = err.message.orEmpty()
+          if (msg.contains("already submitted", ignoreCase = true) || msg.contains("already taken", ignoreCase = true)) {
+            _uiState.update {
+              it.copy(
+                isActionLoading = false,
+                playRemainingSeconds = null,
+                playQuestionRemainingSeconds = null,
+                playAutoSubmittedReason = it.playAutoSubmittedReason ?: autoSubmittedReason,
+                submissionResult = it.submissionResult ?: QuizSubmissionResult(
+                  score = 0.0,
+                  total = quiz.totalMarks,
+                  pointsAwarded = 0,
+                  needsMarking = quiz.answerFormat != ExamAnswerFormat.CHOICES
+                )
+              )
+            }
+            val cid = _uiState.value.classId
+            if (cid.isNotBlank()) loadQuizzes(cid, session)
+          } else {
+            _uiState.update { it.copy(isActionLoading = false, errorMessage = err.message) }
+          }
         }
       )
     }
@@ -552,6 +658,8 @@ class ChallengesViewModel(
 
   fun closePlayQuiz() {
     stopCountdown()
+    progressSaveJob?.cancel()
+    progressSaveJob = null
     activeSessionForTimer = null
     _uiState.update {
       it.copy(
@@ -597,16 +705,34 @@ class ChallengesViewModel(
   fun openQuizResults(quiz: ChallengeItem, session: UserSession?) {
     val token = session?.accessToken.orEmpty()
     if (token.isBlank()) return
-    _uiState.update { it.copy(resultsQuiz = quiz, resultsRows = emptyList(), isLoadingResults = true, errorMessage = null) }
+    val canViewFlags = RoleHelper.isAdmin(session?.role) || RoleHelper.isLecturer(session?.role)
+    _uiState.update {
+      it.copy(
+        resultsQuiz = quiz,
+        resultsRows = emptyList(),
+        examFlags = emptyList(),
+        isLoadingResults = true,
+        isLoadingFlags = canViewFlags,
+        errorMessage = null
+      )
+    }
     viewModelScope.launch {
       service.getQuizResults(quiz.quizId, token).fold(
         onSuccess = { rows -> _uiState.update { it.copy(resultsRows = rows, isLoadingResults = false) } },
         onFailure = { err -> _uiState.update { it.copy(isLoadingResults = false, errorMessage = err.message) } }
       )
     }
+    if (canViewFlags) {
+      viewModelScope.launch {
+        val flags = service.listExamFlags(quiz.quizId, token).getOrDefault(emptyList())
+        _uiState.update { it.copy(examFlags = flags, isLoadingFlags = false) }
+      }
+    }
   }
 
-  fun closeQuizResults() = _uiState.update { it.copy(resultsQuiz = null, resultsRows = emptyList(), isLoadingResults = false, errorMessage = null) }
+  fun closeQuizResults() = _uiState.update {
+    it.copy(resultsQuiz = null, resultsRows = emptyList(), examFlags = emptyList(), isLoadingResults = false, isLoadingFlags = false, errorMessage = null)
+  }
 
   fun exportRankedResultsPdf(
     context: Context,
@@ -699,8 +825,18 @@ class ChallengesViewModel(
   fun openExamSubmissions(quiz: ChallengeItem, session: UserSession?) {
     val token = session?.accessToken.orEmpty()
     if (token.isBlank()) return
+    val canViewFlags = RoleHelper.isAdmin(session?.role) || RoleHelper.isLecturer(session?.role)
     _uiState.update {
-      it.copy(markingQuiz = quiz, submissions = emptyList(), submissionsFilter = SubmissionFilter.ALL, submissionsSearchQuery = "", isLoadingSubmissions = true, errorMessage = null)
+      it.copy(
+        markingQuiz = quiz,
+        submissions = emptyList(),
+        examFlags = emptyList(),
+        submissionsFilter = SubmissionFilter.ALL,
+        submissionsSearchQuery = "",
+        isLoadingSubmissions = true,
+        isLoadingFlags = canViewFlags,
+        errorMessage = null
+      )
     }
     viewModelScope.launch {
       markingService.listExamSubmissions(quiz.quizId, token).fold(
@@ -708,10 +844,16 @@ class ChallengesViewModel(
         onFailure = { err -> _uiState.update { it.copy(isLoadingSubmissions = false, errorMessage = err.message) } }
       )
     }
+    if (canViewFlags) {
+      viewModelScope.launch {
+        val flags = service.listExamFlags(quiz.quizId, token).getOrDefault(emptyList())
+        _uiState.update { it.copy(examFlags = flags, isLoadingFlags = false) }
+      }
+    }
   }
 
   fun closeExamSubmissions() = _uiState.update {
-    it.copy(markingQuiz = null, submissions = emptyList(), submissionsSearchQuery = "", isLoadingSubmissions = false, errorMessage = null)
+    it.copy(markingQuiz = null, submissions = emptyList(), examFlags = emptyList(), submissionsSearchQuery = "", isLoadingSubmissions = false, isLoadingFlags = false, errorMessage = null)
   }
 
   fun openAdjacentPaperForMarking(offset: Int, session: UserSession?) {
@@ -1008,5 +1150,6 @@ class ChallengesViewModel(
   override fun onCleared() {
     super.onCleared()
     stopCountdown()
+    progressSaveJob?.cancel()
   }
 }

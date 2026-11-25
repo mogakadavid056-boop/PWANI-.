@@ -131,7 +131,7 @@ fun AdminChatScreen(
             }
             Spacer(modifier = Modifier.height(4.dp))
             Text(
-              "Query unverified lecturers, classes without a prefect, system summaries, or draft notices cleanly. Nothing changes without your Confirm tap.",
+              "Query suspended lecturers, classes without a prefect, system summaries, or draft notices cleanly. Nothing changes without your Confirm tap.",
               style = AdminCaptionStyle.copy(color = Lavender)
             )
           }

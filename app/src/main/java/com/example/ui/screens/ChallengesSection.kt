@@ -235,11 +235,12 @@ fun ChallengesSection(
     } else {
       uiState.filteredQuizzes.forEach { quiz ->
         val canManageQuiz = isAdmin || isLecturer || (!quiz.createdBy.isNullOrBlank() && quiz.createdBy == currentUserId)
+        val canMarkForQuiz = isAdmin || (isLecturer && (uiState.canMarkByQuizId[quiz.quizId] ?: (quiz.createdBy == currentUserId)))
         ChallengeCard(
           quiz = quiz,
           isStaff = isStaff,
           canPlay = canPlayChallenges,
-          canMark = canMarkExams && quiz.isExam && quiz.answerFormat != ExamAnswerFormat.CHOICES,
+          canMark = canMarkForQuiz && quiz.isExam && quiz.answerFormat != ExamAnswerFormat.CHOICES,
           canManageQuiz = canManageQuiz,
           isLoadingPdf = uiState.isLoadingPdf,
           onPlayClick = { onPlayClick(quiz) },

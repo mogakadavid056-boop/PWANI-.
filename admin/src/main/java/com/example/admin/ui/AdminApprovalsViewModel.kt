@@ -109,7 +109,7 @@ class AdminApprovalsViewModel(
           _state.update {
             it.copy(
               isActionLoading = false,
-              successMessage = if (verify) "${user.fullName} verified" else "Verification removed for ${user.fullName}"
+              successMessage = if (verify) "${user.fullName} lecturer access restored" else "Suspended lecturer access for ${user.fullName}"
             )
           }
           refresh()

@@ -36,7 +36,8 @@ class FirebaseAssistantService(
   private val attendanceService: AttendanceService = AttendanceService(),
   private val attendanceTrackerService: AttendanceTrackerService = AttendanceTrackerService(),
   private val pollsService: PollsService = PollsService(),
-  private val challengesService: ChallengesService = ChallengesService()
+  private val challengesService: ChallengesService = ChallengesService(),
+  private val assistantApi: AssistantApi = AssistantApi()
 ) {
 
   private val questionSchema = Schema.obj(
@@ -131,6 +132,14 @@ class FirebaseAssistantService(
         .takeLast(AssistantStorage.MAX_SENT_MESSAGES)
       if (trimmedMessages.isEmpty()) {
         return Result.failure(IllegalArgumentException("Please type a message first."))
+      }
+
+      val checkResult = withContext(Dispatchers.IO) {
+        assistantApi.aiCheckAndCount(session.accessToken)
+      }
+      if (checkResult.isFailure) {
+        val err = checkResult.exceptionOrNull()
+        return Result.failure(IllegalStateException(err?.message ?: "Assistant is currently unavailable."))
       }
 
       val liveContextText = withContext(Dispatchers.IO) {

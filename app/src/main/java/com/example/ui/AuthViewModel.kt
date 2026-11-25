@@ -142,7 +142,7 @@ class AuthViewModel(
           val roleInfo = authService.fetchUserRole(currentSession.userId, currentSession.accessToken)
             .getOrElse { UserRoleInfo(role = RoleHelper.ROLE_LECTURER, isVerified = true) }
           val newRole = roleInfo.role.ifBlank { RoleHelper.ROLE_LECTURER }
-          val verified = roleInfo.isVerified || RoleHelper.isLecturer(newRole)
+          val verified = roleInfo.isVerified
           val updated = currentSession.copy(role = newRole, isVerified = verified)
           sessionManager.updateRoleAndVerification(newRole, verified)
           _uiState.update { it.copy(session = updated) }

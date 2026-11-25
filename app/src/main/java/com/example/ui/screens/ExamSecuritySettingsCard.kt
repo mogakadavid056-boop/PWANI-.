@@ -154,7 +154,7 @@ fun ExamSecuritySettingsCard(
         }
 
         DurationAmountUnitPicker(
-          title = "Default Per-Question Timer (optional)",
+          title = "Default Per-Question Timer (5s – 60m, optional)",
           subtitle = "Auto-locks question & moves to next when timer hits 0",
           totalSeconds = securityConfig.perQuestionSeconds,
           allowOff = true,

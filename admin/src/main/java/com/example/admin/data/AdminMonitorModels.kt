@@ -210,3 +210,13 @@ data class AdminQuizResultRow(
   val autoSubmittedReason: String = ""
 )
 
+data class AdminExamFlagItem(
+  val studentId: String,
+  val fullName: String,
+  val admissionNumber: String,
+  val exitViolations: Int = 0,
+  val autoSubmitted: Boolean = false,
+  val autoSubmitReason: String = "",
+  val late: Boolean = false,
+  val submittedAt: String = ""
+)

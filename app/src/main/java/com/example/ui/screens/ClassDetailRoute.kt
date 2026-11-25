@@ -78,9 +78,9 @@ fun ClassDetailRoute(
       val targetId = attendanceUiState.sessionPendingVoid?.id ?: attendanceUiState.selectedSessionId.orEmpty()
       if (targetId.isNotBlank()) attendanceViewModel.voidSession(targetId, reason, session)
     },
-    onDeleteRegisterSession = { reason ->
+    onDeleteRegisterSession = {
       val targetId = attendanceUiState.selectedSessionId.orEmpty()
-      if (targetId.isNotBlank()) attendanceViewModel.deleteRegisterSession(targetId, reason, session)
+      if (targetId.isNotBlank()) attendanceViewModel.deleteRegisterSession(targetId, session)
     },
     onSignRegister = { role, sig ->
       val targetId = attendanceUiState.selectedSessionId.orEmpty()
@@ -110,9 +110,9 @@ fun ClassDetailRoute(
     onDismissPromptVoidSession = { attendanceViewModel.dismissPromptVoidSession() },
     onPromptDeleteRegister = { reg -> attendanceViewModel.promptDeleteRegister(reg) },
     onDismissPromptDeleteRegister = { attendanceViewModel.dismissPromptDeleteRegister() },
-    onConfirmDeleteRegister = { reason ->
+    onConfirmDeleteRegister = {
       val targetId = attendanceUiState.registerPendingDelete?.sessionId.orEmpty()
-      if (targetId.isNotBlank()) attendanceViewModel.deleteRegisterSession(targetId, reason, session)
+      if (targetId.isNotBlank()) attendanceViewModel.deleteRegisterSession(targetId, session)
     },
     onDismissAttendanceError = { attendanceViewModel.clearError() },
     onDismissAttendanceSuccess = { attendanceViewModel.clearSuccess() }

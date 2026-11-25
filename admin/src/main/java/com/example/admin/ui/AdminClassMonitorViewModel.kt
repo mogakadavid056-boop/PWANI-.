@@ -127,7 +127,7 @@ class AdminClassMonitorViewModel(
 
   fun deleteNotice(noticeId: String) = runAction("Notice deleted") { _, tok -> contentRepo.deleteNotice(noticeId, tok) }
   fun togglePrefect(userId: String, appoint: Boolean) = runAction(if (appoint) "Appointed prefect" else "Removed prefect") { cid, tok -> contentRepo.setClassRep(cid, userId, appoint, tok) }
-  fun removeMember(userId: String) = runAction("Member removed from class") { cid, tok -> contentRepo.removeFromClass(cid, userId, tok) }
+  fun removeMember(userId: String, reason: String? = null) = runAction("Member removed from class") { cid, tok -> contentRepo.removeFromClass(cid, userId, reason, tok) }
   fun reviewJoinRequest(userId: String, approve: Boolean) = runAction(if (approve) "Lecturer approved" else "Request rejected") { cid, tok -> contentRepo.reviewJoinRequest(cid, userId, approve, tok) }
   fun saveSchedule(id: String?, title: String, day: Int, start: String, end: String, room: String, lecturer: String) =
     runAction(if (id == null) "Class session added" else "Timetable updated") { cid, tok -> contentRepo.saveSchedule(id, cid, title, day, start, end, room, lecturer, tok) }

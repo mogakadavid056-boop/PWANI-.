@@ -133,60 +133,52 @@ class ChallengesService(
     return postRpc("start_quiz", payload, accessToken).mapCatching { parseStartQuizQuestions(it) }
   }
 
-  suspend fun recordExamSecurityEvent(
+  suspend fun reportExamViolation(
     quizId: String,
-    eventType: String,
-    detail: String = "",
+    violationKind: String = "left_app",
     accessToken: String
   ): Result<SecurityEventResult> {
     val payload = JSONObject().apply {
       put("target_quiz_id", quizId)
-      put("event_type", eventType)
-      put("event_detail", detail.take(200))
+      put("violation_kind", violationKind.ifBlank { "left_app" }.take(30))
     }
-    return postRpc("record_exam_security_event", payload, accessToken).mapCatching { body ->
-      val trimmed = body.trim()
-      val o = when {
-        trimmed.startsWith("[") -> JSONArray(trimmed).optJSONObject(0) ?: JSONObject()
-        trimmed.startsWith("{") -> JSONObject(trimmed)
-        else -> JSONObject()
-      }
-      SecurityEventResult(
-        focusLossCount = JsonHelper.intVal(o, "focus_loss_count", 0),
-        maxExitViolations = JsonHelper.intVal(o, "max_exit_violations", 2),
-        shouldAutoSubmit = JsonHelper.bool(o, "should_auto_submit", false)
-      )
+    return postRpc("report_exam_violation", payload, accessToken).mapCatching { body ->
+      parseViolationResult(body)
     }
   }
 
-  suspend fun syncExamProgress(
+  suspend fun saveExamProgress(
     quizId: String,
     questionsInOrder: List<PlayQuestion>,
     selectedAnswersByOrd: Map<Int, Int>,
     writtenAnswersByOrd: Map<Int, String>,
-    lockedQuestionOrds: Set<Int>,
-    currentOrd: Int,
     accessToken: String
   ): Result<Unit> {
-    val maxOrd = questionsInOrder.maxOfOrNull { it.ord } ?: questionsInOrder.size
-    val ordered = JSONArray()
-    for (ordIndex in 1..maxOrd) {
-      ordered.put(selectedAnswersByOrd[ordIndex] ?: -1)
+    val payload = buildSaveProgressPayload(
+      quizId = quizId,
+      questionsInOrder = questionsInOrder,
+      selectedAnswersByOrd = selectedAnswersByOrd,
+      writtenAnswersByOrd = writtenAnswersByOrd
+    )
+    return postRpc("save_exam_progress", payload, accessToken).map { }
+  }
+
+  suspend fun getExamProgress(quizId: String, accessToken: String): Result<SavedExamProgress?> {
+    val payload = JSONObject().apply { put("target_quiz_id", quizId) }
+    return postRpc("get_exam_progress", payload, accessToken).mapCatching { parseSavedExamProgress(it) }
+  }
+
+  suspend fun canMarkQuiz(quizId: String, accessToken: String): Result<Boolean> {
+    val payload = JSONObject().apply { put("p_quiz", quizId) }
+    return postRpc("can_mark_quiz", payload, accessToken).mapCatching { body ->
+      val clean = body.trim().trim('"').lowercase()
+      clean == "true"
     }
-    val writtenObj = JSONObject()
-    writtenAnswersByOrd.forEach { (ord, text) ->
-      val clean = text.take(8000)
-      if (clean.isNotBlank()) writtenObj.put(ord.toString(), clean)
-    }
-    val lockedArr = JSONArray().apply { lockedQuestionOrds.sorted().forEach { put(it) } }
-    val payload = JSONObject().apply {
-      put("target_quiz_id", quizId)
-      put("chosen_answers", ordered)
-      put("written_answers", writtenObj)
-      put("locked_ords", lockedArr)
-      put("current_ord", currentOrd)
-    }
-    return postRpc("sync_exam_progress", payload, accessToken).map { }
+  }
+
+  suspend fun listExamFlags(quizId: String, accessToken: String): Result<List<ExamFlagItem>> {
+    val payload = JSONObject().apply { put("target_quiz_id", quizId) }
+    return postRpc("list_exam_flags", payload, accessToken).mapCatching { parseExamFlags(it) }
   }
 
   suspend fun submitQuiz(
@@ -194,15 +186,13 @@ class ChallengesService(
     questionsInOrder: List<PlayQuestion>,
     selectedAnswersByOrd: Map<Int, Int>,
     writtenAnswersByOrd: Map<Int, String> = emptyMap(),
-    autoSubmittedReason: String? = null,
     accessToken: String
   ): Result<QuizSubmissionResult> {
     val payload = buildSubmitQuizPayload(
       quizId = quizId,
       questionsInOrder = questionsInOrder,
       selectedAnswersByOrd = selectedAnswersByOrd,
-      writtenAnswersByOrd = writtenAnswersByOrd,
-      autoSubmittedReason = autoSubmittedReason
+      writtenAnswersByOrd = writtenAnswersByOrd
     )
     return postRpc("submit_quiz", payload, accessToken).mapCatching { parseSubmitQuizResult(it) }
   }
@@ -290,9 +280,15 @@ class ChallengesService(
       answerFormat: ExamAnswerFormat = ExamAnswerFormat.CHOICES,
       securityConfig: ExamSecurityConfig = ExamSecurityConfig()
     ): JSONObject {
-      val totalSecs = securityConfig.timeLimitSeconds?.takeIf { it >= 5L }
+      val rawSecs = securityConfig.timeLimitSeconds?.takeIf { it > 0L }
         ?: timeLimitMinutes?.takeIf { it > 0 }?.toLong()?.times(60L)
-      val legacyMins = totalSecs?.let { kotlin.math.ceil(it / 60.0).toInt().coerceAtLeast(1) }
+      val totalSecs = rawSecs?.coerceIn(30L, 86_400L)
+      val legacyMins = totalSecs?.let { kotlin.math.ceil(it / 60.0).toInt().coerceIn(1, 1440) }
+      val maxViolations: Any = when (securityConfig.onExitAction) {
+        ExamExitAction.OFF -> JSONObject.NULL
+        ExamExitAction.AUTO_SUBMIT -> 1
+        ExamExitAction.WARN -> securityConfig.maxExitViolations.coerceIn(1, 50)
+      }
       return JSONObject().apply {
         put("target_class_id", classId)
         put("quiz_title", title.trim())
@@ -306,7 +302,7 @@ class ChallengesService(
         put("shuffle", shuffleQuestions)
         put("answer_format", answerFormat.apiValue)
         if (totalSecs != null) put("p_time_limit_seconds", totalSecs) else put("p_time_limit_seconds", JSONObject.NULL)
-        val perQ = securityConfig.perQuestionSeconds?.takeIf { it >= 5L }
+        val perQ = securityConfig.perQuestionSeconds?.takeIf { it >= 5L }?.coerceIn(5L, 3600L)
         if (perQ != null) put("p_per_question_seconds", perQ) else put("p_per_question_seconds", JSONObject.NULL)
         put("p_countdown_mode", securityConfig.countdownMode.apiValue)
         put("p_countdown_style", securityConfig.countdownStyle.apiValue)
@@ -314,8 +310,33 @@ class ChallengesService(
         put("p_lock_on_answer", securityConfig.lockOnAnswer)
         put("p_no_copy_paste", securityConfig.noCopyPaste)
         put("p_on_exit_action", securityConfig.onExitAction.apiValue)
-        put("p_max_exit_violations", securityConfig.maxExitViolations.coerceIn(1, 20))
+        put("p_max_exit_violations", maxViolations)
         put("p_strict_deadline", securityConfig.strictDeadline)
+      }
+    }
+
+    fun buildSaveProgressPayload(
+      quizId: String,
+      questionsInOrder: List<PlayQuestion>,
+      selectedAnswersByOrd: Map<Int, Int>,
+      writtenAnswersByOrd: Map<Int, String> = emptyMap()
+    ): JSONObject {
+      val maxOrd = (questionsInOrder.maxOfOrNull { it.ord } ?: questionsInOrder.size).coerceAtMost(200)
+      val ordered = JSONArray()
+      for (ordIndex in 1..maxOrd) {
+        ordered.put(selectedAnswersByOrd[ordIndex] ?: -1)
+      }
+      val writtenObj = JSONObject()
+      writtenAnswersByOrd.forEach { (ord, text) ->
+        val clean = text.take(8000)
+        if (clean.isNotBlank()) {
+          writtenObj.put(ord.toString(), clean)
+        }
+      }
+      return JSONObject().apply {
+        put("target_quiz_id", quizId)
+        put("chosen_answers", ordered)
+        put("written_answers", writtenObj)
       }
     }
 
@@ -323,8 +344,7 @@ class ChallengesService(
       quizId: String,
       questionsInOrder: List<PlayQuestion>,
       selectedAnswersByOrd: Map<Int, Int>,
-      writtenAnswersByOrd: Map<Int, String> = emptyMap(),
-      autoSubmittedReason: String? = null
+      writtenAnswersByOrd: Map<Int, String> = emptyMap()
     ): JSONObject {
       val maxOrd = questionsInOrder.maxOfOrNull { it.ord } ?: questionsInOrder.size
       val ordered = JSONArray()
@@ -342,11 +362,6 @@ class ChallengesService(
         put("target_quiz_id", quizId)
         put("chosen_answers", ordered)
         put("written_answers", writtenObj)
-        if (!autoSubmittedReason.isNullOrBlank()) {
-          put("p_auto_submitted_reason", autoSubmittedReason.take(80))
-        } else {
-          put("p_auto_submitted_reason", JSONObject.NULL)
-        }
       }
     }
 
@@ -410,8 +425,10 @@ class ChallengesService(
               lockOnAnswer = JsonHelper.bool(o, "lock_on_answer", false),
               noCopyPaste = JsonHelper.bool(o, "no_copy_paste", false),
               onExitAction = ExamExitAction.fromApi(JsonHelper.strOrNull(o, "on_exit_action")),
-              maxExitViolations = JsonHelper.intVal(o, "max_exit_violations", 2).coerceIn(1, 20),
-              strictDeadline = JsonHelper.bool(o, "strict_deadline", true),
+              maxExitViolations = if (o.has("max_exit_violations") && !o.isNull("max_exit_violations")) {
+                o.optInt("max_exit_violations", 2).coerceIn(1, 50)
+              } else 2,
+              strictDeadline = JsonHelper.bool(o, "strict_deadline", false),
               questionCount = JsonHelper.intVal(o, "question_count", 0),
               status = QuizStatus.fromApi(JsonHelper.str(o, "status")),
               attempted = JsonHelper.bool(o, "attempted", false),
@@ -483,18 +500,102 @@ class ChallengesService(
               timeLimitSeconds = limitSecs,
               perQuestionSeconds = perQSecs,
               questionTimeLimitSeconds = qLimitSecs,
-              countdownMode = CountdownMode.fromApi(JsonHelper.strOrNull(o, "countdown_mode")),
-              countdownStyle = CountdownStyle.fromApi(JsonHelper.strOrNull(o, "countdown_style")),
-              oneWayNavigation = JsonHelper.bool(o, "one_way_navigation", false),
-              lockOnAnswer = JsonHelper.bool(o, "lock_on_answer", false),
-              noCopyPaste = JsonHelper.bool(o, "no_copy_paste", false),
-              onExitAction = ExamExitAction.fromApi(JsonHelper.strOrNull(o, "on_exit_action")),
-              maxExitViolations = JsonHelper.intVal(o, "max_exit_violations", 2).coerceIn(1, 20),
-              strictDeadline = JsonHelper.bool(o, "strict_deadline", true),
+              countdownMode = JsonHelper.strOrNull(o, "countdown_mode")?.let { CountdownMode.fromApi(it) },
+              countdownStyle = JsonHelper.strOrNull(o, "countdown_style")?.let { CountdownStyle.fromApi(it) },
+              oneWayNavigation = if (o.has("one_way_navigation") && !o.isNull("one_way_navigation")) o.optBoolean("one_way_navigation") else null,
+              lockOnAnswer = if (o.has("lock_on_answer") && !o.isNull("lock_on_answer")) o.optBoolean("lock_on_answer") else null,
+              noCopyPaste = if (o.has("no_copy_paste") && !o.isNull("no_copy_paste")) o.optBoolean("no_copy_paste") else null,
+              onExitAction = JsonHelper.strOrNull(o, "on_exit_action")?.let { ExamExitAction.fromApi(it) },
+              maxExitViolations = if (o.has("max_exit_violations") && !o.isNull("max_exit_violations")) {
+                o.optInt("max_exit_violations").coerceIn(1, 50)
+              } else null,
+              strictDeadline = if (o.has("strict_deadline") && !o.isNull("strict_deadline")) o.optBoolean("strict_deadline") else null,
               startedAt = JsonHelper.strOrNull(o, "started_at"),
               serverNow = JsonHelper.strOrNull(o, "server_now"),
               lockedQuestionOrds = lockedOrds,
               initialFocusLossCount = JsonHelper.intVal(o, "focus_loss_count", 0)
+            )
+          )
+        }
+      }
+    }
+
+    fun parseViolationResult(body: String): SecurityEventResult {
+      val trimmed = body.trim()
+      val o = when {
+        trimmed.startsWith("[") -> JSONArray(trimmed).optJSONObject(0) ?: JSONObject()
+        trimmed.startsWith("{") -> JSONObject(trimmed)
+        else -> JSONObject()
+      }
+      val maxViolations = when {
+        o.has("max_violations") && !o.isNull("max_violations") -> o.optInt("max_violations", 2).coerceIn(1, 50)
+        o.has("max_exit_violations") && !o.isNull("max_exit_violations") -> o.optInt("max_exit_violations", 2).coerceIn(1, 50)
+        else -> 0
+      }
+      val violations = if (o.has("violations")) JsonHelper.intVal(o, "violations", 0)
+      else JsonHelper.intVal(o, "focus_loss_count", 0)
+      val autoSubmitted = if (o.has("auto_submitted")) JsonHelper.bool(o, "auto_submitted", false)
+      else JsonHelper.bool(o, "should_auto_submit", false)
+      return SecurityEventResult(
+        focusLossCount = violations,
+        maxExitViolations = maxViolations,
+        shouldAutoSubmit = autoSubmitted
+      )
+    }
+
+    fun parseSavedExamProgress(body: String): SavedExamProgress? {
+      val trimmed = body.trim()
+      val o = when {
+        trimmed.startsWith("[") -> JSONArray(trimmed).optJSONObject(0)
+        trimmed.startsWith("{") -> JSONObject(trimmed)
+        else -> null
+      } ?: return null
+      val chosenMap = mutableMapOf<Int, Int>()
+      val chosenArr = o.optJSONArray("chosen_answers")
+      if (chosenArr != null) {
+        for (idx in 0 until chosenArr.length()) {
+          val v = chosenArr.optInt(idx, -1)
+          if (v >= 0) chosenMap[idx + 1] = v
+        }
+      }
+      val writtenMap = mutableMapOf<Int, String>()
+      val writtenObj = o.optJSONObject("written_answers")
+      if (writtenObj != null) {
+        val keys = writtenObj.keys()
+        while (keys.hasNext()) {
+          val k = keys.next()
+          val ord = k.toIntOrNull() ?: continue
+          val txt = writtenObj.optString(k, "")
+          if (txt.isNotBlank() && !txt.equals("null", ignoreCase = true)) {
+            writtenMap[ord] = txt
+          }
+        }
+      }
+      return SavedExamProgress(
+        chosenAnswersByOrd = chosenMap,
+        writtenAnswersByOrd = writtenMap,
+        savedAt = JsonHelper.strOrNull(o, "saved_at"),
+        exitViolations = JsonHelper.intVal(o, "exit_violations", 0)
+      )
+    }
+
+    fun parseExamFlags(body: String): List<ExamFlagItem> {
+      val trimmed = body.trim()
+      if (trimmed.isBlank() || !trimmed.startsWith("[")) return emptyList()
+      val arr = JSONArray(trimmed)
+      return buildList {
+        for (i in 0 until arr.length()) {
+          val o = arr.optJSONObject(i) ?: continue
+          add(
+            ExamFlagItem(
+              studentId = JsonHelper.str(o, "student_id"),
+              fullName = JsonHelper.str(o, "full_name").ifBlank { "Student" },
+              admissionNumber = JsonHelper.orDash(JsonHelper.str(o, "admission_number")),
+              exitViolations = JsonHelper.intVal(o, "exit_violations", 0),
+              autoSubmitted = JsonHelper.bool(o, "auto_submitted", false),
+              autoSubmitReason = JsonHelper.str(o, "auto_submit_reason"),
+              late = JsonHelper.bool(o, "late", false),
+              submittedAt = JsonHelper.str(o, "submitted_at")
             )
           )
         }

@@ -250,7 +250,7 @@ fun ScheduleOptionsSection(
         }
         if (selectedClosePreset == "Custom") {
           DurationAmountUnitPicker(
-            title = "Window Open Length (Any Sec - Months)",
+            title = "Window Open Length (Min 1 min)",
             totalSeconds = customCloseWindowSeconds,
             allowOff = false,
             tagPrefix = "custom_close_window",
@@ -277,7 +277,7 @@ fun ScheduleOptionsSection(
           }
         }
         DurationAmountUnitPicker(
-          title = "Custom Time Limit (Any Sec, Min, Hr, Day, Wk, Month)",
+          title = "Custom Time Limit (30 sec – 24 hr)",
           totalSeconds = timeLimitSeconds,
           allowOff = !asExam,
           tagPrefix = "overall_time_limit",
@@ -332,7 +332,7 @@ fun computeChallengeOpenCloseIso(
     "6 hours" -> 6L * 3600L
     "3 days" -> 3L * 86_400L
     "7 days" -> 7L * 86_400L
-    "Custom" -> (customCloseWindowSeconds ?: 3600L).coerceAtLeast(10L)
+    "Custom" -> (customCloseWindowSeconds ?: 3600L).coerceAtLeast(60L)
     else -> 24L * 3600L
   }
   return opensAt.toString() to opensAt.plusSeconds(durationSeconds).toString()

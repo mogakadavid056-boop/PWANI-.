@@ -63,7 +63,7 @@ fun AdminMonitorMembersTab(
   onSearchChanged: (String) -> Unit,
   onReviewJoinRequest: (String, Boolean) -> Unit,
   onTogglePrefect: (String, Boolean) -> Unit,
-  onRemoveMember: (String) -> Unit
+  onRemoveMember: (String, String?) -> Unit
 ) {
   var removeTarget by remember { mutableStateOf<AdminClassMemberItem?>(null) }
 
@@ -164,11 +164,13 @@ fun AdminMonitorMembersTab(
   removeTarget?.let { m ->
     AdminConfirmDialog(
       title = "Remove from Class?",
-      message = "Remove ${m.fullName} from this class?",
+      message = "Remove ${m.fullName} from this class? They will receive a notification.",
       confirmLabel = "Remove",
       isDestructive = true,
       isActionLoading = isActionLoading,
-      onConfirm = { onRemoveMember(m.userId); removeTarget = null },
+      optionalReason = true,
+      reasonLabel = "Reason (optional)",
+      onConfirm = { reason -> onRemoveMember(m.userId, reason.ifBlank { null }); removeTarget = null },
       onDismiss = { removeTarget = null }
     )
   }
