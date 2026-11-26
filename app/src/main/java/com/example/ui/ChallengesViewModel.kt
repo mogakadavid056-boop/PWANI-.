@@ -146,16 +146,6 @@ class ChallengesViewModel(
   fun setShowCreateDialog(show: Boolean) = _uiState.update {
     it.copy(
       showCreateDialog = show,
-      challengeDraftPrefill = if (show) it.challengeDraftPrefill else null,
-      errorMessage = null
-    )
-  }
-
-  fun openCreateDialogWithDraft(prefill: com.example.assistant.ChallengeDraftPrefill) = _uiState.update {
-    it.copy(
-      classId = prefill.classId.ifBlank { it.classId },
-      showCreateDialog = true,
-      challengeDraftPrefill = prefill,
       errorMessage = null
     )
   }
@@ -202,7 +192,6 @@ class ChallengesViewModel(
             it.copy(
               isActionLoading = false,
               showCreateDialog = false,
-              challengeDraftPrefill = null,
               successMessage = if (asExam) "Exam published!" else "Challenge published!"
             )
           }

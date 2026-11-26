@@ -49,7 +49,6 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.example.admin.assistant.AdminAssistantSparkleButton
 import com.example.admin.data.AdminUserItem
 import com.example.admin.ui.AdminClassMonitorState
 import com.example.admin.ui.AdminClassMonitorViewModel
@@ -85,11 +84,9 @@ fun AdminClassMonitorScreen(
   extraState: AdminMonitorExtraState,
   allUsers: List<AdminUserItem>,
   unreadNotifications: Int,
-  isOnline: Boolean = true,
   monitorVm: AdminClassMonitorViewModel,
   extraVm: AdminMonitorExtraViewModel,
   onOpenClassRisk: (String, String) -> Unit,
-  onOpenAssistant: () -> Unit = {},
   onOpenNotifications: () -> Unit,
   onBack: () -> Unit
 ) {
@@ -118,7 +115,6 @@ fun AdminClassMonitorScreen(
         ).joinToString(" • ")
         if (sub.isNotBlank()) Text(sub, style = AdminCaptionStyle, maxLines = 1, overflow = TextOverflow.Ellipsis)
       }
-      AdminAssistantSparkleButton(isOnline = isOnline, onClick = onOpenAssistant)
       IconButton(onClick = { monitorVm.refreshCurrentClass(); extraVm.refreshAll() }, modifier = Modifier.size(48.dp)) {
         Icon(Icons.Default.Refresh, contentDescription = "Refresh monitor", tint = ChampagneGold)
       }

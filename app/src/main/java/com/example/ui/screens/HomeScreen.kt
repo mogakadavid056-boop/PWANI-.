@@ -152,7 +152,7 @@ fun HomeScreen(
                 ) {
                   Icon(
                     Icons.Default.AutoAwesome,
-                    contentDescription = "Assistant",
+                    contentDescription = "Gemini AI",
                     tint = ChampagneGold,
                     modifier = Modifier.size(22.dp)
                   )
@@ -317,9 +317,9 @@ fun HomeScreen(
                 modifier = Modifier.size(26.dp)
               )
               Column(modifier = Modifier.weight(1f)) {
-                Text("Ask ClassRep Assistant", style = CardTitleStyle.copy(color = ChampagneGold))
+                Text("Ask Gemini AI", style = CardTitleStyle.copy(color = ChampagneGold))
                 Text(
-                  "Timetable, attendance, points, drafts and study help",
+                  "General AI chat for students & lecturers",
                   style = CaptionStyle.copy(color = Lavender)
                 )
               }

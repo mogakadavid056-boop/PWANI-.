@@ -39,7 +39,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
-import com.example.admin.assistant.AdminAssistantSparkleButton
 import com.example.admin.data.AdminSearchClassItem
 import com.example.admin.data.SchoolItem
 import com.example.admin.ui.AdminClassesSearchState
@@ -71,7 +70,6 @@ fun AdminClassesSearchScreen(
   state: AdminClassesSearchState,
   schools: List<SchoolItem>,
   unreadNotifications: Int,
-  isOnline: Boolean = true,
   onSearchChanged: (String) -> Unit,
   onSchoolFilterChanged: (String?) -> Unit,
   onYearFilterChanged: (Int?) -> Unit,
@@ -79,7 +77,6 @@ fun AdminClassesSearchScreen(
   onRefresh: () -> Unit,
   onLoadMore: () -> Unit,
   onOpenClass: (AdminSearchClassItem) -> Unit,
-  onOpenAssistant: () -> Unit = {},
   onOpenNotifications: () -> Unit
 ) {
   var showSchoolPicker by remember { mutableStateOf(false) }
@@ -91,7 +88,6 @@ fun AdminClassesSearchScreen(
         Text("Tap any class to open Class Monitor", style = AdminCaptionStyle)
       }
       Row {
-        AdminAssistantSparkleButton(isOnline = isOnline, onClick = onOpenAssistant)
         IconButton(onClick = onRefresh, modifier = Modifier.size(48.dp)) {
           Icon(Icons.Default.Refresh, contentDescription = "Refresh classes", tint = ChampagneGold)
         }

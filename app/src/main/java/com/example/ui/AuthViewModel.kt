@@ -139,10 +139,9 @@ class AuthViewModel(
     viewModelScope.launch {
       when (val res = lecturerService.becomeLecturer(passcode, currentSession.accessToken)) {
         is BecomeLecturerResult.Success -> {
-          val roleInfo = authService.fetchUserRole(currentSession.userId, currentSession.accessToken)
-            .getOrElse { UserRoleInfo(role = RoleHelper.ROLE_LECTURER, isVerified = true) }
-          val newRole = roleInfo.role.ifBlank { RoleHelper.ROLE_LECTURER }
-          val verified = roleInfo.isVerified
+          val roleInfo = authService.fetchUserRole(currentSession.userId, currentSession.accessToken).getOrNull()
+          val newRole = roleInfo?.role?.takeIf { RoleHelper.isLecturer(it) } ?: RoleHelper.ROLE_LECTURER
+          val verified = if (roleInfo != null && RoleHelper.isLecturer(roleInfo.role)) roleInfo.isVerified else true
           val updated = currentSession.copy(role = newRole, isVerified = verified)
           sessionManager.updateRoleAndVerification(newRole, verified)
           _uiState.update { it.copy(session = updated) }
@@ -166,7 +165,7 @@ class AuthViewModel(
     com.example.alarms.TimetableAlarmSync.onLoggedOut(getApplication())
     com.example.notifications.NotificationSyncWorker.cancel(getApplication())
     com.example.notifications.NotificationPreferences.clearOnLogout(getApplication())
-    com.example.assistant.AssistantStorage.clearOnLogout(getApplication())
+    com.example.assistant.GeminiChatStorage.clearOnLogout(getApplication())
     viewModelScope.launch {
       if (uid.isNotBlank()) {
         OfflineCache.clearUserCache(getApplication(), uid)

@@ -66,7 +66,8 @@ class RegistrationHandler(
                 knowsDetails = wizard.knowsDetails,
                 classCode = cleanCode,
                 acceptedTermsAt = acceptedAt,
-                termsVersion = "1.0"
+                termsVersion = "1.0",
+                lecturerPasscode = if (wizard.isLecturer) wizard.lecturerPasscode.trim() else ""
               )
             )
             updateState {
@@ -95,11 +96,11 @@ class RegistrationHandler(
           authService.patchProfile(auth.userId, auth.accessToken, patchJson)
 
           val session = resolveAndSaveSession(auth, cleanName, cleanId)
-          onSessionReady(session)
 
           if (wizard.isLecturer) {
             completeLecturerSignUp(wizard.lecturerPasscode, session)
           } else {
+            onSessionReady(session)
             completeStudentClassJoin(wizard.knowsDetails, cleanCode, session)
           }
         },
@@ -130,13 +131,18 @@ class RegistrationHandler(
     sessionManager.clearPendingRegistration()
 
     if (pending.isLecturer) {
-      updateState {
-        it.copy(
-          infoMessage = "Email confirmed. Enter your lecturer passcode from Profile to activate Lecturer mode.",
-          isLoading = false
-        )
+      if (pending.lecturerPasscode.isNotBlank()) {
+        completeLecturerSignUp(pending.lecturerPasscode, session)
+      } else {
+        updateState {
+          it.copy(
+            currentScreen = Screen.Home,
+            infoMessage = "Email confirmed. Open Profile and tap I am a Lecturer to enter your passcode.",
+            isLoading = false
+          )
+        }
       }
-      return false
+      return true
     }
 
     completeStudentClassJoin(pending.knowsDetails, pending.classCode, session)
@@ -222,13 +228,22 @@ class RegistrationHandler(
 
   private suspend fun completeLecturerSignUp(passcode: String, session: UserSession) {
     val res = lecturerService.becomeLecturer(passcode, session.accessToken)
-    val roleInfo = authService.fetchUserRole(session.userId, session.accessToken).getOrNull()
+    var roleInfo = authService.fetchUserRole(session.userId, session.accessToken).getOrNull()
+    if (res is BecomeLecturerResult.Success && !RoleHelper.isLecturer(roleInfo?.role)) {
+      kotlinx.coroutines.delay(150L)
+      roleInfo = authService.fetchUserRole(session.userId, session.accessToken).getOrNull() ?: roleInfo
+    }
     val isLecturerRole = res is BecomeLecturerResult.Success || RoleHelper.isLecturer(roleInfo?.role)
     if (isLecturerRole) {
       val newRole = roleInfo?.role?.takeIf { RoleHelper.isLecturer(it) } ?: RoleHelper.ROLE_LECTURER
-      val verified = roleInfo?.isVerified == true
+      val verified = if (roleInfo != null && RoleHelper.isLecturer(roleInfo.role)) {
+        roleInfo.isVerified
+      } else {
+        res is BecomeLecturerResult.Success
+      }
       val updated = session.copy(role = newRole, isVerified = verified)
       sessionManager.updateRoleAndVerification(newRole, verified)
+      onSessionReady(updated)
       val note = if (verified) {
         "Lecturer account ready! Join a class using its class code."
       } else {
@@ -245,6 +260,7 @@ class RegistrationHandler(
         )
       }
     } else {
+      onSessionReady(session)
       val note = when (res) {
         is BecomeLecturerResult.WrongPasscode ->
           "Passcode did not match. Signed in as Student — open Profile and tap I am a Lecturer to retry."

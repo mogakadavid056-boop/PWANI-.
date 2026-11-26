@@ -89,7 +89,6 @@ fun ClassDialogs(
     com.example.ui.screens.CreateChallengeDialog(
       approvedUnits = materialsUiState.approvedUnits,
       canCreateExam = canCreateExam,
-      initialDraft = challengesUiState.challengeDraftPrefill,
       isLoading = challengesUiState.isActionLoading,
       errorMessage = challengesUiState.errorMessage,
       onDismiss = onDismissCreateChallengeDialog,

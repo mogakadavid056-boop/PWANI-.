@@ -46,7 +46,8 @@ class SessionManager(private val context: Context) {
     val knowsDetails: Boolean,
     val classCode: String,
     val acceptedTermsAt: String,
-    val termsVersion: String
+    val termsVersion: String,
+    val lecturerPasscode: String = ""
   )
 
   val sessionFlow: Flow<UserSession?> = context.dataStore.data
@@ -111,6 +112,7 @@ class SessionManager(private val context: Context) {
         put("class_code", data.classCode)
         put("accepted_terms_at", data.acceptedTermsAt)
         put("terms_version", data.termsVersion)
+        if (data.lecturerPasscode.isNotBlank()) put("lecturer_passcode", data.lecturerPasscode)
       }
       context.dataStore.edit { prefs -> prefs[KEY_PENDING_REG_JSON] = json.toString() }
     } catch (_: Throwable) {}
@@ -134,7 +136,8 @@ class SessionManager(private val context: Context) {
         knowsDetails = o.optBoolean("knows_details", true),
         classCode = o.optString("class_code"),
         acceptedTermsAt = o.optString("accepted_terms_at"),
-        termsVersion = o.optString("terms_version", "1.0")
+        termsVersion = o.optString("terms_version", "1.0"),
+        lecturerPasscode = o.optString("lecturer_passcode", "")
       )
     } catch (_: Throwable) { null }
   }

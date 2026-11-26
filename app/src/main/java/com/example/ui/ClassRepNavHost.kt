@@ -53,9 +53,7 @@ fun ClassRepNavHost(
   onOpenNotifications: () -> Unit = {},
   onBackFromNotifications: () -> Unit = {},
   isOnline: Boolean = true,
-  assistantViewModel: com.example.assistant.AssistantViewModel? = null,
-  assistantExecutor: com.example.assistant.ActionExecutor? = null,
-  assistantReturnScreen: Screen = Screen.Home,
+  assistantViewModel: com.example.assistant.GeminiAssistantViewModel? = null,
   onOpenAssistant: () -> Unit = {},
   onBackFromAssistant: () -> Unit = {},
   openClassDirectly: (ClassItem) -> Unit,
@@ -244,41 +242,19 @@ fun ClassRepNavHost(
       )
       Screen.Assistant -> {
         val avm = assistantViewModel
-        val exec = assistantExecutor
-        if (avm != null && exec != null) {
+        if (avm != null) {
           val aState by avm.uiState.collectAsStateWithLifecycle()
-          val screenName = if (assistantReturnScreen == Screen.ClassDetail) "class_detail" else "home"
-          com.example.assistant.ChatScreen(
+          val uid = authUiState.session?.userId
+          com.example.assistant.GeminiChatScreen(
             uiState = aState,
-            session = authUiState.session,
+            userId = uid,
             isOnline = isOnline,
-            isRepInClass = noticesUiState.isRep,
-            activeClassId = noticesUiState.selectedClass?.id ?: classesUiState.classes.firstOrNull()?.id,
-            screenContextName = screenName,
-            executor = exec,
-            onEnterAssistant = { avm.onEnterAssistant(authUiState.session) },
-            onAcceptTerms = { avm.acceptTerms(authUiState.session) },
-            onInputChanged = { avm.onInputChanged(it) },
-            onToggleSpeechLanguage = { avm.toggleSpeechLanguage() },
-            onDictationResult = { avm.appendDictation(it) },
-            onNewChat = { avm.newChat(authUiState.session) },
-            onSendMessage = { msg, ctx -> avm.sendMessage(msg, authUiState.session, ctx, isOnline, noticesUiState.isRep) },
-            onConfirmAction = { msgId, actId ->
-              avm.confirmAction(
-                messageId = msgId,
-                actionId = actId,
-                fallbackClassId = noticesUiState.selectedClass?.id ?: classesUiState.classes.firstOrNull()?.id,
-                session = authUiState.session,
-                executor = exec
-              )
-            },
-            onUpdateActionArgs = { msgId, actId, args ->
-              avm.updateActionArgs(msgId, actId, args, authUiState.session?.userId.orEmpty())
-            },
-            onCancelAction = { msgId, actId ->
-              avm.cancelAction(msgId, actId, authUiState.session?.userId.orEmpty())
-            },
-            onDismissError = { avm.clearError() },
+            onEnterChat = { avm.onEnterChat(uid) },
+            onInputChanged = avm::onInputChanged,
+            onSendMessage = { msg -> avm.sendMessage(msg, uid, isOnline) },
+            onStopStreaming = avm::stopStreaming,
+            onNewChat = { avm.newChat(uid) },
+            onDismissError = avm::clearError,
             onBack = onBackFromAssistant
           )
         }

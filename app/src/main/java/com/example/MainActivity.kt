@@ -45,14 +45,13 @@ class MainActivity : ComponentActivity() {
   private val pollsViewModel: PollsViewModel by viewModels()
   private val challengesViewModel: ChallengesViewModel by viewModels()
   private val adminViewModel: AdminViewModel by viewModels()
-  private val assistantViewModel: com.example.assistant.AssistantViewModel by viewModels()
+  private val assistantViewModel: com.example.assistant.GeminiAssistantViewModel by viewModels()
 
   private var pendingAlarmTarget by mutableStateOf<AlarmNavigationTarget?>(null)
   private var pendingNotifTarget by mutableStateOf<NotificationDeepLink?>(null)
 
   override fun onCreate(savedInstanceState: Bundle?) {
     super.onCreate(savedInstanceState)
-    com.example.assistant.configureAppCheck(this, intent)
     enableEdgeToEdge()
     OfflineCache.appContext = applicationContext
     NetworkMonitor.initialize(applicationContext)
@@ -127,7 +126,7 @@ fun ClassRepApp(
   pollsViewModel: PollsViewModel,
   challengesViewModel: ChallengesViewModel,
   adminViewModel: AdminViewModel,
-  assistantViewModel: com.example.assistant.AssistantViewModel? = null,
+  assistantViewModel: com.example.assistant.GeminiAssistantViewModel? = null,
   pendingAlarmTarget: AlarmNavigationTarget? = null,
   onAlarmTargetHandled: () -> Unit = {},
   pendingNotifTarget: NotificationDeepLink? = null,
@@ -324,60 +323,6 @@ fun ClassRepApp(
     viewModel.navigateTo(Screen.Assistant)
   }
 
-  val assistantExecutor = remember(uiState.session?.userId) {
-    com.example.assistant.ActionExecutor(
-      onNoticesChanged = { cid ->
-        val s = uiState.session
-        if (noticesUiState.selectedClass?.id == cid) noticesViewModel.refreshNotices(s)
-        noticesViewModel.loadLatestAnnouncements(s)
-      },
-      onPollsChanged = { cid ->
-        val s = uiState.session
-        if (pollsUiState.classId == cid) pollsViewModel.refreshPolls(s)
-      },
-      onAttendanceStarted = { cid, sessionId, code, _, remaining ->
-        val s = uiState.session
-        val target = classesUiState.classes.find { it.id == cid }
-          ?: noticesUiState.selectedClass?.takeIf { it.id == cid }
-          ?: ClassItem(id = cid, name = "Class", code = "")
-        if (noticesUiState.selectedClass?.id != cid) openClassDirectly(target)
-        attendanceViewModel.applyExternalStartedSession(sessionId, code, remaining, s)
-      },
-      onTimetableChanged = { cid ->
-        val s = uiState.session
-        if (timetableUiState.classId == cid) timetableViewModel.refreshSchedules(s)
-      },
-      onOpenChallengeDraft = { prefill ->
-        val target = classesUiState.classes.find { it.id == prefill.classId }
-          ?: noticesUiState.selectedClass?.takeIf { it.id == prefill.classId }
-          ?: ClassItem(id = prefill.classId, name = "Class", code = "")
-        if (noticesUiState.selectedClass?.id != target.id) openClassDirectly(target)
-        challengesViewModel.openCreateDialogWithDraft(prefill)
-        openTabSignal = Triple((openTabSignal?.first ?: 0) + 1, ClassTab.More, MoreSubView.Challenges)
-        viewModel.navigateTo(Screen.ClassDetail)
-      },
-      onNavigate = { target ->
-        when (target) {
-          com.example.assistant.MainNavigationTarget.Home -> viewModel.navigateTo(Screen.Home)
-          com.example.assistant.MainNavigationTarget.Profile -> navigateToProfileScreen()
-          com.example.assistant.MainNavigationTarget.Notifications -> onOpenNotifications()
-          is com.example.assistant.MainNavigationTarget.ClassDestination -> {
-            val resolvedClass = target.classId?.let { id ->
-              classesUiState.classes.find { it.id == id } ?: noticesUiState.selectedClass?.takeIf { it.id == id }
-            } ?: noticesUiState.selectedClass ?: classesUiState.classes.firstOrNull()
-            if (resolvedClass != null) {
-              if (noticesUiState.selectedClass?.id != resolvedClass.id) openClassDirectly(resolvedClass)
-              openTabSignal = Triple((openTabSignal?.first ?: 0) + 1, target.tab, target.moreSubView)
-              viewModel.navigateTo(Screen.ClassDetail)
-            } else {
-              viewModel.navigateTo(Screen.Home)
-            }
-          }
-        }
-      }
-    )
-  }
-
   ClassRepAppBackHandlers(
     uiState = uiState, classesUiState = classesUiState, noticesUiState = noticesUiState,
     attendanceUiState = attendanceUiState, pollsUiState = pollsUiState, challengesUiState = challengesUiState,
@@ -405,8 +350,6 @@ fun ClassRepApp(
         onOpenNotifications = onOpenNotifications, onBackFromNotifications = { viewModel.navigateTo(notifReturnScreen) },
         isOnline = isOnline,
         assistantViewModel = assistantViewModel,
-        assistantExecutor = assistantExecutor,
-        assistantReturnScreen = assistantReturnScreen,
         onOpenAssistant = onOpenAssistant,
         onBackFromAssistant = { viewModel.navigateTo(assistantReturnScreen) },
         openClassDirectly = openClassDirectly,

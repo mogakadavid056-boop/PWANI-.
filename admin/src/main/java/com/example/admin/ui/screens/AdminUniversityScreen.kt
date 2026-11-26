@@ -44,7 +44,6 @@ import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.example.admin.assistant.AdminAssistantSparkleButton
 import com.example.admin.data.AcademicYearItem
 import com.example.admin.data.ProgrammeItem
 import com.example.admin.data.SchoolItem
@@ -75,7 +74,6 @@ fun AdminUniversityScreen(
   programmes: List<ProgrammeItem>,
   academicYears: List<AcademicYearItem>,
   unreadNotifications: Int,
-  isOnline: Boolean = true,
   isLoading: Boolean,
   isActionLoading: Boolean,
   onSelectSection: (UniversitySection) -> Unit,
@@ -86,7 +84,6 @@ fun AdminUniversityScreen(
   onDeleteProgramme: (ProgrammeItem) -> Unit,
   onCreateYear: (String) -> Unit,
   onSetCurrentYear: (AcademicYearItem) -> Unit,
-  onOpenAssistant: () -> Unit = {},
   onOpenNotifications: () -> Unit
 ) {
   var showSchoolDialog by remember { mutableStateOf(false) }
@@ -102,7 +99,6 @@ fun AdminUniversityScreen(
         Text("Shared directly with the student & lecturer app", style = AdminCaptionStyle)
       }
       Row(verticalAlignment = Alignment.CenterVertically) {
-        AdminAssistantSparkleButton(isOnline = isOnline, onClick = onOpenAssistant)
         IconButton(onClick = onRefresh, modifier = Modifier.size(48.dp)) {
           Icon(Icons.Default.Refresh, contentDescription = "Refresh", tint = ChampagneGold)
         }

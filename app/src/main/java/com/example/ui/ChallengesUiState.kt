@@ -41,7 +41,6 @@ data class ChallengesUiState(
   val papersToMark: List<PaperToMarkItem> = emptyList(),
   val isLoadingPapersToMark: Boolean = false,
   val showCreateDialog: Boolean = false,
-  val challengeDraftPrefill: com.example.assistant.ChallengeDraftPrefill? = null,
   val addQuestionsForQuiz: ChallengeItem? = null,
   val playingQuiz: ChallengeItem? = null,
   val playQuestions: List<PlayQuestion> = emptyList(),

@@ -28,11 +28,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import com.example.admin.assistant.AdminActionExecutor
-import com.example.admin.assistant.AdminAssistantViewModel
-import com.example.admin.assistant.AdminChatScreen
-import com.example.admin.assistant.AdminNavigationTarget
-import com.example.admin.assistant.AdminNetworkMonitor
+import com.example.admin.data.AdminNetworkMonitor
 import com.example.admin.notifications.AdminNotificationDispatcher
 import com.example.admin.notifications.AdminNotificationPrefs
 import com.example.admin.ui.AdminApprovalsViewModel
@@ -75,7 +71,6 @@ class MainActivity : ComponentActivity() {
   private val extraViewModel: AdminMonitorExtraViewModel by viewModels()
   private val approvalsViewModel: AdminApprovalsViewModel by viewModels()
   private val riskViewModel: AdminRiskViewModel by viewModels()
-  private val assistantViewModel: AdminAssistantViewModel by viewModels()
 
   override fun onCreate(savedInstanceState: Bundle?) {
     super.onCreate(savedInstanceState)
@@ -94,7 +89,6 @@ class MainActivity : ComponentActivity() {
         val extraState by extraViewModel.state.collectAsStateWithLifecycle()
         val approvalsState by approvalsViewModel.state.collectAsStateWithLifecycle()
         val riskState by riskViewModel.state.collectAsStateWithLifecycle()
-        val assistantState by assistantViewModel.uiState.collectAsStateWithLifecycle()
 
         val networkMonitor = remember { AdminNetworkMonitor(applicationContext) }
         val isOnline by networkMonitor.isOnline.collectAsStateWithLifecycle()
@@ -104,7 +98,6 @@ class MainActivity : ComponentActivity() {
 
         var showSettings by remember { mutableStateOf(false) }
         var showNotifications by remember { mutableStateOf(false) }
-        var showAssistant by remember { mutableStateOf(false) }
         var showPermDialog by remember { mutableStateOf(false) }
 
         val permLauncher = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { granted ->
@@ -122,7 +115,6 @@ class MainActivity : ComponentActivity() {
           approvalsViewModel.setSession(s)
           riskViewModel.setSession(s)
           notifViewModel.startSessionSync(s)
-          if (s == null) showAssistant = false
           if (s != null && Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
             val granted = ContextCompat.checkSelfPermission(this@MainActivity, Manifest.permission.POST_NOTIFICATIONS) == PackageManager.PERMISSION_GRANTED
             if (!granted && !AdminNotificationPrefs.wasPermissionPromptDismissed(this@MainActivity)) {
@@ -135,7 +127,6 @@ class MainActivity : ComponentActivity() {
           val link = notifState.pendingDeepLink ?: return@LaunchedEffect
           if (authState.session != null) {
             showNotifications = false
-            showAssistant = false
             routeAdminDeepLink(link, mainViewModel, approvalsViewModel, monitorViewModel, extraViewModel, riskViewModel)
             notifViewModel.consumeDeepLink()
           }
@@ -158,89 +149,16 @@ class MainActivity : ComponentActivity() {
           val pendingCount = approvalsState.pendingUnits.size + unverifiedLecturersCount + approvalsState.joinRequests.size
           val selectAdminTab: (AdminTab) -> Unit = { tab ->
             showNotifications = false
-            showAssistant = false
             mainViewModel.selectTab(tab)
             if (tab == AdminTab.APPROVALS) approvalsViewModel.refresh()
           }
-          val openAssistant: () -> Unit = {
-            networkMonitor.refresh()
-            showNotifications = false
-            showAssistant = true
-          }
-          val assistantExecutor = remember {
-            AdminActionExecutor(
-              onNoticePosted = { classId ->
-                if (monitorViewModel.state.value.selectedClassId == classId) {
-                  monitorViewModel.refreshCurrentClass()
-                }
-              },
-              onNavigate = { target ->
-                showAssistant = false
-                when (target) {
-                  is AdminNavigationTarget.Tab -> selectAdminTab(target.tab)
-                  AdminNavigationTarget.Notifications -> showNotifications = true
-                  is AdminNavigationTarget.ApprovalsSubTabTarget -> {
-                    approvalsViewModel.selectSubTab(target.subTab)
-                    selectAdminTab(AdminTab.APPROVALS)
-                  }
-                  is AdminNavigationTarget.ClassDetailTab -> {
-                    val cid = target.classId?.takeIf { it.isNotBlank() } ?: monitorViewModel.state.value.selectedClassId
-                    if (!cid.isNullOrBlank()) {
-                      if (monitorViewModel.state.value.selectedClassId != cid) {
-                        monitorViewModel.openClass(cid, target.monitorTab)
-                        extraViewModel.loadForClass(cid)
-                      } else {
-                        monitorViewModel.selectTab(target.monitorTab)
-                      }
-                    }
-                    mainViewModel.selectTab(AdminTab.CLASSES)
-                  }
-                }
-              }
-            )
-          }
-          val contextScreen = when (mainState.activeTab) {
-            AdminTab.OVERVIEW -> "overview"
-            AdminTab.CLASSES -> if (monitorState.selectedClassId != null) "class_detail" else "classes"
-            AdminTab.APPROVALS -> "approvals"
-            AdminTab.RISK -> "risk"
-            AdminTab.USERS -> "users"
-            AdminTab.UNIVERSITY -> "university"
-          }
-          BackHandler(enabled = showAssistant) { showAssistant = false }
 
           AdminShell(
             activeTab = mainState.activeTab,
             pendingApprovalsCount = pendingCount,
             onSelectTab = selectAdminTab
           ) { innerMod ->
-            if (showAssistant) {
-              Box(modifier = innerMod.fillMaxSize()) {
-                AdminChatScreen(
-                  uiState = assistantState,
-                  session = session,
-                  isOnline = isOnline,
-                  activeClassId = monitorState.selectedClassId,
-                  screenContextName = contextScreen,
-                  onEnterAssistant = { assistantViewModel.onEnterAssistant(session) },
-                  onAcceptTerms = { assistantViewModel.acceptTerms(session) },
-                  onInputChanged = assistantViewModel::onInputChanged,
-                  onNewChat = { assistantViewModel.newChat(session) },
-                  onSendMessage = { msg, ctx -> assistantViewModel.sendMessage(msg, session, ctx, isOnline) },
-                  onConfirmAction = { msgId, actId ->
-                    assistantViewModel.confirmAction(msgId, actId, monitorState.selectedClassId, session, assistantExecutor)
-                  },
-                  onSaveActionEdit = { msgId, actId, args ->
-                    assistantViewModel.updateActionArgs(msgId, actId, args, session.userId)
-                  },
-                  onCancelAction = { msgId, actId ->
-                    assistantViewModel.cancelAction(msgId, actId, session.userId)
-                  },
-                  onDismissError = assistantViewModel::clearError,
-                  onBack = { showAssistant = false }
-                )
-              }
-            } else if (showNotifications) {
+            if (showNotifications) {
               AdminNotificationCenterScreen(
                 state = notifState,
                 onBack = { showNotifications = false },
@@ -284,72 +202,64 @@ class MainActivity : ComponentActivity() {
                     onNavigateTab = selectAdminTab,
                     onClearEmptySessions = mainViewModel::deleteEmptyExpiredSessionsGlobal,
                     onSweepExpiredAttempts = mainViewModel::runExpiredAttemptsGlobal,
-                    onOpenAssistant = openAssistant,
                     onOpenNotifications = { showNotifications = true },
                     onOpenSettings = { showSettings = true }
                   )
                   AdminTab.CLASSES -> if (monitorState.selectedClassId != null) {
                     AdminClassMonitorScreen(
                       monitorState = monitorState, extraState = extraState, allUsers = mainState.users,
-                      unreadNotifications = notifState.unreadCount, isOnline = isOnline,
+                      unreadNotifications = notifState.unreadCount,
                       monitorVm = monitorViewModel, extraVm = extraViewModel,
                       onOpenClassRisk = { cid, cname -> riskViewModel.openClassRiskDirectly(cid, cname); mainViewModel.selectTab(AdminTab.RISK) },
-                      onOpenAssistant = openAssistant,
                       onOpenNotifications = { showNotifications = true },
                       onBack = { monitorViewModel.closeClass(); extraViewModel.stopAndClear() }
                     )
                   } else {
                     AdminClassesSearchScreen(
                       state = classesState, schools = manageState.schools, unreadNotifications = notifState.unreadCount,
-                      isOnline = isOnline,
                       onSearchChanged = classesViewModel::onSearchChanged, onSchoolFilterChanged = classesViewModel::setSchoolFilter,
                       onYearFilterChanged = classesViewModel::setYearFilter, onToggleNoPrefect = classesViewModel::setOnlyWithoutPrefect,
                       onRefresh = { classesViewModel.search(reset = true) }, onLoadMore = { classesViewModel.search(reset = false) },
                       onOpenClass = { cls -> monitorViewModel.openClass(cls.id, MonitorTab.NOTICES); extraViewModel.loadForClass(cls.id) },
-                      onOpenAssistant = openAssistant,
                       onOpenNotifications = { showNotifications = true }
                     )
                   }
                   AdminTab.APPROVALS -> AdminApprovalsScreen(
-                    state = approvalsState, unreadNotifications = notifState.unreadCount, isOnline = isOnline,
+                    state = approvalsState, unreadNotifications = notifState.unreadCount,
                     onSelectSubTab = approvalsViewModel::selectSubTab, onSearchLecturers = approvalsViewModel::onLecturerSearchChanged,
                     onRefresh = approvalsViewModel::refresh,
                     onReviewUnit = { unit, okReview, reason -> approvalsViewModel.reviewUnit(unit, okReview, reason) },
                     onToggleVerifyLecturer = { u, v -> approvalsViewModel.toggleVerifyLecturer(u, v) { mainViewModel.refreshUsers(); mainViewModel.refreshStats() } },
                     onReviewJoinRequest = { req, okJoin -> approvalsViewModel.reviewJoinRequest(req, okJoin) { classesViewModel.search(reset = true); mainViewModel.refreshStats() } },
-                    onOpenAssistant = openAssistant,
                     onOpenNotifications = { showNotifications = true }
                   )
                   AdminTab.RISK -> AdminRiskScreen(
-                    state = riskState, unreadNotifications = notifState.unreadCount, isOnline = isOnline,
+                    state = riskState, unreadNotifications = notifState.unreadCount,
                     onRefresh = riskViewModel::refreshAll, onSetMinLevel = riskViewModel::setMinLevel,
                     onSearchChanged = riskViewModel::onSearchChanged, onSelectClassFilter = riskViewModel::selectClassFilter,
                     onLoadMoreClasses = { riskViewModel.loadOverview(reset = false) },
                     onLoadMoreStudents = { riskViewModel.loadStudents(reset = false) },
                     onOpenStudent = riskViewModel::openStudentDetail, onCloseStudent = riskViewModel::closeStudentDetail,
                     onSetExcuse = riskViewModel::setExcuse, onRunWarningsNow = riskViewModel::runWarningsNow,
-                    onOpenAssistant = openAssistant,
                     onOpenNotifications = { showNotifications = true }
                   )
                   AdminTab.USERS -> AdminUsersScreen(
                     users = mainState.users, searchQuery = mainState.userSearch, activeFilter = mainState.userFilter,
-                    unreadNotifications = notifState.unreadCount, isOnline = isOnline, isLoading = mainState.isUsersLoading, isActionLoading = mainState.isActionLoading,
+                    unreadNotifications = notifState.unreadCount, isLoading = mainState.isUsersLoading, isActionLoading = mainState.isActionLoading,
                     onSearchChanged = mainViewModel::onUserSearchChanged, onFilterChanged = mainViewModel::onUserFilterChanged,
                     onRefresh = mainViewModel::refreshUsers,
                     onAssignRole = { u, r -> mainViewModel.assignRole(u, r) { approvalsViewModel.refresh() } },
                     onToggleVerify = { u, v -> mainViewModel.setLecturerVerified(u, v) { approvalsViewModel.refresh() } },
-                    onOpenAssistant = openAssistant,
                     onOpenNotifications = { showNotifications = true }
                   )
                   AdminTab.UNIVERSITY -> AdminUniversityScreen(
                     section = manageState.universitySection, schools = manageState.schools, programmes = manageState.programmes,
-                    academicYears = manageState.academicYears, unreadNotifications = notifState.unreadCount, isOnline = isOnline,
+                    academicYears = manageState.academicYears, unreadNotifications = notifState.unreadCount,
                     isLoading = manageState.isUniLoading, isActionLoading = manageState.isActionLoading,
                     onSelectSection = manageViewModel::selectUniversitySection, onRefresh = manageViewModel::refreshUniversityData,
                     onSaveSchool = manageViewModel::saveSchool, onDeleteSchool = manageViewModel::deleteSchool,
                     onSaveProgramme = manageViewModel::saveProgramme, onDeleteProgramme = manageViewModel::deleteProgramme,
                     onCreateYear = manageViewModel::createAcademicYear, onSetCurrentYear = manageViewModel::setCurrentAcademicYear,
-                    onOpenAssistant = openAssistant,
                     onOpenNotifications = { showNotifications = true }
                   )
                 }
@@ -360,7 +270,7 @@ class MainActivity : ComponentActivity() {
             AdminSettingsDialog(
               session = session, rpcSqlInstalled = mainState.stats.rpcSqlInstalled,
               onRefreshRole = authViewModel::refreshAdminAccess,
-              onLogout = { showAssistant = false; assistantViewModel.clearOnLogout(); notifViewModel.stopAndClear(); authViewModel.logout() },
+              onLogout = { notifViewModel.stopAndClear(); authViewModel.logout() },
               onDismiss = { showSettings = false }
             )
           }

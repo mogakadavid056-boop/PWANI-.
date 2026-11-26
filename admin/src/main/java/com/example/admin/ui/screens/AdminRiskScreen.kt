@@ -54,7 +54,6 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.example.admin.assistant.AdminAssistantSparkleButton
 import com.example.admin.data.AdminAtRiskStudentItem
 import com.example.admin.data.AdminAttendancePdfExporter
 import com.example.admin.data.AdminClassRiskSummary
@@ -91,7 +90,6 @@ import java.util.Locale
 fun AdminRiskScreen(
   state: AdminRiskState,
   unreadNotifications: Int,
-  isOnline: Boolean = true,
   onRefresh: () -> Unit,
   onSetMinLevel: (AdminRiskLevel) -> Unit,
   onSearchChanged: (String) -> Unit,
@@ -102,7 +100,6 @@ fun AdminRiskScreen(
   onCloseStudent: () -> Unit,
   onSetExcuse: (String, Boolean, String?) -> Unit,
   onRunWarningsNow: () -> Unit,
-  onOpenAssistant: () -> Unit = {},
   onOpenNotifications: () -> Unit
 ) {
   state.selectedStudent?.let { student ->
@@ -128,7 +125,6 @@ fun AdminRiskScreen(
         Text("Early intervention & absence tracking", style = AdminCaptionStyle)
       }
       Row {
-        AdminAssistantSparkleButton(isOnline = isOnline, onClick = onOpenAssistant)
         IconButton(onClick = onRefresh, modifier = Modifier.size(48.dp)) {
           Icon(Icons.Default.Refresh, contentDescription = "Refresh risk", tint = ChampagneGold)
         }

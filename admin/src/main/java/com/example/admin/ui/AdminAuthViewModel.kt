@@ -3,7 +3,6 @@ package com.example.admin.ui
 import android.app.Application
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
-import com.example.admin.assistant.AdminAssistantStorage
 import com.example.admin.data.AdminAuthService
 import com.example.admin.data.AdminSession
 import com.example.admin.data.AdminSessionManager
@@ -69,7 +68,6 @@ class AdminAuthViewModel(application: Application) : AndroidViewModel(applicatio
 
     if (resolvedRole != null && !AdminRoleHelper.isAdmin(resolvedRole)) {
       AdminPushTokenManager.unregisterOnLogout(getApplication(), active.accessToken)
-      AdminAssistantStorage.clearOnLogout(getApplication())
       sessionManager.clearSession()
       _state.update {
         it.copy(
@@ -144,7 +142,6 @@ class AdminAuthViewModel(application: Application) : AndroidViewModel(applicatio
   fun logout() {
     val token = _state.value.session?.accessToken.orEmpty()
     AdminPushTokenManager.unregisterOnLogout(getApplication(), token)
-    AdminAssistantStorage.clearOnLogout(getApplication())
     viewModelScope.launch {
       sessionManager.clearSession()
       _state.update { AdminAuthState(isInitializing = false, session = null) }

@@ -268,24 +268,26 @@ class ExampleRobolectricTest {
     val data = com.example.data.SessionManager.PendingRegistrationData(
       email = "Pending@Uni.Edu",
       fullName = "Jane Pending",
-      isLecturer = false,
-      idNumber = "ADM-101",
+      isLecturer = true,
+      idNumber = "STAFF-101",
       phone = "+254700000000",
       universityId = "uni-1",
       schoolId = "sch-1",
-      programmeId = "prg-1",
-      yearOfStudy = 2,
-      knowsDetails = true,
+      programmeId = "",
+      yearOfStudy = null,
+      knowsDetails = false,
       classCode = "",
       acceptedTermsAt = "2026-11-18T12:00:00Z",
-      termsVersion = "1.0"
+      termsVersion = "1.0",
+      lecturerPasscode = "87654321"
     )
     manager.savePendingRegistration(data)
     val loaded = manager.getPendingRegistration("pending@uni.edu")
     org.junit.Assert.assertNotNull(loaded)
     assertEquals("Jane Pending", loaded!!.fullName)
-    assertEquals("ADM-101", loaded.idNumber)
-    assertEquals(2, loaded.yearOfStudy)
+    assertEquals("STAFF-101", loaded.idNumber)
+    org.junit.Assert.assertTrue(loaded.isLecturer)
+    assertEquals("87654321", loaded.lecturerPasscode)
     org.junit.Assert.assertNull(manager.getPendingRegistration("other@uni.edu"))
     manager.clearPendingRegistration()
     org.junit.Assert.assertNull(manager.getPendingRegistration("pending@uni.edu"))

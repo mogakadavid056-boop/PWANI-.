@@ -42,7 +42,6 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.example.admin.assistant.AdminAssistantSparkleButton
 import com.example.admin.data.AdminDashboardStats
 import com.example.admin.data.AdminSession
 import com.example.admin.ui.AdminTab
@@ -84,7 +83,6 @@ fun AdminDashboardScreen(
   onNavigateTab: (AdminTab) -> Unit,
   onClearEmptySessions: () -> Unit = {},
   onSweepExpiredAttempts: () -> Unit = {},
-  onOpenAssistant: () -> Unit = {},
   onOpenNotifications: () -> Unit,
   onOpenSettings: () -> Unit
 ) {
@@ -109,7 +107,6 @@ fun AdminDashboardScreen(
           )
         }
         Row(verticalAlignment = Alignment.CenterVertically) {
-          AdminAssistantSparkleButton(isOnline = isOnline, onClick = onOpenAssistant)
           IconButton(onClick = onRefresh, modifier = Modifier.size(48.dp).testTag("dashboard_refresh_btn")) {
             Icon(Icons.Default.Refresh, contentDescription = "Refresh dashboard", tint = ChampagneGold)
           }
@@ -247,24 +244,6 @@ fun AdminDashboardScreen(
             Icon(Icons.Default.Quiz, contentDescription = null, modifier = Modifier.size(16.dp), tint = InfoBlue)
             Spacer(modifier = Modifier.width(6.dp))
             Text("Sweep Exams", fontFamily = MontserratFamily, fontWeight = FontWeight.SemiBold, fontSize = 12.sp, color = SilverWhite, maxLines = 1)
-          }
-        }
-      }
-    }
-
-    if (isOnline) {
-      item {
-        AdminGlassCard(
-          borderColor = ChampagneGold.copy(alpha = 0.55f),
-          onClick = onOpenAssistant,
-          modifier = Modifier.testTag("admin_dashboard_assistant_card")
-        ) {
-          Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-            Icon(Icons.Default.AutoAwesome, contentDescription = null, tint = ChampagneGold, modifier = Modifier.size(22.dp))
-            Column(modifier = Modifier.weight(1f)) {
-              Text("Ask ClassRep Assistant", style = AdminCardTitleStyle.copy(color = ChampagneGold))
-              Text("Check suspended lecturers, prefect gaps, system stats & draft notices", style = AdminCaptionStyle.copy(color = Lavender))
-            }
           }
         }
       }

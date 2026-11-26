@@ -134,11 +134,11 @@ fun ClassTopAppBar(
         if (isOnline) {
           IconButton(
             onClick = onOpenAssistant,
-            modifier = Modifier.size(44.dp).testTag("class_top_assistant_button")
+            modifier = Modifier.size(48.dp).testTag("class_top_assistant_button")
           ) {
             Icon(
               Icons.Default.AutoAwesome,
-              contentDescription = "Assistant",
+              contentDescription = "Gemini AI",
               tint = ChampagneGold,
               modifier = Modifier.size(20.dp)
             )

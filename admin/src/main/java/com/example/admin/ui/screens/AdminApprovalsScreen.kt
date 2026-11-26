@@ -45,7 +45,6 @@ import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.example.admin.assistant.AdminAssistantSparkleButton
 import com.example.admin.data.AdminGlobalJoinRequestItem
 import com.example.admin.data.AdminPendingUnitItem
 import com.example.admin.data.AdminUserItem
@@ -80,14 +79,12 @@ import com.example.admin.ui.theme.SilverWhite
 fun AdminApprovalsScreen(
   state: AdminApprovalsState,
   unreadNotifications: Int,
-  isOnline: Boolean = true,
   onSelectSubTab: (ApprovalsSubTab) -> Unit,
   onSearchLecturers: (String) -> Unit,
   onRefresh: () -> Unit,
   onReviewUnit: (AdminPendingUnitItem, Boolean, String?) -> Unit,
   onToggleVerifyLecturer: (AdminUserItem, Boolean) -> Unit,
   onReviewJoinRequest: (AdminGlobalJoinRequestItem, Boolean) -> Unit,
-  onOpenAssistant: () -> Unit = {},
   onOpenNotifications: () -> Unit
 ) {
   var approveTarget by remember { mutableStateOf<AdminPendingUnitItem?>(null) }
@@ -111,7 +108,6 @@ fun AdminApprovalsScreen(
         Text("Manage lecturer access, review units & class join requests", style = AdminCaptionStyle)
       }
       Row {
-        AdminAssistantSparkleButton(isOnline = isOnline, onClick = onOpenAssistant)
         IconButton(onClick = onRefresh, modifier = Modifier.size(48.dp).testTag("approvals_refresh_btn")) {
           Icon(Icons.Default.Refresh, contentDescription = "Refresh approvals", tint = ChampagneGold)
         }

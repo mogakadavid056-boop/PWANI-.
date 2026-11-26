@@ -1,4 +1,4 @@
-package com.example.admin.assistant
+package com.example.admin.data
 
 import android.content.Context
 import android.net.ConnectivityManager

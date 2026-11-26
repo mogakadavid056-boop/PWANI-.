@@ -78,7 +78,6 @@ import kotlinx.coroutines.launch
 fun CreateChallengeDialog(
   approvedUnits: List<CourseUnit>,
   canCreateExam: Boolean = false,
-  initialDraft: com.example.assistant.ChallengeDraftPrefill? = null,
   isLoading: Boolean,
   errorMessage: String?,
   onDismiss: () -> Unit,
@@ -100,8 +99,8 @@ fun CreateChallengeDialog(
   val scrollState = rememberScrollState()
   val scope = rememberCoroutineScope()
 
-  var title by remember(initialDraft) { mutableStateOf(initialDraft?.title.orEmpty()) }
-  var description by remember(initialDraft) { mutableStateOf(initialDraft?.description.orEmpty()) }
+  var title by remember { mutableStateOf("") }
+  var description by remember { mutableStateOf("") }
   var selectedUnit by remember { mutableStateOf<CourseUnit?>(null) }
 
   var asExam by remember { mutableStateOf(false) }
@@ -129,17 +128,12 @@ fun CreateChallengeDialog(
     )
   }
 
-  val questions = remember(initialDraft) {
-    mutableStateListOf<DraftQuizQuestion>().apply {
-      val prefilled = initialDraft?.questions.orEmpty()
-      if (prefilled.isNotEmpty()) {
-        addAll(prefilled)
-      } else {
-        add(DraftQuizQuestion(question = "", options = listOf("", "", "", ""), correctIndex = 0, explanation = ""))
-      }
-    }
+  val questions = remember {
+    mutableStateListOf(
+      DraftQuizQuestion(question = "", options = listOf("", "", "", ""), correctIndex = 0, explanation = "")
+    )
   }
-  var expandedIndices by remember(initialDraft) { mutableStateOf(setOf(0)) }
+  var expandedIndices by remember { mutableStateOf(setOf(0)) }
 
   var showPastePanel by remember { mutableStateOf(false) }
   var pastedCsvText by remember { mutableStateOf("") }

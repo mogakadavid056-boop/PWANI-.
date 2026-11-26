@@ -121,7 +121,7 @@ fun FindClassesContent(
               onClick = onOpenAssistant,
               modifier = Modifier.size(48.dp).testTag("find_classes_assistant_button")
             ) {
-              Icon(Icons.Default.AutoAwesome, contentDescription = "Assistant", tint = ChampagneGold, modifier = Modifier.size(22.dp))
+              Icon(Icons.Default.AutoAwesome, contentDescription = "Gemini AI", tint = ChampagneGold, modifier = Modifier.size(22.dp))
             }
           }
           NotificationBellButton(unreadCount = unreadNotificationCount, onClick = onOpenNotifications)

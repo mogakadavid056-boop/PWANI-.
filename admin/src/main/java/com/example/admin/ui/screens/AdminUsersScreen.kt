@@ -52,7 +52,6 @@ import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.example.admin.assistant.AdminAssistantSparkleButton
 import com.example.admin.data.AdminUserItem
 import com.example.admin.ui.UserFilterChip
 import com.example.admin.ui.components.AdminEmptyState
@@ -85,7 +84,6 @@ fun AdminUsersScreen(
   searchQuery: String,
   activeFilter: UserFilterChip,
   unreadNotifications: Int,
-  isOnline: Boolean = true,
   isLoading: Boolean,
   isActionLoading: Boolean,
   onSearchChanged: (String) -> Unit,
@@ -93,7 +91,6 @@ fun AdminUsersScreen(
   onRefresh: () -> Unit,
   onAssignRole: (AdminUserItem, String) -> Unit,
   onToggleVerify: (AdminUserItem, Boolean) -> Unit,
-  onOpenAssistant: () -> Unit = {},
   onOpenNotifications: () -> Unit
 ) {
   var roleTarget by remember { mutableStateOf<AdminUserItem?>(null) }
@@ -117,7 +114,6 @@ fun AdminUsersScreen(
         Text("${filtered.size} shown • Tap user to change role", style = AdminCaptionStyle)
       }
       Row {
-        AdminAssistantSparkleButton(isOnline = isOnline, onClick = onOpenAssistant)
         IconButton(onClick = onRefresh, modifier = Modifier.size(48.dp)) {
           Icon(Icons.Default.Refresh, contentDescription = "Refresh users", tint = ChampagneGold)
         }
