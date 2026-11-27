@@ -49,8 +49,12 @@ data class GeminiChatUiState(
   val inputText: String = "",
   val isStreaming: Boolean = false,
   val errorMessage: String? = null,
+  val lastFailedPrompt: String? = null,
   val isConfigured: Boolean = GeminiConfig.isConfigured()
-)
+) {
+  val canRegenerate: Boolean
+    get() = !isStreaming && messages.any { it.role == ChatRole.USER && it.text.isNotBlank() }
+}
 
 object GeminiChatStorage {
   private const val PREFS_NAME = "gemini_chat_prefs"

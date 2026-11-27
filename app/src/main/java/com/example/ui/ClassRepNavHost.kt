@@ -253,6 +253,8 @@ fun ClassRepNavHost(
             onInputChanged = avm::onInputChanged,
             onSendMessage = { msg -> avm.sendMessage(msg, uid, isOnline) },
             onStopStreaming = avm::stopStreaming,
+            onRegenerateResponse = { avm.regenerateLastResponse(uid, isOnline) },
+            onRetryLast = { avm.retryLastError(uid, isOnline) },
             onNewChat = { avm.newChat(uid) },
             onDismissError = avm::clearError,
             onBack = onBackFromAssistant

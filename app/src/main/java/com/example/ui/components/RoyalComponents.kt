@@ -1,11 +1,8 @@
 package com.example.ui.components
 
 import android.provider.Settings
-import androidx.compose.animation.Crossfade
-import androidx.compose.animation.core.tween
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Canvas
-import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -47,7 +44,6 @@ import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.Shadow
 import androidx.compose.ui.graphics.vector.ImageVector
-import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
@@ -106,10 +102,11 @@ val RoyalCardBorderBrush = Brush.linearGradient(
 fun StarfieldBackground(
   modifier: Modifier = Modifier,
   useAuthBackground: Boolean = false,
+  enableVideo: Boolean = true,
   content: @Composable BoxScope.() -> Unit
 ) {
   val bgState by AppBackgroundManager.state.collectAsStateWithLifecycle()
-  val dynamicBitmap = if (useAuthBackground) bgState.bg001 else bgState.bg002
+  val activeVideo = if (useAuthBackground) bgState.bg001 else bgState.bg002
 
   val stars = remember {
     val rng = Random(202509)
@@ -167,40 +164,12 @@ fun StarfieldBackground(
       }
     }
 
-    Crossfade(
-      targetState = dynamicBitmap,
-      animationSpec = tween(durationMillis = 450),
-      label = "supabase_app_background"
-    ) { bmp ->
-      if (bmp != null) {
-        Box(modifier = Modifier.fillMaxSize()) {
-          Image(
-            bitmap = bmp,
-            contentDescription = null,
-            contentScale = ContentScale.Crop,
-            modifier = Modifier.fillMaxSize()
-          )
-          // Protective translucent Royal gradient scrim so SilverWhite & Gold UI stays legible
-          val scrimColors = if (useAuthBackground) {
-            listOf(
-              Midnight.copy(alpha = 0.25f),
-              Midnight.copy(alpha = 0.42f),
-              Midnight.copy(alpha = 0.56f)
-            )
-          } else {
-            listOf(
-              Midnight.copy(alpha = 0.44f),
-              Midnight.copy(alpha = 0.52f),
-              RoyalPurple.copy(alpha = 0.48f)
-            )
-          }
-          Box(
-            modifier = Modifier
-              .fillMaxSize()
-              .background(Brush.verticalGradient(scrimColors))
-          )
-        }
-      }
+    if (enableVideo && activeVideo?.playbackUri != null) {
+      LiveVideoBackground(
+        source = activeVideo,
+        useAuthScrim = useAuthBackground,
+        modifier = Modifier.fillMaxSize()
+      )
     }
 
     content()

@@ -16,6 +16,7 @@ import okhttp3.RequestBody.Companion.toRequestBody
 import org.json.JSONArray
 import org.json.JSONObject
 import java.io.IOException
+import java.net.URLEncoder
 import java.util.concurrent.TimeUnit
 
 object GeminiConfig {
@@ -23,12 +24,21 @@ object GeminiConfig {
   const val MISSING_API_KEY_MESSAGE =
     "Gemini API key not configured. Please add GEMINI_API_KEY in the AI Studio Secrets panel."
   const val SYSTEM_INSTRUCTION =
-    "You are Gemini, a helpful, clear, and general-purpose AI assistant for students and lecturers. Answer questions accurately, explain concepts clearly, help draft academic or class materials, and assist naturally with any request."
+    "You are Gemini, a helpful, clear, and general-purpose AI assistant for students and lecturers. Answer questions accurately, explain concepts clearly, help draft academic or class materials, and assist naturally with any request. Format structured or detailed answers cleanly using Markdown headings (##, ###), step-by-step explanations (Step 1:, Step 2:, ... or numbered lists), bullet points, Markdown tables for comparisons, LaTeX math ($...$ or $$...$$) for equations, and fenced code blocks with language tags for code."
 
-  val SUPPORTED_MODELS: List<String> = listOf(
+  val DEVELOPER_MODELS: List<String> = listOf(
+    "gemini-3.5-flash-lite",
+    "gemini-3.1-flash-lite",
+    "gemini-flash-lite-latest",
     "gemini-3.5-flash",
     "gemini-3.8-flash",
-    "gemini-2.5-flash"
+    "gemini-flash-latest"
+  )
+
+  val VERTEX_EXPRESS_MODELS: List<String> = listOf(
+    "gemini-2.5-flash",
+    "gemini-2.5-flash-lite",
+    "gemini-3.5-flash-lite"
   )
 
   fun sanitizeApiKey(raw: String?): String {
@@ -51,6 +61,12 @@ object GeminiConfig {
   fun isConfigured(): Boolean = apiKey.isNotEmpty()
 }
 
+internal data class GeminiRequestTarget(
+  val url: String,
+  val headerApiKey: String? = null,
+  val isVertexExpress: Boolean = false
+)
+
 object GeminiChatService {
   private val JSON_MEDIA_TYPE = "application/json; charset=utf-8".toMediaType()
   private const val MAX_CONTEXT_MESSAGES = 20
@@ -61,8 +77,33 @@ object GeminiChatService {
     .writeTimeout(30, TimeUnit.SECONDS)
     .build()
 
-  fun streamUrl(model: String): String =
+  fun developerStreamUrl(model: String): String =
     "https://generativelanguage.googleapis.com/v1beta/models/$model:streamGenerateContent?alt=sse"
+
+  fun vertexExpressStreamUrl(model: String, apiKey: String): String {
+    val encodedKey = URLEncoder.encode(apiKey, Charsets.UTF_8.name())
+    return "https://aiplatform.googleapis.com/v1/publishers/google/models/$model:streamGenerateContent?alt=sse&key=$encodedKey"
+  }
+
+  internal fun buildRequestTargets(apiKey: String): List<GeminiRequestTarget> {
+    val developerTargets = GeminiConfig.DEVELOPER_MODELS.map { model ->
+      GeminiRequestTarget(
+        url = developerStreamUrl(model),
+        headerApiKey = apiKey,
+        isVertexExpress = false
+      )
+    }
+    val vertexTargets = GeminiConfig.VERTEX_EXPRESS_MODELS.map { model ->
+      GeminiRequestTarget(
+        url = vertexExpressStreamUrl(model, apiKey),
+        headerApiKey = null,
+        isVertexExpress = true
+      )
+    }
+    // Always try the Gemini Developer API first (works for both AIza* and AI Studio AQ.* keys),
+    // and fall back to Vertex Express only if the key/endpoint requires it.
+    return developerTargets + vertexTargets
+  }
 
   fun buildRequestBody(
     history: List<GeminiMessage>,
@@ -91,10 +132,10 @@ object GeminiChatService {
     return JSONObject().apply {
       put(
         "systemInstruction",
-        JSONObject().put(
-          "parts",
-          JSONArray().put(JSONObject().put("text", GeminiConfig.SYSTEM_INSTRUCTION))
-        )
+        JSONObject().apply {
+          put("role", "system")
+          put("parts", JSONArray().put(JSONObject().put("text", GeminiConfig.SYSTEM_INSTRUCTION)))
+        }
       )
       put("contents", contents)
       put("generationConfig", JSONObject().put("temperature", 0.7))
@@ -161,6 +202,19 @@ object GeminiChatService {
     }
   }
 
+  internal fun shouldTryNextTarget(
+    statusCode: Int,
+    current: GeminiRequestTarget,
+    remaining: List<GeminiRequestTarget>
+  ): Boolean {
+    if (remaining.isEmpty()) return false
+    // Model not found, rate limit, or transient model overload (503/502/504/500) -> try next model
+    if (statusCode == 404 || statusCode == 429 || statusCode in 500..599) return true
+    // Auth rejection on one endpoint type -> switch to the alternate endpoint type (Developer vs Vertex)
+    val hasAlternateEndpoint = remaining.any { it.isVertexExpress != current.isVertexExpress }
+    return hasAlternateEndpoint && (statusCode == 400 || statusCode == 401 || statusCode == 403)
+  }
+
   fun streamReply(
     history: List<GeminiMessage>,
     userMessage: String,
@@ -172,26 +226,36 @@ object GeminiChatService {
     }
 
     val payload = buildRequestBody(history, userMessage).toString()
-    val models = GeminiConfig.SUPPORTED_MODELS
+    val targets = buildRequestTargets(key)
     var lastError: Throwable? = null
+    var failedEndpointType: Boolean? = null
 
-    for ((index, model) in models.withIndex()) {
+    for ((index, target) in targets.withIndex()) {
+      if (failedEndpointType != null && target.isVertexExpress == failedEndpointType) {
+        continue
+      }
       currentCoroutineContext().ensureActive()
-      val request = Request.Builder()
-        .url(streamUrl(model))
-        .addHeader("x-goog-api-key", key)
+
+      val requestBuilder = Request.Builder()
+        .url(target.url)
         .addHeader("Accept", "text/event-stream")
         .post(payload.toRequestBody(JSON_MEDIA_TYPE))
-        .build()
+      if (!target.headerApiKey.isNullOrEmpty()) {
+        requestBuilder.addHeader("x-goog-api-key", target.headerApiKey)
+      }
 
-      val call = client.newCall(request)
+      val call = client.newCall(requestBuilder.build())
       try {
         val response = call.execute()
         response.use { resp ->
           if (!resp.isSuccessful) {
             val errBody = resp.body?.string().orEmpty()
             val message = extractApiErrorMessage(errBody, resp.code)
-            if (resp.code == 404 && index < models.lastIndex) {
+            val remaining = targets.drop(index + 1)
+            if (shouldTryNextTarget(resp.code, target, remaining)) {
+              if (resp.code in listOf(400, 401, 403)) {
+                failedEndpointType = target.isVertexExpress
+              }
               lastError = IOException(message)
               return@use
             }
@@ -229,10 +293,11 @@ object GeminiChatService {
         call.cancel()
         throw e
       } catch (e: Throwable) {
-        if (lastError == null || index == models.lastIndex) {
+        if (lastError == null || index == targets.lastIndex) {
           lastError = e
         }
-        if (SupabaseConfig.isNetworkError(e) || index == models.lastIndex || lastError !is IOException) {
+        val isTimeout = e is java.net.SocketTimeoutException
+        if ((!isTimeout && SupabaseConfig.isNetworkError(e)) || index == targets.lastIndex || lastError !is IOException) {
           throw e
         }
       }

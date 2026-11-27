@@ -85,6 +85,7 @@ fun AlarmOnboardingDialog(
     properties = DialogProperties(usePlatformDefaultWidth = false, dismissOnBackPress = false, dismissOnClickOutside = false)
   ) {
     StarfieldBackground(
+      enableVideo = false,
       modifier = Modifier
         .fillMaxSize()
         .safeDrawingPadding()

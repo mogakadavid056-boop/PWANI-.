@@ -4,6 +4,7 @@ import android.app.Application
 import androidx.test.core.app.ApplicationProvider
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
+import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -25,6 +26,34 @@ class GeminiChatServiceTest {
   }
 
   @Test
+  fun buildRequestTargets_prioritizesDeveloperEndpointWithVertexFallback() {
+    val aqTargets = GeminiChatService.buildRequestTargets("AQ.Ab8RNTestKey")
+    assertFalse(aqTargets.first().isVertexExpress)
+    assertTrue(aqTargets.first().url.startsWith("https://generativelanguage.googleapis.com/v1beta/models/gemini-3.5-flash-lite"))
+    assertEquals("AQ.Ab8RNTestKey", aqTargets.first().headerApiKey)
+    assertTrue(aqTargets.any { it.isVertexExpress && it.headerApiKey == null })
+
+    val devTargets = GeminiChatService.buildRequestTargets("AIzaTestKey123")
+    assertFalse(devTargets.first().isVertexExpress)
+    assertEquals("AIzaTestKey123", devTargets.first().headerApiKey)
+    assertNull(devTargets.last().headerApiKey)
+  }
+
+  @Test
+  fun shouldTryNextTarget_retriesOnOverload503Quota429And404() {
+    val dev = GeminiRequestTarget("https://generativelanguage.googleapis.com/a", "key", isVertexExpress = false)
+    val dev2 = GeminiRequestTarget("https://generativelanguage.googleapis.com/b", "key", isVertexExpress = false)
+    val vertex = GeminiRequestTarget("https://aiplatform.googleapis.com/v", null, isVertexExpress = true)
+
+    assertTrue(GeminiChatService.shouldTryNextTarget(503, dev, listOf(dev2, vertex)))
+    assertTrue(GeminiChatService.shouldTryNextTarget(429, dev, listOf(dev2, vertex)))
+    assertTrue(GeminiChatService.shouldTryNextTarget(404, dev, listOf(dev2, vertex)))
+    assertTrue(GeminiChatService.shouldTryNextTarget(403, dev, listOf(dev2, vertex)))
+    assertFalse(GeminiChatService.shouldTryNextTarget(403, dev, listOf(dev2)))
+    assertFalse(GeminiChatService.shouldTryNextTarget(503, dev, emptyList()))
+  }
+
+  @Test
   fun buildRequestBody_includesSystemInstructionAndRecentTurns() {
     val history = (1..25).map { idx ->
       GeminiMessage(
@@ -36,11 +65,12 @@ class GeminiChatServiceTest {
     }
 
     val payload = GeminiChatService.buildRequestBody(history, "New question")
-    val sysParts = payload.getJSONObject("systemInstruction").getJSONArray("parts")
+    val sysObj = payload.getJSONObject("systemInstruction")
+    assertEquals("system", sysObj.getString("role"))
+    val sysParts = sysObj.getJSONArray("parts")
     assertTrue(sysParts.getJSONObject(0).getString("text").contains("students and lecturers"))
 
     val contents = payload.getJSONArray("contents")
-    // 20 history messages + 1 new user prompt
     assertEquals(21, contents.length())
     assertEquals("Message 6", contents.getJSONObject(0).getJSONArray("parts").getJSONObject(0).getString("text"))
     assertEquals("user", contents.getJSONObject(20).getString("role"))
@@ -106,8 +136,11 @@ class GeminiChatServiceTest {
     assertFalse(loaded[1].isStreaming)
 
     GeminiChatStorage.clearOnLogout(context)
-    assertTrue(GeminiChatStorage.loadMessages(context, "user-42").isEmpty())
+    assertTrue(GeminiChatServiceTest_isEmptyAfterLogout(context))
   }
+
+  private fun GeminiChatServiceTest_isEmptyAfterLogout(context: Application): Boolean =
+    GeminiChatStorage.loadMessages(context, "user-42").isEmpty()
 
   @Test
   fun starterPrompts_areGeneralAndReady() {
